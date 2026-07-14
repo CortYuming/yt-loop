@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YT Loop - YouTube部分リピート</title>
+<title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main>
   <header>
     <h1>YT Loop</h1>
-    <p class="sub">YouTube部分リピート再生（音楽練習用）</p>
+    <p class="sub">Loop any part of a YouTube video — built for music practice</p>
   </header>
 
   <section class="url-input">
-    <input type="text" id="urlInput" placeholder="YouTube URL を貼り付け（Enterで読込）" />
-    <button id="loadBtn">読み込み</button>
+    <input type="text" id="urlInput" placeholder="Paste a YouTube URL (press Enter to load)" />
+    <button id="loadBtn">Load</button>
   </section>
 
   <section class="player-wrap">
@@ -23,62 +23,63 @@
   </section>
 
   <section class="controls" hidden>
-    <div class="row">
-      <label>現在時刻: <span id="currentTime" class="time">0:00.00</span></label>
-      <label>速度:
-        <select id="speedSelect">
-          <option value="0.25">0.25x</option>
-          <option value="0.5">0.5x</option>
-          <option value="0.75">0.75x</option>
-          <option value="1" selected>1x</option>
-          <option value="1.25">1.25x</option>
-          <option value="1.5">1.5x</option>
-          <option value="1.75">1.75x</option>
-          <option value="2">2x</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="row">
-      <label>開始:
-        <input type="text" id="startInput" placeholder="0:00.00" size="10" />
-        <button id="captureStart" title="現在時刻を取得 (S)">📍現在</button>
-      </label>
-      <label>終了:
-        <input type="text" id="endInput" placeholder="0:00.00" size="10" />
-        <button id="captureEnd" title="現在時刻を取得 (E)">📍現在</button>
-      </label>
-    </div>
-
-    <div class="row">
-      <label>ラベル:
-        <input type="text" id="labelInput" placeholder="サビ、Aメロ、間奏 等" />
-      </label>
-      <label>ループ回数:
-        <input type="number" id="loopCountInput" placeholder="無限" min="1" size="4" />
-      </label>
-    </div>
-
     <div class="row buttons">
-      <button id="playLoopBtn" class="primary">▶ 区間再生</button>
-      <button id="saveBtn">💾 保存</button>
-      <button id="stopLoopBtn">ループ解除</button>
-      <button id="clearFormBtn">クリア</button>
-      <button id="shareBtn">🔗 共有URL</button>
+      <button id="playLoopBtn">▶ Play</button>
+      <label class="toggle-switch">
+        <input type="checkbox" id="loopToggle" />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span>Loop</span>
+      </label>
+      <button id="saveBtn" hidden>💾 Save</button>
+      <button id="newBtn">＋ New</button>
+      <button id="deleteBtn" hidden>🗑 Delete</button>
+      <button id="shareBtn">🔗 Share URL</button>
+    </div>
+
+    <div class="row">
+      <span id="currentTime" class="time big">0:00.00</span>
+      <select id="speedSelect">
+        <option value="0.25">0.25x</option>
+        <option value="0.5">0.5x</option>
+        <option value="0.75">0.75x</option>
+        <option value="1" selected>1x</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
+        <option value="1.75">1.75x</option>
+        <option value="2">2x</option>
+      </select>
+      <label>Duration: <span id="durationDisplay" class="time">—</span></label>
+    </div>
+
+    <div class="row start-end-row">
+      <div class="field-group">
+        <span class="field-label">Start</span>
+        <div class="nudge-group">
+          <input type="text" id="startInput" placeholder="0:00.00" size="10" />
+          <button id="captureStart" class="pin" title="Capture current time">📍</button>
+        </div>
+      </div>
+      <div class="field-group">
+        <span class="field-label">End</span>
+        <div class="nudge-group">
+          <input type="text" id="endInput" placeholder="0:00.00" size="10" />
+          <button id="captureEnd" class="pin" title="Capture current time">📍</button>
+        </div>
+      </div>
     </div>
 
     <div class="hint">
-      Space: 再生停止 / S・E: 開始終了キャプチャ / ←→: 0.5秒シーク / Shift+←→: 5秒シーク
+      Space: play / pause &nbsp;·&nbsp; S / E: jump to start / end &nbsp;·&nbsp; ← →: 0.05s (Shift: 1s) &nbsp;·&nbsp; in Start/End field: same nudges the value
     </div>
   </section>
 
   <section class="loops">
-    <h2>保存済みループ</h2>
+    <h2>Saved loops</h2>
     <div id="loopList"></div>
   </section>
 
   <footer>
-    <small>データはブラウザのlocalStorageに保存されます。</small>
+    <small>All data is stored in your browser's localStorage.</small>
   </footer>
 </main>
 

@@ -1,5 +1,5 @@
 // ============================================================
-// YT Loop - YouTube部分リピート再生
+// YT Loop — loop any part of a YouTube video
 // ============================================================
 
 const STORAGE_KEY = 'yt-loop-data-v1';
@@ -8,30 +8,35 @@ let player = null;
 let currentVideoId = null;
 let currentVideoTitle = '';
 let rafId = null;
-let activeLoop = null; // {start, end, count, remaining}
+let activeLoop = null; // {start, end}
 let editingLoopId = null;
 
+function setLoopActive(active) {
+  activeLoop = active;
+  if (loopToggle) loopToggle.checked = !!active;
+}
+
 // ---------- DOM ----------
-const urlInput      = document.getElementById('urlInput');
-const loadBtn       = document.getElementById('loadBtn');
-const controls      = document.querySelector('.controls');
-const currentTimeEl = document.getElementById('currentTime');
-const speedSelect   = document.getElementById('speedSelect');
-const startInput    = document.getElementById('startInput');
-const endInput      = document.getElementById('endInput');
-const captureStart  = document.getElementById('captureStart');
-const captureEnd    = document.getElementById('captureEnd');
-const labelInput    = document.getElementById('labelInput');
-const loopCountInput = document.getElementById('loopCountInput');
-const playLoopBtn   = document.getElementById('playLoopBtn');
-const saveBtn       = document.getElementById('saveBtn');
-const stopLoopBtn   = document.getElementById('stopLoopBtn');
-const clearFormBtn  = document.getElementById('clearFormBtn');
-const shareBtn      = document.getElementById('shareBtn');
-const loopList      = document.getElementById('loopList');
+const urlInput        = document.getElementById('urlInput');
+const loadBtn         = document.getElementById('loadBtn');
+const controls        = document.querySelector('.controls');
+const currentTimeEl   = document.getElementById('currentTime');
+const durationDisplay = document.getElementById('durationDisplay');
+const speedSelect     = document.getElementById('speedSelect');
+const startInput      = document.getElementById('startInput');
+const endInput        = document.getElementById('endInput');
+const captureStart    = document.getElementById('captureStart');
+const captureEnd      = document.getElementById('captureEnd');
+const loopToggle      = document.getElementById('loopToggle');
+const playLoopBtn     = document.getElementById('playLoopBtn');
+const saveBtn         = document.getElementById('saveBtn');
+const newBtn          = document.getElementById('newBtn');
+const deleteBtn       = document.getElementById('deleteBtn');
+const shareBtn        = document.getElementById('shareBtn');
+const loopList        = document.getElementById('loopList');
 
 // ============================================================
-// YouTube IFrame API のロード
+// Load YouTube IFrame API
 // ============================================================
 (function loadYouTubeAPI() {
   const tag = document.createElement('script');
@@ -40,7 +45,6 @@ const loopList      = document.getElementById('loopList');
 })();
 
 window.onYouTubeIframeAPIReady = () => {
-  // 初期化時にURLパラメータに動画があれば読み込み
   const params = new URLSearchParams(location.search);
   const v = params.get('v');
   if (v) {
@@ -55,9 +59,12 @@ window.onYouTubeIframeAPIReady = () => {
         speedSelect.value = r;
         if (player && player.setPlaybackRate) player.setPlaybackRate(parseFloat(r));
       }
+      updateDurationDisplay();
+      updateSaveButton();
     });
   } else {
     renderLoops();
+    updateSaveButton();
   }
 };
 
@@ -83,7 +90,7 @@ function extractVideoId(input) {
 }
 
 // ============================================================
-// 時刻フォーマット
+// Time format helpers
 // ============================================================
 function formatTime(sec) {
   if (sec === null || sec === undefined || isNaN(sec)) return '0:00.00';
@@ -115,8 +122,49 @@ function parseTime(str) {
   return total;
 }
 
+function roundTo(n, digits) {
+  const p = Math.pow(10, digits);
+  return Math.round(n * p) / p;
+}
+
 // ============================================================
-// プレーヤー
+// Save state (Save vs Update, based on editingLoopId + dirtiness)
+// ============================================================
+function computeSaveState() {
+  const start = parseTime(startInput.value);
+  const end   = parseTime(endInput.value);
+  const speed = parseFloat(speedSelect.value);
+
+  const validTime = start !== null && end !== null && !isNaN(start) && !isNaN(end) && start < end;
+
+  const data = loadData();
+  const savedVersion = (editingLoopId && currentVideoId && data.videos[currentVideoId])
+    ? (data.videos[currentVideoId].loops.find(l => l.id === editingLoopId) || null)
+    : null;
+
+  const isInList = savedVersion !== null;
+  const isDirty = !savedVersion || (
+    savedVersion.start !== start ||
+    savedVersion.end !== end ||
+    savedVersion.speed !== speed
+  );
+
+  const canSave = isDirty && validTime && !!currentVideoId;
+  return { isDirty, isInList, canSave, validTime, savedVersion };
+}
+
+function updateSaveButton() {
+  const { isInList, canSave } = computeSaveState();
+
+  saveBtn.hidden = !canSave;
+  saveBtn.textContent = isInList ? '💾 Update' : '💾 Save';
+  saveBtn.title = isInList ? 'Update saved loop' : 'Save as new';
+
+  deleteBtn.hidden = !isInList;
+}
+
+// ============================================================
+// Player
 // ============================================================
 function createOrLoadPlayer(videoId, onReadyCb) {
   currentVideoId = videoId;
@@ -126,9 +174,11 @@ function createOrLoadPlayer(videoId, onReadyCb) {
       const data = player.getVideoData();
       currentVideoTitle = data.title || '';
     } catch (e) {}
+    backfillTitle();
     startTimeLoop();
     if (onReadyCb) onReadyCb();
     renderLoops();
+    updateSaveButton();
   };
   if (!player) {
     player = new YT.Player('player', {
@@ -146,14 +196,15 @@ function createOrLoadPlayer(videoId, onReadyCb) {
     });
   } else {
     player.loadVideoById(videoId);
-    // loadVideoById後にonReadyは飛ばないので、少し待ってタイトル取得
     setTimeout(() => {
       try {
         const data = player.getVideoData();
         if (data && data.title) currentVideoTitle = data.title;
       } catch (e) {}
+      backfillTitle();
       if (onReadyCb) onReadyCb();
       renderLoops();
+      updateSaveButton();
     }, 800);
   }
   controls.hidden = false;
@@ -164,6 +215,27 @@ function onPlayerStateChange() {
     const data = player.getVideoData();
     if (data && data.title) currentVideoTitle = data.title;
   } catch (err) {}
+  backfillTitle();
+  updatePlayButton();
+}
+
+function backfillTitle() {
+  if (!currentVideoId || !currentVideoTitle) return;
+  const data = loadData();
+  const v = data.videos[currentVideoId];
+  if (v && v.title !== currentVideoTitle) {
+    v.title = currentVideoTitle;
+    saveData(data);
+  }
+}
+
+function updatePlayButton() {
+  const state = safeState();
+  if (state === (window.YT && YT.PlayerState.PLAYING)) {
+    playLoopBtn.textContent = '⏸ Pause';
+  } else {
+    playLoopBtn.textContent = '▶ Play';
+  }
 }
 
 function startTimeLoop() {
@@ -178,17 +250,7 @@ function startTimeLoop() {
         const state = safeState();
         if (state === (window.YT && YT.PlayerState.PLAYING)) {
           if (t >= activeLoop.end) {
-            if (activeLoop.count !== null) {
-              activeLoop.remaining -= 1;
-              if (activeLoop.remaining <= 0) {
-                player.pauseVideo();
-                activeLoop = null;
-              } else {
-                player.seekTo(activeLoop.start, true);
-              }
-            } else {
-              player.seekTo(activeLoop.start, true);
-            }
+            player.seekTo(activeLoop.start, true);
           }
         }
       }
@@ -203,11 +265,42 @@ function safeState() {
 }
 
 // ============================================================
-// フォーム操作
+// Duration display (end − start)
+// ============================================================
+function updateDurationDisplay() {
+  const s = parseTime(startInput.value);
+  const e = parseTime(endInput.value);
+  if (s === null || e === null || isNaN(s) || isNaN(e) || e <= s) {
+    durationDisplay.textContent = '—';
+    return;
+  }
+  durationDisplay.textContent = formatTime(e - s);
+}
+startInput.addEventListener('input', () => { updateDurationDisplay(); updateSaveButton(); });
+endInput.addEventListener('input',   () => { updateDurationDisplay(); updateSaveButton(); });
+
+// ============================================================
+// Active target highlight (which value ← → will change)
+// ============================================================
+const startGroup = startInput.closest('.field-group');
+const endGroup   = endInput.closest('.field-group');
+
+function updateActiveTarget() {
+  const target = document.activeElement;
+  startGroup.classList.toggle('active-target', target === startInput);
+  endGroup.classList.toggle('active-target', target === endInput);
+}
+document.addEventListener('focusin', updateActiveTarget);
+document.addEventListener('focusout', () => setTimeout(updateActiveTarget, 0));
+updateActiveTarget();
+speedSelect.addEventListener('change', updateSaveButton);
+
+// ============================================================
+// Form actions
 // ============================================================
 loadBtn.addEventListener('click', () => {
   const id = extractVideoId(urlInput.value);
-  if (!id) { alert('URLが不正です'); return; }
+  if (!id) { alert('Invalid URL'); return; }
   createOrLoadPlayer(id);
 });
 
@@ -224,42 +317,67 @@ speedSelect.addEventListener('change', () => {
 captureStart.addEventListener('click', () => {
   if (!player || !player.getCurrentTime) return;
   startInput.value = formatTime(player.getCurrentTime());
+  updateDurationDisplay();
+  updateSaveButton();
 });
 captureEnd.addEventListener('click', () => {
   if (!player || !player.getCurrentTime) return;
   endInput.value = formatTime(player.getCurrentTime());
+  updateDurationDisplay();
+  updateSaveButton();
 });
 
 playLoopBtn.addEventListener('click', () => {
+  if (!player || !player.getPlayerState) return;
+  const state = safeState();
+  if (state === (window.YT && YT.PlayerState.PLAYING)) {
+    player.pauseVideo();
+    return;
+  }
+  // Not playing → play. Turn loop on if start/end are valid; seek to start if outside loop.
   const start = parseTime(startInput.value);
   const end   = parseTime(endInput.value);
-  if (start === null || end === null || start >= end) {
-    alert('開始・終了時間が不正です'); return;
+  const validTime = start !== null && end !== null && !isNaN(start) && !isNaN(end) && start < end;
+  if (validTime) {
+    setLoopActive({ start, end });
+    if (player.setPlaybackRate) player.setPlaybackRate(parseFloat(speedSelect.value));
+    const t = player.getCurrentTime();
+    if (t < start || t >= end) player.seekTo(start, true);
   }
-  const count = loopCountInput.value ? parseInt(loopCountInput.value, 10) : null;
-  activeLoop = { start, end, count, remaining: count };
-  if (player.setPlaybackRate) player.setPlaybackRate(parseFloat(speedSelect.value));
-  player.seekTo(start, true);
   player.playVideo();
 });
 
-stopLoopBtn.addEventListener('click', () => { activeLoop = null; });
+loopToggle.addEventListener('change', () => {
+  if (loopToggle.checked) {
+    const start = parseTime(startInput.value);
+    const end   = parseTime(endInput.value);
+    if (start === null || end === null || start >= end) {
+      loopToggle.checked = false;
+      alert('Set a valid start / end time first');
+      return;
+    }
+    activeLoop = { start, end };
+  } else {
+    activeLoop = null;
+  }
+});
 
 saveBtn.addEventListener('click', () => {
-  if (!currentVideoId) { alert('先に動画を読み込んでください'); return; }
-  const start = parseTime(startInput.value);
-  const end   = parseTime(endInput.value);
-  if (start === null || end === null || start >= end) {
-    alert('開始・終了時間が不正です'); return;
-  }
+  const { canSave } = computeSaveState();
+  if (!canSave) return;
+
+  const newId = editingLoopId || (crypto.randomUUID
+    ? crypto.randomUUID()
+    : 'l' + Date.now() + Math.random().toString(36).slice(2));
+
   const loop = {
-    id: editingLoopId || (crypto.randomUUID ? crypto.randomUUID() : 'l' + Date.now() + Math.random().toString(36).slice(2)),
-    label: labelInput.value.trim(),
-    start,
-    end,
+    id: newId,
+    start: parseTime(startInput.value),
+    end:   parseTime(endInput.value),
     speed: parseFloat(speedSelect.value),
-    loopCount: loopCountInput.value ? parseInt(loopCountInput.value, 10) : null
+    updatedAt: Date.now()
   };
+
   const data = loadData();
   if (!data.videos[currentVideoId]) {
     data.videos[currentVideoId] = { title: currentVideoTitle || '', loops: [] };
@@ -270,21 +388,42 @@ saveBtn.addEventListener('click', () => {
   if (idx >= 0) loops[idx] = loop;
   else loops.push(loop);
   saveData(data);
-  editingLoopId = null;
+
+  // After save, keep editing the same loop (subsequent edits → Update)
+  editingLoopId = newId;
   renderLoops();
+  updateSaveButton();
 });
 
-clearFormBtn.addEventListener('click', () => {
+newBtn.addEventListener('click', () => {
   editingLoopId = null;
   startInput.value = '';
   endInput.value = '';
-  labelInput.value = '';
-  loopCountInput.value = '';
   speedSelect.value = '1';
+  setLoopActive(null);
+  updateDurationDisplay();
+  updateSaveButton();
+  renderLoops();
+});
+
+deleteBtn.addEventListener('click', () => {
+  const { isInList, savedVersion } = computeSaveState();
+  if (!isInList || !savedVersion) return;
+  if (!confirm(`Delete this loop (${formatTime(savedVersion.start)} → ${formatTime(savedVersion.end)})?`)) return;
+  const data = loadData();
+  const v = data.videos[currentVideoId];
+  if (v) {
+    v.loops = v.loops.filter(l => l.id !== savedVersion.id);
+    if (v.loops.length === 0) delete data.videos[currentVideoId];
+    saveData(data);
+  }
+  editingLoopId = null;
+  renderLoops();
+  updateSaveButton();
 });
 
 shareBtn.addEventListener('click', async () => {
-  if (!currentVideoId) { alert('先に動画を読み込んでください'); return; }
+  if (!currentVideoId) { alert('Load a video first'); return; }
   const params = new URLSearchParams();
   params.set('v', currentVideoId);
   const s = parseTime(startInput.value);
@@ -296,15 +435,15 @@ shareBtn.addEventListener('click', async () => {
   const url = `${location.origin}${location.pathname}?${params.toString()}`;
   try {
     await navigator.clipboard.writeText(url);
-    shareBtn.textContent = '✅ コピー済み';
-    setTimeout(() => { shareBtn.textContent = '🔗 共有URL'; }, 1500);
+    shareBtn.textContent = '✅ Copied!';
+    setTimeout(() => { shareBtn.textContent = '🔗 Share URL'; }, 1500);
   } catch (e) {
-    prompt('共有URL:', url);
+    prompt('Share URL:', url);
   }
 });
 
 // ============================================================
-// データ
+// Data (localStorage)
 // ============================================================
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -321,54 +460,85 @@ function saveData(data) {
 }
 
 // ============================================================
-// 一覧描画
+// Render saved loops
 // ============================================================
 function renderLoops() {
   const data = loadData();
   loopList.innerHTML = '';
   const entries = Object.entries(data.videos);
   if (entries.length === 0) {
-    loopList.innerHTML = '<p class="empty">まだ保存されていません</p>';
+    loopList.innerHTML = '<p class="empty">No saved loops yet.</p>';
     return;
   }
-  // 現在の動画を先頭に
-  entries.sort((a, b) => {
-    if (a[0] === currentVideoId) return -1;
-    if (b[0] === currentVideoId) return 1;
-    return (a[1].title || a[0]).localeCompare(b[1].title || b[0]);
-  });
+  const groupUpdatedAt = ([, v]) =>
+    v.loops.reduce((m, l) => Math.max(m, l.updatedAt || 0), 0);
+  entries.sort((a, b) => groupUpdatedAt(b) - groupUpdatedAt(a));
+
   entries.forEach(([vid, videoData]) => {
     const group = document.createElement('div');
     group.className = 'video-group';
-    const h3 = document.createElement('h3');
-    const isCurrent = vid === currentVideoId;
-    const titleText = videoData.title || vid;
-    if (isCurrent) {
-      h3.innerHTML = `<span class="current">▶ 再生中:</span> ${escapeHtml(titleText)}`;
-    } else {
-      h3.textContent = titleText;
-    }
-    group.appendChild(h3);
-    videoData.loops.forEach(loop => {
+    group.appendChild(renderVideoHeader(vid, videoData));
+    const sortedLoops = [...videoData.loops].sort(
+      (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)
+    );
+    sortedLoops.forEach(loop => {
       group.appendChild(renderLoopItem(vid, loop));
     });
     loopList.appendChild(group);
   });
 }
 
+function renderVideoHeader(vid, videoData) {
+  const isCurrent = vid === currentVideoId;
+  const header = document.createElement('div');
+  header.className = 'video-group-header' + (isCurrent ? ' current' : '');
+  header.title = isCurrent ? 'Currently loaded' : 'Load this video';
+
+  const thumb = document.createElement('img');
+  thumb.className = 'thumb';
+  thumb.src = `https://img.youtube.com/vi/${vid}/default.jpg`;
+  thumb.alt = '';
+  thumb.loading = 'lazy';
+  header.appendChild(thumb);
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const title = document.createElement('div');
+  title.className = 'video-title';
+  const titleText = videoData.title || '(no title)';
+  if (isCurrent) {
+    title.innerHTML = `<span class="now-playing">▶ NOW</span>${escapeHtml(titleText)}`;
+  } else {
+    title.textContent = titleText;
+  }
+  const idEl = document.createElement('div');
+  idEl.className = 'video-id';
+  idEl.textContent = vid;
+  meta.appendChild(title);
+  meta.appendChild(idEl);
+  header.appendChild(meta);
+
+  header.addEventListener('click', () => {
+    if (isCurrent) return;
+    urlInput.value = `https://youtu.be/${vid}`;
+    createOrLoadPlayer(vid);
+  });
+
+  return header;
+}
+
 function renderLoopItem(vid, loop) {
   const div = document.createElement('div');
-  div.className = 'loop-item';
+  div.className = 'loop-item' + (loop.id === editingLoopId ? ' editing' : '');
 
   const info = document.createElement('div');
   info.className = 'info';
-  const label = loop.label || '(無題)';
-  const meta = `${formatTime(loop.start)} 〜 ${formatTime(loop.end)}  ${loop.speed}x${loop.loopCount ? '  ' + loop.loopCount + '回' : ''}`;
-  info.innerHTML = `<div class="label">${escapeHtml(label)}</div><div class="meta">${escapeHtml(meta)}</div>`;
+  const range = `${formatTime(loop.start)} → ${formatTime(loop.end)}`;
+  info.innerHTML = `<div class="loop-range">${escapeHtml(range)}</div><div class="meta">${escapeHtml(`${loop.speed}x`)}</div>`;
   div.appendChild(info);
 
   const playBtn = document.createElement('button');
-  playBtn.textContent = '▶ 再生';
+  playBtn.textContent = '▶ Play';
   playBtn.addEventListener('click', () => {
     if (vid !== currentVideoId) {
       createOrLoadPlayer(vid, () => startLoopFromSaved(loop));
@@ -378,16 +548,17 @@ function renderLoopItem(vid, loop) {
   });
 
   const editBtn = document.createElement('button');
-  editBtn.textContent = '✎ 編集';
+  editBtn.textContent = '✎ Edit';
   editBtn.addEventListener('click', () => {
     const applyEdit = () => {
       editingLoopId = loop.id;
       startInput.value = formatTime(loop.start);
       endInput.value = formatTime(loop.end);
-      labelInput.value = loop.label || '';
-      loopCountInput.value = loop.loopCount || '';
       speedSelect.value = String(loop.speed);
       if (player && player.setPlaybackRate) player.setPlaybackRate(loop.speed);
+      updateDurationDisplay();
+      updateSaveButton();
+      renderLoops();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     if (vid !== currentVideoId) {
@@ -398,16 +569,18 @@ function renderLoopItem(vid, loop) {
   });
 
   const delBtn = document.createElement('button');
-  delBtn.textContent = '🗑 削除';
+  delBtn.textContent = '🗑 Delete';
   delBtn.addEventListener('click', () => {
-    if (!confirm(`「${loop.label || '(無題)'}」を削除しますか？`)) return;
+    if (!confirm(`Delete this loop (${formatTime(loop.start)} → ${formatTime(loop.end)})?`)) return;
     const data = loadData();
     const v = data.videos[vid];
     if (!v) return;
     v.loops = v.loops.filter(l => l.id !== loop.id);
     if (v.loops.length === 0) delete data.videos[vid];
     saveData(data);
+    if (editingLoopId === loop.id) editingLoopId = null;
     renderLoops();
+    updateSaveButton();
   });
 
   div.appendChild(playBtn);
@@ -417,12 +590,14 @@ function renderLoopItem(vid, loop) {
 }
 
 function startLoopFromSaved(loop) {
-  activeLoop = { start: loop.start, end: loop.end, count: loop.loopCount, remaining: loop.loopCount };
+  editingLoopId = loop.id;
+  setLoopActive({ start: loop.start, end: loop.end });
   speedSelect.value = String(loop.speed);
   startInput.value = formatTime(loop.start);
   endInput.value = formatTime(loop.end);
-  labelInput.value = loop.label || '';
-  loopCountInput.value = loop.loopCount || '';
+  updateDurationDisplay();
+  updateSaveButton();
+  renderLoops();
   if (player.setPlaybackRate) player.setPlaybackRate(loop.speed);
   player.seekTo(loop.start, true);
   player.playVideo();
@@ -435,10 +610,27 @@ function escapeHtml(s) {
 }
 
 // ============================================================
-// キーボードショートカット
+// Keyboard shortcuts
 // ============================================================
 document.addEventListener('keydown', e => {
-  const tag = document.activeElement && document.activeElement.tagName;
+  const target = document.activeElement;
+  const tag = target && target.tagName;
+  const inStartEnd = target === startInput || target === endInput;
+
+  // Arrow keys inside Start / End: nudge the field value instead of the player
+  if (inStartEnd && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    e.preventDefault();
+    const step = e.shiftKey ? 1 : 0.05;
+    const delta = e.key === 'ArrowLeft' ? -step : step;
+    const cur = parseTime(target.value);
+    const base = (cur === null || isNaN(cur)) ? 0 : cur;
+    target.value = formatTime(Math.max(0, roundTo(base + delta, 2)));
+    updateDurationDisplay();
+    updateSaveButton();
+    return;
+  }
+
+  // Other input/select focused → let native behavior run
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
   if (!player || !player.getCurrentTime) return;
 
@@ -449,17 +641,19 @@ document.addEventListener('keydown', e => {
     else player.playVideo();
   } else if (e.key === 's' || e.key === 'S') {
     e.preventDefault();
-    startInput.value = formatTime(player.getCurrentTime());
+    const s = parseTime(startInput.value);
+    if (s !== null && !isNaN(s)) player.seekTo(s, true);
   } else if (e.key === 'e' || e.key === 'E') {
     e.preventDefault();
-    endInput.value = formatTime(player.getCurrentTime());
+    const en = parseTime(endInput.value);
+    if (en !== null && !isNaN(en)) player.seekTo(en, true);
   } else if (e.key === 'ArrowLeft') {
     e.preventDefault();
-    const step = e.shiftKey ? 5 : 0.5;
+    const step = e.shiftKey ? 1 : 0.05;
     player.seekTo(Math.max(0, player.getCurrentTime() - step), true);
   } else if (e.key === 'ArrowRight') {
     e.preventDefault();
-    const step = e.shiftKey ? 5 : 0.5;
+    const step = e.shiftKey ? 1 : 0.05;
     player.seekTo(player.getCurrentTime() + step, true);
   }
 });

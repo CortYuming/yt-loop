@@ -1,54 +1,56 @@
 # YT Loop
 
-YouTube動画の任意区間をリピート再生するWebアプリ。音楽の耳コピ・フレーズ練習用。
+Loop any part of a YouTube video. Built for music practice — ear training, phrase drilling, riff learning.
 
-## 機能
+## Features
 
-- YouTube URL入力 → 動画表示
-- 再生速度切替（0.25x〜2.0x、YouTubeと同じ刻み）
-- 開始・終了時間指定でループ再生
-- 「現在時刻をキャプチャ」ボタンで開始/終了を即設定
-- ループ回数指定（無限 or N回）
-- ラベル付きで区間を保存・編集・削除（localStorage）
-- 共有URL生成（動画ID・区間・速度をクエリで渡せる）
-- キーボードショートカット
+- Paste a YouTube URL, play the video inline
+- Switch playback speed (0.25x – 2.0x, YouTube's own steps)
+- Set start / end times, loop the region
+- **📍 pin** — snap the field to the current playback time
+- Nudge start / end with arrow keys (±0.05s, Shift ±1s) while the field is focused
+- **Live duration** display (end − start)
+- **Loop toggle** — turn looping on/off without losing your start/end
+- Save, edit, delete named loops per video (localStorage)
+- **Share URL** — encodes video, start, end, and rate as query params
+- Keyboard shortcuts (see below)
 
-## キーボードショートカット
+## Keyboard shortcuts
 
-| キー | 動作 |
-|-----|------|
-| `Space` | 再生 / 停止 |
-| `S` | 現在時刻を開始にキャプチャ |
-| `E` | 現在時刻を終了にキャプチャ |
-| `←` / `→` | 0.5秒シーク |
-| `Shift + ←` / `→` | 5秒シーク |
+| Key | Action |
+|-----|--------|
+| `Space` | Play / pause |
+| `S` | Jump to loop start |
+| `E` | Jump to loop end |
+| `←` / `→` | Seek 0.05 seconds (or nudge the value when Start/End is focused) |
+| `Shift + ←` / `→` | Seek 1 second (or nudge by 1s when Start/End is focused) |
 
-## ローカル実行
+## Run locally
 
 ```bash
-# 素のファイルを開くだけでも動作する
+# Open the file directly
 open index.html
 
-# 簡易サーバーで開きたい場合
+# Or serve it (needed on some browsers for iframe API):
 python3 -m http.server 8000
-# → http://localhost:8000
+# then visit http://localhost:8000
 ```
 
-## デプロイ（GitHub Pages）
+## Deploy to GitHub Pages
 
-1. リポジトリ Settings → Pages
-2. Source: Deploy from a branch
-3. Branch: `main` / `/ (root)` を選択して保存
+1. Repo → **Settings** → **Pages**
+2. Source: *Deploy from a branch*
+3. Branch: `main` / `/ (root)` → **Save**
 
-## データ
+## Data
 
-すべてブラウザの `localStorage` に保存されます（キー: `yt-loop-data-v1`）。
-別ブラウザ・別端末とは同期しません。
+All data lives in your browser's `localStorage` under the key `yt-loop-data-v1`.
+Nothing is synced across devices or browsers.
 
-## 共有URL形式
+## Share URL format
 
 ```
 ?v=<videoId>&s=<startSec>&e=<endSec>&r=<rate>
 ```
 
-例: `?v=dQw4w9WgXcQ&s=12.50&e=24.80&r=0.75`
+Example: `?v=dQw4w9WgXcQ&s=12.50&e=24.80&r=0.75`
