@@ -2,6 +2,10 @@
 
 Loop any part of a YouTube video. Built for music practice — ear training, phrase drilling, riff learning.
 
+## demo site
+
+https://cortyuming.github.io/yt-loop/
+
 ## Features
 
 - Paste a YouTube URL, play the video inline
