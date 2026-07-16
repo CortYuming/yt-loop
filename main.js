@@ -29,6 +29,29 @@ function syncActiveLoop() {
   }
 }
 
+// Fill End with the video duration if it's still empty. Called on player
+// ready and on New so a fresh session covers the whole clip by default.
+function fillDefaultEnd() {
+  if (!player || typeof player.getDuration !== 'function') return;
+  if (endInput.value.trim() !== '') return;
+  const d = player.getDuration();
+  if (!d || isNaN(d)) return;
+  endInput.value = formatTime(d);
+  updateDurationDisplay();
+  updateSaveButton();
+}
+
+// If the loop toggle is on, initialize activeLoop from the current input
+// values. Used after fillDefaultEnd so a freshly loaded video starts
+// looping the whole clip without the user touching the toggle.
+function activateLoopFromInputs() {
+  if (!loopToggle || !loopToggle.checked) return;
+  const s = parseTime(startInput.value);
+  const e = parseTime(endInput.value);
+  if (s === null || e === null || isNaN(s) || isNaN(e) || s >= e) return;
+  activeLoop = { start: s, end: e };
+}
+
 // ---------- DOM ----------
 const urlInput        = document.getElementById('urlInput');
 const loadBtn         = document.getElementById('loadBtn');
@@ -190,6 +213,8 @@ function createOrLoadPlayer(videoId, onReadyCb) {
     backfillTitle();
     startTimeLoop();
     if (onReadyCb) onReadyCb();
+    fillDefaultEnd();
+    activateLoopFromInputs();
     renderLoops();
     updateSaveButton();
   };
@@ -216,6 +241,8 @@ function createOrLoadPlayer(videoId, onReadyCb) {
       } catch (e) {}
       backfillTitle();
       if (onReadyCb) onReadyCb();
+      fillDefaultEnd();
+      activateLoopFromInputs();
       renderLoops();
       updateSaveButton();
     }, 800);
@@ -349,15 +376,14 @@ playLoopBtn.addEventListener('click', () => {
     player.pauseVideo();
     return;
   }
-  // Not playing → play. Turn loop on if start/end are valid; seek to start if outside loop.
-  const start = parseTime(startInput.value);
-  const end   = parseTime(endInput.value);
-  const validTime = start !== null && end !== null && !isNaN(start) && !isNaN(end) && start < end;
-  if (validTime) {
-    setLoopActive({ start, end });
-    if (player.setPlaybackRate) player.setPlaybackRate(parseFloat(speedSelect.value));
+  // Loop membership is owned by the toggle; here we just seek into range
+  // if the toggle is on and playback is currently outside it.
+  if (player.setPlaybackRate) player.setPlaybackRate(parseFloat(speedSelect.value));
+  if (activeLoop) {
     const t = player.getCurrentTime();
-    if (t < start || t >= end) player.seekTo(start, true);
+    if (t < activeLoop.start || t >= activeLoop.end) {
+      player.seekTo(activeLoop.start, true);
+    }
   }
   player.playVideo();
 });
@@ -415,7 +441,9 @@ newBtn.addEventListener('click', () => {
   startInput.value = '0:00.00';
   endInput.value = '';
   speedSelect.value = '1';
-  setLoopActive(null);
+  activeLoop = null;
+  fillDefaultEnd();
+  activateLoopFromInputs();
   updateDurationDisplay();
   updateSaveButton();
   renderLoops();
