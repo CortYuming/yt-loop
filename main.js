@@ -412,7 +412,7 @@ saveBtn.addEventListener('click', () => {
 
 newBtn.addEventListener('click', () => {
   editingLoopId = null;
-  startInput.value = '';
+  startInput.value = '0:00.00';
   endInput.value = '';
   speedSelect.value = '1';
   setLoopActive(null);
