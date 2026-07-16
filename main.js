@@ -642,6 +642,7 @@ document.addEventListener('keydown', e => {
     target.value = formatTime(Math.max(0, roundTo(base + delta, 2)));
     updateDurationDisplay();
     updateSaveButton();
+    syncActiveLoop();
     return;
   }
 
