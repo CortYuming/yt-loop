@@ -16,6 +16,19 @@ function setLoopActive(active) {
   if (loopToggle) loopToggle.checked = !!active;
 }
 
+// While a loop is active (playing back), keep activeLoop in sync with the
+// visible input values. Without this, editing start/end during playback
+// (via 📍 capture or direct typing) updates only the input, not the loop
+// that the RAF tick uses to seek back.
+function syncActiveLoop() {
+  if (!activeLoop) return;
+  const s = parseTime(startInput.value);
+  const e = parseTime(endInput.value);
+  if (s !== null && e !== null && !isNaN(s) && !isNaN(e) && s < e) {
+    activeLoop = { start: s, end: e };
+  }
+}
+
 // ---------- DOM ----------
 const urlInput        = document.getElementById('urlInput');
 const loadBtn         = document.getElementById('loadBtn');
@@ -276,8 +289,8 @@ function updateDurationDisplay() {
   }
   durationDisplay.textContent = formatTime(e - s);
 }
-startInput.addEventListener('input', () => { updateDurationDisplay(); updateSaveButton(); });
-endInput.addEventListener('input',   () => { updateDurationDisplay(); updateSaveButton(); });
+startInput.addEventListener('input', () => { updateDurationDisplay(); updateSaveButton(); syncActiveLoop(); });
+endInput.addEventListener('input',   () => { updateDurationDisplay(); updateSaveButton(); syncActiveLoop(); });
 
 // ============================================================
 // Active target highlight (which value ← → will change)
@@ -319,12 +332,14 @@ captureStart.addEventListener('click', () => {
   startInput.value = formatTime(player.getCurrentTime());
   updateDurationDisplay();
   updateSaveButton();
+  syncActiveLoop();
 });
 captureEnd.addEventListener('click', () => {
   if (!player || !player.getCurrentTime) return;
   endInput.value = formatTime(player.getCurrentTime());
   updateDurationDisplay();
   updateSaveButton();
+  syncActiveLoop();
 });
 
 playLoopBtn.addEventListener('click', () => {
