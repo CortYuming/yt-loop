@@ -437,6 +437,10 @@ saveBtn.addEventListener('click', () => {
 });
 
 newBtn.addEventListener('click', () => {
+  const { isDirty, isInList } = computeSaveState();
+  if (isInList && isDirty) {
+    if (!confirm('Discard unsaved edits to the current loop?')) return;
+  }
   editingLoopId = null;
   startInput.value = '0:00.00';
   endInput.value = '';
