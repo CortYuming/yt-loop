@@ -599,6 +599,9 @@ function renderLoopItem(vid, loop) {
       if (player && player.setPlaybackRate) player.setPlaybackRate(loop.speed);
       updateDurationDisplay();
       updateSaveButton();
+      // Programmatic .value = does not fire 'input' events, so the loop
+      // toggle keeps looping the OLD range unless we sync it explicitly.
+      syncActiveLoop();
       renderLoops();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
