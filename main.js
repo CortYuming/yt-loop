@@ -437,20 +437,14 @@ saveBtn.addEventListener('click', () => {
 });
 
 newBtn.addEventListener('click', () => {
-  const { isDirty, isInList } = computeSaveState();
-  if (isInList && isDirty) {
-    if (!confirm('Discard unsaved edits to the current loop?')) return;
-  }
+  // "New" here means "detach from the currently-edited loop and treat the
+  // current form values (start/end/speed) as the seed for a fresh loop".
+  // The next Save creates a new record instead of updating the previous one.
+  // We deliberately do NOT reset the inputs — losing the speed the user
+  // dialed in was the whole reason this fix exists.
   editingLoopId = null;
-  startInput.value = '0:00.00';
-  endInput.value = '';
-  speedSelect.value = '1';
-  activeLoop = null;
-  fillDefaultEnd();
-  activateLoopFromInputs();
-  updateDurationDisplay();
-  updateSaveButton();
   renderLoops();
+  updateSaveButton();
 });
 
 deleteBtn.addEventListener('click', () => {
