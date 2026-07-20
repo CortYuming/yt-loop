@@ -692,6 +692,10 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     const en = parseTime(endInput.value);
     if (en !== null && !isNaN(en)) player.seekTo(en, true);
+  } else if (e.key === 'l' || e.key === 'L') {
+    e.preventDefault();
+    loopToggle.checked = !loopToggle.checked;
+    loopToggle.dispatchEvent(new Event('change'));
   } else if (e.key === 'ArrowLeft') {
     e.preventDefault();
     const step = e.shiftKey ? 1 : 0.05;
