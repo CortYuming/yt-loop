@@ -69,6 +69,7 @@ const saveBtn         = document.getElementById('saveBtn');
 const newBtn          = document.getElementById('newBtn');
 const deleteBtn       = document.getElementById('deleteBtn');
 const shareBtn        = document.getElementById('shareBtn');
+const shareMdBtn      = document.getElementById('shareMdBtn');
 const loopList        = document.getElementById('loopList');
 
 // ============================================================
@@ -463,8 +464,10 @@ deleteBtn.addEventListener('click', () => {
   updateSaveButton();
 });
 
-shareBtn.addEventListener('click', async () => {
-  if (!currentVideoId) { alert('Load a video first'); return; }
+// Build the shareable URL from the current form state. Returns null if no
+// video is loaded. Shared by the 🔗 URL and 📝 MD buttons.
+function buildShareUrl() {
+  if (!currentVideoId) return null;
   const params = new URLSearchParams();
   params.set('v', currentVideoId);
   const s = parseTime(startInput.value);
@@ -473,14 +476,45 @@ shareBtn.addEventListener('click', async () => {
   if (e !== null && !isNaN(e)) params.set('e', e.toFixed(2));
   const speed = parseFloat(speedSelect.value);
   if (speed !== 1) params.set('r', String(speed));
-  const url = `${location.origin}${location.pathname}?${params.toString()}`;
+  return `${location.origin}${location.pathname}?${params.toString()}`;
+}
+
+// Build the Markdown link label: "<title> (start → end)". Falls back to the
+// range alone when the video title hasn't been fetched yet.
+function buildShareLabel() {
+  const s = parseTime(startInput.value);
+  const e = parseTime(endInput.value);
+  const hasRange = s !== null && e !== null && !isNaN(s) && !isNaN(e);
+  const range = hasRange ? `${formatTime(s)} → ${formatTime(e)}` : '';
+  const title = currentVideoTitle.trim();
+  if (title && range) return `${title} (${range})`;
+  if (title) return title;
+  return range || currentVideoId || 'YT Loop';
+}
+
+// Copy `text` to the clipboard, flashing `btn` to `okLabel` then back to
+// `restLabel`. Falls back to a prompt when the Clipboard API is unavailable.
+async function copyWithFeedback(btn, text, okLabel, restLabel) {
   try {
-    await navigator.clipboard.writeText(url);
-    shareBtn.textContent = '✅ Copied!';
-    setTimeout(() => { shareBtn.textContent = '🔗 Share URL'; }, 1500);
+    await navigator.clipboard.writeText(text);
+    btn.textContent = okLabel;
+    setTimeout(() => { btn.textContent = restLabel; }, 1500);
   } catch (e) {
-    prompt('Share URL:', url);
+    prompt('Copy:', text);
   }
+}
+
+shareBtn.addEventListener('click', () => {
+  const url = buildShareUrl();
+  if (!url) { alert('Load a video first'); return; }
+  copyWithFeedback(shareBtn, url, '✅ Copied!', '🔗 URL');
+});
+
+shareMdBtn.addEventListener('click', () => {
+  const url = buildShareUrl();
+  if (!url) { alert('Load a video first'); return; }
+  const md = `[${buildShareLabel()}](${url})`;
+  copyWithFeedback(shareMdBtn, md, '✅ Copied!', '📝 MD');
 });
 
 // ============================================================

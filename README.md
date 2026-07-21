@@ -16,7 +16,8 @@ https://cortyuming.github.io/yt-loop/
 - **Live duration** display (end − start)
 - **Loop toggle** — turn looping on/off without losing your start/end
 - Save, edit, delete named loops per video (localStorage)
-- **Share URL** — encodes video, start, end, and rate as query params
+- **🔗 URL** — copies a link that encodes video, start, end, and rate as query params
+- **📝 MD** — copies the same link as a Markdown link, labelled with the video title and time range
 - Keyboard shortcuts (see below)
 
 ## Keyboard shortcuts
@@ -58,3 +59,11 @@ Nothing is synced across devices or browsers.
 ```
 
 Example: `?v=dQw4w9WgXcQ&s=12.50&e=24.80&r=0.75`
+
+The **📝 MD** button wraps this link in Markdown:
+
+```
+[<video title> (<start> → <end>)](<share url>)
+```
+
+Example: `[My Song (0:12.50 → 0:24.80)](https://.../?v=dQw4w9WgXcQ&s=12.50&e=24.80&r=0.75)`
