@@ -3,6 +3,7 @@
 // ============================================================
 
 const STORAGE_KEY = 'yt-loop-data-v1';
+const PLAY_DELAY_MS = 1000;
 
 let player = null;
 let currentVideoId = null;
@@ -10,6 +11,11 @@ let currentVideoTitle = '';
 let rafId = null;
 let activeLoop = null; // {start, end}
 let editingLoopId = null;
+let playDelayTimeout = null;
+// Set right before our own player.playVideo() so onPlayerStateChange knows
+// this PLAYING transition came from us (not a user click on the iframe or
+// YT's own Space shortcut) and shouldn't be intercepted for the 1s delay.
+let intentionalPlay = false;
 
 function setLoopActive(active) {
   activeLoop = active;
@@ -251,12 +257,32 @@ function createOrLoadPlayer(videoId, onReadyCb) {
   controls.hidden = false;
 }
 
-function onPlayerStateChange() {
+function onPlayerStateChange(e) {
   try {
     const data = player.getVideoData();
     if (data && data.title) currentVideoTitle = data.title;
   } catch (err) {}
   backfillTitle();
+
+  const state = e && e.data;
+  if (state === (window.YT && YT.PlayerState.PLAYING)) {
+    if (intentionalPlay) {
+      intentionalPlay = false;
+    } else {
+      // Playback started from something other than our delayed-play — e.g.
+      // clicking the iframe or YT's own Space shortcut. Pause and restart
+      // through the 1s warmup so the user has time to pick up their guitar.
+      player.pauseVideo();
+      if (activeLoop) {
+        const t = player.getCurrentTime();
+        if (t < activeLoop.start || t >= activeLoop.end) {
+          player.seekTo(activeLoop.start, true);
+        }
+      }
+      scheduleDelayedPlay();
+      return;
+    }
+  }
   updatePlayButton();
 }
 
@@ -271,12 +297,37 @@ function backfillTitle() {
 }
 
 function updatePlayButton() {
+  if (playDelayTimeout) {
+    playLoopBtn.textContent = '⏳ 1s…';
+    return;
+  }
   const state = safeState();
   if (state === (window.YT && YT.PlayerState.PLAYING)) {
     playLoopBtn.textContent = '⏸ Pause';
   } else {
     playLoopBtn.textContent = '▶ Play';
   }
+}
+
+// A small delay before playVideo() so the user has time to pick up their
+// guitar. Clicking Play again while pending cancels the wait.
+function cancelPendingPlay() {
+  if (!playDelayTimeout) return false;
+  clearTimeout(playDelayTimeout);
+  playDelayTimeout = null;
+  return true;
+}
+
+function scheduleDelayedPlay() {
+  cancelPendingPlay();
+  playDelayTimeout = setTimeout(() => {
+    playDelayTimeout = null;
+    if (player && player.playVideo) {
+      intentionalPlay = true;
+      player.playVideo();
+    }
+  }, PLAY_DELAY_MS);
+  updatePlayButton();
 }
 
 function startTimeLoop() {
@@ -372,6 +423,7 @@ captureEnd.addEventListener('click', () => {
 
 playLoopBtn.addEventListener('click', () => {
   if (!player || !player.getPlayerState) return;
+  if (cancelPendingPlay()) { updatePlayButton(); return; }
   const state = safeState();
   if (state === (window.YT && YT.PlayerState.PLAYING)) {
     player.pauseVideo();
@@ -386,7 +438,7 @@ playLoopBtn.addEventListener('click', () => {
       player.seekTo(activeLoop.start, true);
     }
   }
-  player.playVideo();
+  scheduleDelayedPlay();
 });
 
 loopToggle.addEventListener('change', () => {
@@ -678,7 +730,7 @@ function startLoopFromSaved(loop) {
   renderLoops();
   if (player.setPlaybackRate) player.setPlaybackRate(loop.speed);
   player.seekTo(loop.start, true);
-  player.playVideo();
+  scheduleDelayedPlay();
 }
 
 function escapeHtml(s) {
@@ -715,9 +767,10 @@ document.addEventListener('keydown', e => {
 
   if (e.code === 'Space') {
     e.preventDefault();
+    if (cancelPendingPlay()) { updatePlayButton(); return; }
     const state = safeState();
     if (state === (window.YT && YT.PlayerState.PLAYING)) player.pauseVideo();
-    else player.playVideo();
+    else scheduleDelayedPlay();
   } else if (e.key === 's' || e.key === 'S') {
     e.preventDefault();
     const s = parseTime(startInput.value);
