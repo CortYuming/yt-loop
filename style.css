@@ -238,9 +238,28 @@ button.pin {
   background: #2f3a55;
 }
 .loop-item .info { flex: 1; min-width: 200px; }
+.loop-item .loop-range-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .loop-item .loop-range {
   font-weight: bold;
   font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+.loop-item .loop-note {
+  margin-top: 2px;
+}
+.note-row .note-field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.note-row .note-field input[type="text"] {
+  flex: 1;
+  min-width: 0;
 }
 .loop-item .meta {
   font-size: 12px;

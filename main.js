@@ -67,6 +67,7 @@ const durationDisplay = document.getElementById('durationDisplay');
 const speedSelect     = document.getElementById('speedSelect');
 const startInput      = document.getElementById('startInput');
 const endInput        = document.getElementById('endInput');
+const noteInput       = document.getElementById('noteInput');
 const captureStart    = document.getElementById('captureStart');
 const captureEnd      = document.getElementById('captureEnd');
 const loopToggle      = document.getElementById('loopToggle');
@@ -185,11 +186,13 @@ function computeSaveState() {
     ? (data.videos[currentVideoId].loops.find(l => l.id === editingLoopId) || null)
     : null;
 
+  const note = (noteInput ? noteInput.value : '').trim();
   const isInList = savedVersion !== null;
   const isDirty = !savedVersion || (
     savedVersion.start !== start ||
     savedVersion.end !== end ||
-    savedVersion.speed !== speed
+    savedVersion.speed !== speed ||
+    (savedVersion.note || '') !== note
   );
 
   const canSave = isDirty && validTime && !!currentVideoId;
@@ -370,6 +373,7 @@ function updateDurationDisplay() {
 }
 startInput.addEventListener('input', () => { updateDurationDisplay(); updateSaveButton(); syncActiveLoop(); });
 endInput.addEventListener('input',   () => { updateDurationDisplay(); updateSaveButton(); syncActiveLoop(); });
+noteInput.addEventListener('input',  () => { updateSaveButton(); });
 
 // ============================================================
 // Active target highlight (which value ← → will change)
@@ -469,6 +473,7 @@ saveBtn.addEventListener('click', () => {
     start: parseTime(startInput.value),
     end:   parseTime(endInput.value),
     speed: parseFloat(speedSelect.value),
+    note:  noteInput.value.trim(),
     updatedAt: Date.now()
   };
 
@@ -609,10 +614,27 @@ function renderLoops() {
       (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)
     );
     sortedLoops.forEach(loop => {
-      group.appendChild(renderLoopItem(vid, loop));
+      group.appendChild(renderLoopItem(vid, loop, videoData.title || ''));
     });
     loopList.appendChild(group);
   });
+}
+
+function buildLoopShareUrl(vid, loop) {
+  const params = new URLSearchParams();
+  params.set('v', vid);
+  if (typeof loop.start === 'number' && !isNaN(loop.start)) params.set('s', loop.start.toFixed(2));
+  if (typeof loop.end === 'number' && !isNaN(loop.end)) params.set('e', loop.end.toFixed(2));
+  if (loop.speed && loop.speed !== 1) params.set('r', String(loop.speed));
+  return `${location.origin}${location.pathname}?${params.toString()}`;
+}
+
+function buildLoopShareLabel(loop, videoTitle) {
+  const range = `${formatTime(loop.start)} → ${formatTime(loop.end)}`;
+  const title = (videoTitle || '').trim();
+  const note = (loop.note || '').trim();
+  const base = title ? `${title} (${range})` : range;
+  return note ? `${base} ${note}` : base;
 }
 
 function renderVideoHeader(vid, videoData) {
@@ -654,14 +676,20 @@ function renderVideoHeader(vid, videoData) {
   return header;
 }
 
-function renderLoopItem(vid, loop) {
+function renderLoopItem(vid, loop, videoTitle) {
   const div = document.createElement('div');
   div.className = 'loop-item' + (loop.id === editingLoopId ? ' editing' : '');
 
   const info = document.createElement('div');
   info.className = 'info';
   const range = `${formatTime(loop.start)} → ${formatTime(loop.end)}`;
-  info.innerHTML = `<div class="loop-range">${escapeHtml(range)}</div><div class="meta">${escapeHtml(`${loop.speed}x`)}</div>`;
+  const noteHtml = loop.note ? `<div class="loop-note meta">${escapeHtml(loop.note)}</div>` : '';
+  info.innerHTML =
+    `<div class="loop-range-row">` +
+      `<span class="loop-range">${escapeHtml(range)}</span>` +
+      `<span class="meta">${escapeHtml(`${loop.speed}x`)}</span>` +
+    `</div>` +
+    noteHtml;
   div.appendChild(info);
 
   const playBtn = document.createElement('button');
@@ -682,6 +710,7 @@ function renderLoopItem(vid, loop) {
       startInput.value = formatTime(loop.start);
       endInput.value = formatTime(loop.end);
       speedSelect.value = String(loop.speed);
+      noteInput.value = loop.note || '';
       if (player && player.setPlaybackRate) player.setPlaybackRate(loop.speed);
       updateDurationDisplay();
       updateSaveButton();
@@ -699,7 +728,8 @@ function renderLoopItem(vid, loop) {
   });
 
   const delBtn = document.createElement('button');
-  delBtn.textContent = '🗑 Delete';
+  delBtn.textContent = '🗑';
+  delBtn.title = 'Delete this loop';
   delBtn.addEventListener('click', () => {
     if (!confirm(`Delete this loop (${formatTime(loop.start)} → ${formatTime(loop.end)})?`)) return;
     const data = loadData();
@@ -713,9 +743,28 @@ function renderLoopItem(vid, loop) {
     updateSaveButton();
   });
 
+  const urlBtn = document.createElement('button');
+  urlBtn.textContent = '🔗 URL';
+  urlBtn.title = 'Copy share URL for this loop';
+  urlBtn.addEventListener('click', () => {
+    const url = buildLoopShareUrl(vid, loop);
+    copyWithFeedback(urlBtn, url, '✅ Copied!', '🔗 URL');
+  });
+
+  const mdBtn = document.createElement('button');
+  mdBtn.textContent = '📝 MD';
+  mdBtn.title = 'Copy Markdown link for this loop';
+  mdBtn.addEventListener('click', () => {
+    const url = buildLoopShareUrl(vid, loop);
+    const md = `[${buildLoopShareLabel(loop, videoTitle)}](${url})`;
+    copyWithFeedback(mdBtn, md, '✅ Copied!', '📝 MD');
+  });
+
   div.appendChild(playBtn);
   div.appendChild(editBtn);
   div.appendChild(delBtn);
+  div.appendChild(urlBtn);
+  div.appendChild(mdBtn);
   return div;
 }
 
@@ -725,6 +774,7 @@ function startLoopFromSaved(loop) {
   speedSelect.value = String(loop.speed);
   startInput.value = formatTime(loop.start);
   endInput.value = formatTime(loop.end);
+  noteInput.value = loop.note || '';
   updateDurationDisplay();
   updateSaveButton();
   renderLoops();
