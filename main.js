@@ -103,6 +103,7 @@ window.onYouTubeIframeAPIReady = () => {
         speedSelect.value = r;
         if (player && player.setPlaybackRate) player.setPlaybackRate(parseFloat(r));
       }
+      adoptMatchingSavedLoop();
       updateDurationDisplay();
       updateSaveButton();
     });
@@ -111,6 +112,28 @@ window.onYouTubeIframeAPIReady = () => {
     updateSaveButton();
   }
 };
+
+// When arriving via a shared URL, treat the loaded range as "editing" an
+// existing saved loop if start/end/speed match one — otherwise Save would
+// offer to create a duplicate on landing. URL times are toFixed(2), so
+// compare with a small tolerance instead of strict equality.
+function adoptMatchingSavedLoop() {
+  if (!currentVideoId) return;
+  const s = parseTime(startInput.value);
+  const e = parseTime(endInput.value);
+  const speed = parseFloat(speedSelect.value);
+  if (s === null || e === null || isNaN(s) || isNaN(e)) return;
+  const video = loadData().videos[currentVideoId];
+  if (!video) return;
+  const match = video.loops.find(l =>
+    Math.abs(l.start - s) < 0.005 &&
+    Math.abs(l.end - e) < 0.005 &&
+    l.speed === speed
+  );
+  if (!match) return;
+  editingLoopId = match.id;
+  noteInput.value = match.note || '';
+}
 
 // ============================================================
 // URL → videoId
