@@ -620,6 +620,12 @@ function saveData(data) {
 // ============================================================
 // Render saved loops
 // ============================================================
+// Sort key for saved loops: the most recent of "saved" and "played". Lets a
+// loop rise to the top when the user replays it, not only when they edit it.
+function loopSortKey(loop) {
+  return Math.max(loop.updatedAt || 0, loop.playedAt || 0);
+}
+
 function renderLoops() {
   const data = loadData();
   loopList.innerHTML = '';
@@ -628,16 +634,16 @@ function renderLoops() {
     loopList.innerHTML = '<p class="empty">No saved loops yet.</p>';
     return;
   }
-  const groupUpdatedAt = ([, v]) =>
-    v.loops.reduce((m, l) => Math.max(m, l.updatedAt || 0), 0);
-  entries.sort((a, b) => groupUpdatedAt(b) - groupUpdatedAt(a));
+  const groupSortKey = ([, v]) =>
+    v.loops.reduce((m, l) => Math.max(m, loopSortKey(l)), 0);
+  entries.sort((a, b) => groupSortKey(b) - groupSortKey(a));
 
   entries.forEach(([vid, videoData]) => {
     const group = document.createElement('div');
     group.className = 'video-group';
     group.appendChild(renderVideoHeader(vid, videoData));
     const sortedLoops = [...videoData.loops].sort(
-      (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)
+      (a, b) => loopSortKey(b) - loopSortKey(a)
     );
     sortedLoops.forEach(loop => {
       group.appendChild(renderLoopItem(vid, loop, videoData.title || ''));
@@ -796,6 +802,14 @@ function renderLoopItem(vid, loop, videoTitle) {
 
 function startLoopFromSaved(loop) {
   editingLoopId = loop.id;
+  // Bump playedAt so this loop rises to the top on the next render.
+  const data = loadData();
+  const video = data.videos[currentVideoId];
+  const stored = video && video.loops.find(l => l.id === loop.id);
+  if (stored) {
+    stored.playedAt = Date.now();
+    saveData(data);
+  }
   setLoopActive({ start: loop.start, end: loop.end });
   speedSelect.value = String(loop.speed);
   startInput.value = formatTime(loop.start);
