@@ -345,6 +345,9 @@ function startTimeLoop() {
         const state = safeState();
         if (state === (window.YT && YT.PlayerState.PLAYING)) {
           if (t >= activeLoop.end) {
+            // seekTo while PLAYING triggers BUFFERING → PLAYING again;
+            // claim it as ours so onPlayerStateChange doesn't warm-up-delay it.
+            intentionalPlay = true;
             player.seekTo(activeLoop.start, true);
           }
         }
