@@ -238,6 +238,7 @@ function updateSaveButton() {
 function createOrLoadPlayer(videoId, onReadyCb) {
   currentVideoId = videoId;
   currentVideoTitle = '';
+  fetchTitle(videoId);
   const readyHandler = () => {
     try {
       const data = player.getVideoData();
@@ -310,6 +311,23 @@ function onPlayerStateChange(e) {
     }
   }
   updatePlayButton();
+}
+
+// getVideoData() has no title until playback starts, so ask YouTube's oEmbed
+// endpoint for it right after loading. Best effort: on failure we keep whatever
+// the player reports later. Ignored if the user already switched videos or the
+// player got there first.
+async function fetchTitle(vid) {
+  try {
+    const url = `https://www.youtube.com/oembed?url=${encodeURIComponent('https://youtu.be/' + vid)}&format=json`;
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const { title } = await res.json();
+    if (!title || vid !== currentVideoId || currentVideoTitle.trim()) return;
+    currentVideoTitle = title;
+    backfillTitle();
+    renderLoops();
+  } catch (e) {}
 }
 
 function backfillTitle() {
@@ -547,32 +565,58 @@ deleteBtn.addEventListener('click', () => {
   updateSaveButton();
 });
 
-// Build the shareable URL from the current form state. Returns null if no
-// video is loaded. Shared by the 🔗 URL and 📝 MD buttons.
-function buildShareUrl() {
-  if (!currentVideoId) return null;
+// ---------- Share (🔗 URL / 📝 MD) ----------
+// Everything shareable is a (videoId, loop) pair — either a saved loop from
+// the list or the range the form currently describes. Both go through the same
+// builders below so the two sets of buttons can't drift apart.
+
+// The form's current state in the shape of a saved loop.
+function currentFormLoop() {
+  return {
+    start: parseTime(startInput.value),
+    end:   parseTime(endInput.value),
+    speed: parseFloat(speedSelect.value),
+    note:  noteInput ? noteInput.value.trim() : ''
+  };
+}
+
+// Title of a video: the live one from the player while it's loaded, otherwise
+// the title stored alongside its saved loops. getVideoData() has no title until
+// playback starts and currentVideoTitle is cleared on every load, so the stored
+// title is what keeps the label filled in.
+function resolveVideoTitle(vid) {
+  if (vid && vid === currentVideoId && currentVideoTitle.trim()) {
+    return currentVideoTitle.trim();
+  }
+  const v = loadData().videos[vid];
+  return ((v && v.title) || '').trim();
+}
+
+// Returns null if no video is loaded.
+function buildShareUrl(vid, loop) {
+  if (!vid) return null;
   const params = new URLSearchParams();
-  params.set('v', currentVideoId);
-  const s = parseTime(startInput.value);
-  const e = parseTime(endInput.value);
-  if (s !== null && !isNaN(s)) params.set('s', s.toFixed(2));
-  if (e !== null && !isNaN(e)) params.set('e', e.toFixed(2));
-  const speed = parseFloat(speedSelect.value);
-  if (speed !== 1) params.set('r', String(speed));
+  params.set('v', vid);
+  if (typeof loop.start === 'number' && !isNaN(loop.start)) params.set('s', loop.start.toFixed(2));
+  if (typeof loop.end === 'number' && !isNaN(loop.end)) params.set('e', loop.end.toFixed(2));
+  if (loop.speed && loop.speed !== 1) params.set('r', String(loop.speed));
   return `${location.origin}${location.pathname}?${params.toString()}`;
 }
 
-// Build the Markdown link label: "<title> (start → end)". Falls back to the
-// range alone when the video title hasn't been fetched yet.
-function buildShareLabel() {
-  const s = parseTime(startInput.value);
-  const e = parseTime(endInput.value);
-  const hasRange = s !== null && e !== null && !isNaN(s) && !isNaN(e);
-  const range = hasRange ? `${formatTime(s)} → ${formatTime(e)}` : '';
-  const title = currentVideoTitle.trim();
-  if (title && range) return `${title} (${range})`;
-  if (title) return title;
-  return range || currentVideoId || 'YT Loop';
+// Markdown link label: "<title> (start → end) <note>", dropping whichever
+// pieces aren't available.
+function buildShareLabel(vid, loop) {
+  const hasRange = typeof loop.start === 'number' && !isNaN(loop.start) &&
+                   typeof loop.end === 'number' && !isNaN(loop.end);
+  const range = hasRange ? `${formatTime(loop.start)} → ${formatTime(loop.end)}` : '';
+  const title = resolveVideoTitle(vid);
+  const note  = (loop.note || '').trim();
+  const base = (title && range) ? `${title} (${range})` : (title || range || vid || 'YT Loop');
+  return note ? `${base} ${note}` : base;
+}
+
+function buildShareMarkdown(vid, loop) {
+  return `[${buildShareLabel(vid, loop)}](${buildShareUrl(vid, loop)})`;
 }
 
 // Copy `text` to the clipboard, flashing `btn` to `okLabel` then back to
@@ -588,15 +632,14 @@ async function copyWithFeedback(btn, text, okLabel, restLabel) {
 }
 
 shareBtn.addEventListener('click', () => {
-  const url = buildShareUrl();
+  const url = buildShareUrl(currentVideoId, currentFormLoop());
   if (!url) { alert('Load a video first'); return; }
   copyWithFeedback(shareBtn, url, '✅ Copied!', '🔗 URL');
 });
 
 shareMdBtn.addEventListener('click', () => {
-  const url = buildShareUrl();
-  if (!url) { alert('Load a video first'); return; }
-  const md = `[${buildShareLabel()}](${url})`;
+  if (!currentVideoId) { alert('Load a video first'); return; }
+  const md = buildShareMarkdown(currentVideoId, currentFormLoop());
   copyWithFeedback(shareMdBtn, md, '✅ Copied!', '📝 MD');
 });
 
@@ -646,27 +689,10 @@ function renderLoops() {
       (a, b) => loopSortKey(b) - loopSortKey(a)
     );
     sortedLoops.forEach(loop => {
-      group.appendChild(renderLoopItem(vid, loop, videoData.title || ''));
+      group.appendChild(renderLoopItem(vid, loop));
     });
     loopList.appendChild(group);
   });
-}
-
-function buildLoopShareUrl(vid, loop) {
-  const params = new URLSearchParams();
-  params.set('v', vid);
-  if (typeof loop.start === 'number' && !isNaN(loop.start)) params.set('s', loop.start.toFixed(2));
-  if (typeof loop.end === 'number' && !isNaN(loop.end)) params.set('e', loop.end.toFixed(2));
-  if (loop.speed && loop.speed !== 1) params.set('r', String(loop.speed));
-  return `${location.origin}${location.pathname}?${params.toString()}`;
-}
-
-function buildLoopShareLabel(loop, videoTitle) {
-  const range = `${formatTime(loop.start)} → ${formatTime(loop.end)}`;
-  const title = (videoTitle || '').trim();
-  const note = (loop.note || '').trim();
-  const base = title ? `${title} (${range})` : range;
-  return note ? `${base} ${note}` : base;
 }
 
 function renderVideoHeader(vid, videoData) {
@@ -708,7 +734,7 @@ function renderVideoHeader(vid, videoData) {
   return header;
 }
 
-function renderLoopItem(vid, loop, videoTitle) {
+function renderLoopItem(vid, loop) {
   const div = document.createElement('div');
   div.className = 'loop-item' + (loop.id === editingLoopId ? ' editing' : '');
 
@@ -779,7 +805,7 @@ function renderLoopItem(vid, loop, videoTitle) {
   urlBtn.textContent = '🔗 URL';
   urlBtn.title = 'Copy share URL for this loop';
   urlBtn.addEventListener('click', () => {
-    const url = buildLoopShareUrl(vid, loop);
+    const url = buildShareUrl(vid, loop);
     copyWithFeedback(urlBtn, url, '✅ Copied!', '🔗 URL');
   });
 
@@ -787,8 +813,7 @@ function renderLoopItem(vid, loop, videoTitle) {
   mdBtn.textContent = '📝 MD';
   mdBtn.title = 'Copy Markdown link for this loop';
   mdBtn.addEventListener('click', () => {
-    const url = buildLoopShareUrl(vid, loop);
-    const md = `[${buildLoopShareLabel(loop, videoTitle)}](${url})`;
+    const md = buildShareMarkdown(vid, loop);
     copyWithFeedback(mdBtn, md, '✅ Copied!', '📝 MD');
   });
 
