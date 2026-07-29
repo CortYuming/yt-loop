@@ -9,7 +9,7 @@ https://cortyuming.github.io/yt-loop/
 ## Features
 
 - Paste a YouTube URL, play the video inline
-- Switch playback speed (0.25x – 2.0x, YouTube's own steps)
+- Switch playback speed (0.25x – 2.0x, with extra in-between steps below 1x for slow practice)
 - Set start / end times, loop the region
 - **📍 pin** — snap the field to the current playback time
 - Nudge start / end with arrow keys (±0.05s, Shift ±1s) while the field is focused
