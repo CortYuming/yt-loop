@@ -65,6 +65,8 @@ const controls        = document.querySelector('.controls');
 const currentTimeEl   = document.getElementById('currentTime');
 const durationDisplay = document.getElementById('durationDisplay');
 const speedSelect     = document.getElementById('speedSelect');
+const speedRange      = document.getElementById('speedRange');
+const speedDisplay    = document.getElementById('speedDisplay');
 const startInput      = document.getElementById('startInput');
 const endInput        = document.getElementById('endInput');
 const noteInput       = document.getElementById('noteInput');
@@ -78,6 +80,36 @@ const deleteBtn       = document.getElementById('deleteBtn');
 const shareBtn        = document.getElementById('shareBtn');
 const shareMdBtn      = document.getElementById('shareMdBtn');
 const loopList        = document.getElementById('loopList');
+
+// ============================================================
+// Playback speed
+// ============================================================
+// The preset <select> and the slider are two views of one value, so neither
+// element is read directly anywhere else — everything goes through
+// getSpeed() / setSpeed(). The slider can hold values the preset list has no
+// option for (0.61x), in which case the select shows its hidden "—" entry.
+let currentSpeed = 1;
+
+function getSpeed() { return currentSpeed; }
+
+function hasPresetFor(v) {
+  return Array.from(speedSelect.options)
+    .some(o => o.value !== '' && parseFloat(o.value) === v);
+}
+
+// apply: false updates the UI only — used while dragging the slider, where
+// firing setPlaybackRate on every 'input' event makes playback stutter.
+function setSpeed(v, { apply = true } = {}) {
+  const n = parseFloat(v);
+  if (isNaN(n)) return;
+  currentSpeed = roundTo(Math.min(2, Math.max(0, n)), 2);
+  speedRange.value = String(currentSpeed);
+  speedSelect.value = hasPresetFor(currentSpeed) ? String(currentSpeed) : '';
+  speedDisplay.textContent = `${currentSpeed.toFixed(2)}x`;
+  if (apply && player && player.setPlaybackRate) {
+    player.setPlaybackRate(currentSpeed);
+  }
+}
 
 // ============================================================
 // Load YouTube IFrame API
@@ -99,10 +131,7 @@ window.onYouTubeIframeAPIReady = () => {
       const r = params.get('r');
       if (s) startInput.value = formatTime(parseFloat(s));
       if (e) endInput.value   = formatTime(parseFloat(e));
-      if (r) {
-        speedSelect.value = r;
-        if (player && player.setPlaybackRate) player.setPlaybackRate(parseFloat(r));
-      }
+      if (r) setSpeed(r);
       adoptMatchingSavedLoop();
       updateDurationDisplay();
       updateSaveButton();
@@ -121,7 +150,7 @@ function adoptMatchingSavedLoop() {
   if (!currentVideoId) return;
   const s = parseTime(startInput.value);
   const e = parseTime(endInput.value);
-  const speed = parseFloat(speedSelect.value);
+  const speed = getSpeed();
   if (s === null || e === null || isNaN(s) || isNaN(e)) return;
   const video = loadData().videos[currentVideoId];
   if (!video) return;
@@ -200,7 +229,7 @@ function roundTo(n, digits) {
 function computeSaveState() {
   const start = parseTime(startInput.value);
   const end   = parseTime(endInput.value);
-  const speed = parseFloat(speedSelect.value);
+  const speed = getSpeed();
 
   const validTime = start !== null && end !== null && !isNaN(start) && !isNaN(end) && start < end;
 
@@ -433,7 +462,6 @@ function updateActiveTarget() {
 document.addEventListener('focusin', updateActiveTarget);
 document.addEventListener('focusout', () => setTimeout(updateActiveTarget, 0));
 updateActiveTarget();
-speedSelect.addEventListener('change', updateSaveButton);
 
 // ============================================================
 // Form actions
@@ -449,10 +477,18 @@ urlInput.addEventListener('keydown', e => {
 });
 
 speedSelect.addEventListener('change', () => {
-  if (player && player.setPlaybackRate) {
-    player.setPlaybackRate(parseFloat(speedSelect.value));
-  }
+  setSpeed(speedSelect.value);
+  updateSaveButton();
 });
+
+// 'input' fires continuously while dragging — reflect it in the UI but leave
+// the player alone until the drag ends ('change'), which also covers the
+// arrow-key case since that fires both events at once.
+speedRange.addEventListener('input', () => {
+  setSpeed(speedRange.value, { apply: false });
+  updateSaveButton();
+});
+speedRange.addEventListener('change', () => setSpeed(speedRange.value));
 
 captureStart.addEventListener('click', () => {
   if (!player || !player.getCurrentTime) return;
@@ -479,7 +515,7 @@ playLoopBtn.addEventListener('click', () => {
   }
   // Loop membership is owned by the toggle; here we just seek into range
   // if the toggle is on and playback is currently outside it.
-  if (player.setPlaybackRate) player.setPlaybackRate(parseFloat(speedSelect.value));
+  if (player.setPlaybackRate) player.setPlaybackRate(getSpeed());
   if (activeLoop) {
     const t = player.getCurrentTime();
     if (t < activeLoop.start || t >= activeLoop.end) {
@@ -516,7 +552,7 @@ saveBtn.addEventListener('click', () => {
     id: newId,
     start: parseTime(startInput.value),
     end:   parseTime(endInput.value),
-    speed: parseFloat(speedSelect.value),
+    speed: getSpeed(),
     note:  noteInput.value.trim(),
     updatedAt: Date.now()
   };
@@ -575,7 +611,7 @@ function currentFormLoop() {
   return {
     start: parseTime(startInput.value),
     end:   parseTime(endInput.value),
-    speed: parseFloat(speedSelect.value),
+    speed: getSpeed(),
     note:  noteInput ? noteInput.value.trim() : ''
   };
 }
@@ -767,9 +803,8 @@ function renderLoopItem(vid, loop) {
       editingLoopId = loop.id;
       startInput.value = formatTime(loop.start);
       endInput.value = formatTime(loop.end);
-      speedSelect.value = String(loop.speed);
+      setSpeed(loop.speed);
       noteInput.value = loop.note || '';
-      if (player && player.setPlaybackRate) player.setPlaybackRate(loop.speed);
       updateDurationDisplay();
       updateSaveButton();
       // Programmatic .value = does not fire 'input' events, so the loop
@@ -836,14 +871,13 @@ function startLoopFromSaved(loop) {
     saveData(data);
   }
   setLoopActive({ start: loop.start, end: loop.end });
-  speedSelect.value = String(loop.speed);
+  setSpeed(loop.speed);
   startInput.value = formatTime(loop.start);
   endInput.value = formatTime(loop.end);
   noteInput.value = loop.note || '';
   updateDurationDisplay();
   updateSaveButton();
   renderLoops();
-  if (player.setPlaybackRate) player.setPlaybackRate(loop.speed);
   player.seekTo(loop.start, true);
   scheduleDelayedPlay();
 }

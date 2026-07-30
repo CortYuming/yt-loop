@@ -141,6 +141,23 @@ button.primary:hover {
   margin-top: 8px;
 }
 
+.speed-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.speed-slider input[type="range"] {
+  width: 140px;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+#speedDisplay {
+  font-size: 13px;
+  color: var(--sub);
+  /* Fixed width so the row doesn't jitter while dragging the slider. */
+  min-width: 48px;
+}
+
 .field-label {
   width: 44px;
   color: var(--sub);
@@ -339,4 +356,5 @@ footer {
   .controls label { font-size: 13px; }
   .nudge-group input[type="text"] { width: 74px; }
   .field-label { width: 36px; }
+  .speed-slider input[type="range"] { width: 100px; }
 }
