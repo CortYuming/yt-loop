@@ -60,6 +60,20 @@ function applyLoopToForm(loop) {
   refreshUI();
 }
 
+// Move the playhead into the active loop if it sits outside it. Needed when the
+// range changes under a running playback (✎Edit): the RAF tick only pulls back
+// at the end of the loop, so without this the old position keeps playing until
+// it happens to pass the new end.
+function pullPlayheadIntoLoop() {
+  if (!player || !activeLoop || typeof player.getCurrentTime !== 'function') return;
+  const t = player.getCurrentTime();
+  if (t >= activeLoop.start && t < activeLoop.end) return;
+  // Claim the seek as ours only while playing. A seek from PAUSED emits no
+  // PLAYING event, so the flag would linger and swallow the next real one.
+  if (safeState() === (window.YT && YT.PlayerState.PLAYING)) intentionalPlay = true;
+  player.seekTo(activeLoop.start, true);
+}
+
 // Fill End with the video duration if it's still empty. Called on player
 // ready and on New so a fresh session covers the whole clip by default.
 function fillDefaultEnd() {
@@ -856,6 +870,7 @@ function renderLoopItem(vid, loop) {
     const applyEdit = () => {
       editingLoopId = loop.id;
       applyLoopToForm(loop);
+      pullPlayheadIntoLoop();
       renderLoops();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
