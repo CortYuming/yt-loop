@@ -363,8 +363,10 @@ function onPlayerStateChange(e) {
   const state = e && e.data;
   // Any state but "unstarted" means the newly loaded video has landed. Run the
   // post-load work before the interception below, so activeLoop is already up
-  // to date by the time we decide where to seek.
-  if (state !== (window.YT && YT.PlayerState.UNSTARTED)) runPendingLoad();
+  // to date by the time we decide where to seek. -1 is compared as a literal
+  // on purpose: YT.PlayerState has no UNSTARTED constant, so naming one gives
+  // undefined and the guard silently matches every state.
+  if (state !== -1) runPendingLoad();
 
   if (state === (window.YT && YT.PlayerState.PLAYING)) {
     if (intentionalPlay) {
