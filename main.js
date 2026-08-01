@@ -35,6 +35,18 @@ function syncActiveLoop() {
   }
 }
 
+// Everything that has to be recomputed after the form's values change: the
+// duration readout, the Save/Update button, and the live loop range. Callers
+// used to hand-assemble this trio and kept leaving syncActiveLoop out, which
+// left the loop running the old range while the inputs showed the new one.
+// The saved-loop list is deliberately not in here — it only changes when the
+// stored data does, so renderLoops() stays an explicit call.
+function refreshUI() {
+  updateDurationDisplay();
+  updateSaveButton();
+  syncActiveLoop();
+}
+
 // Fill End with the video duration if it's still empty. Called on player
 // ready and on New so a fresh session covers the whole clip by default.
 function fillDefaultEnd() {
@@ -43,8 +55,7 @@ function fillDefaultEnd() {
   const d = player.getDuration();
   if (!d || isNaN(d)) return;
   endInput.value = formatTime(d);
-  updateDurationDisplay();
-  updateSaveButton();
+  refreshUI();
 }
 
 // If the loop toggle is on, initialize activeLoop from the current input
@@ -133,8 +144,7 @@ window.onYouTubeIframeAPIReady = () => {
       if (e) endInput.value   = formatTime(parseFloat(e));
       if (r) setSpeed(r);
       adoptMatchingSavedLoop();
-      updateDurationDisplay();
-      updateSaveButton();
+      refreshUI();
     });
   } else {
     renderLoops();
@@ -473,8 +483,8 @@ function updateDurationDisplay() {
   }
   durationDisplay.textContent = formatTime(e - s);
 }
-startInput.addEventListener('input', () => { updateDurationDisplay(); updateSaveButton(); syncActiveLoop(); });
-endInput.addEventListener('input',   () => { updateDurationDisplay(); updateSaveButton(); syncActiveLoop(); });
+startInput.addEventListener('input', refreshUI);
+endInput.addEventListener('input',   refreshUI);
 noteInput.addEventListener('input',  () => { updateSaveButton(); });
 
 // ============================================================
@@ -522,16 +532,12 @@ speedRange.addEventListener('change', () => setSpeed(speedRange.value));
 captureStart.addEventListener('click', () => {
   if (!player || !player.getCurrentTime) return;
   startInput.value = formatTime(player.getCurrentTime());
-  updateDurationDisplay();
-  updateSaveButton();
-  syncActiveLoop();
+  refreshUI();
 });
 captureEnd.addEventListener('click', () => {
   if (!player || !player.getCurrentTime) return;
   endInput.value = formatTime(player.getCurrentTime());
-  updateDurationDisplay();
-  updateSaveButton();
-  syncActiveLoop();
+  refreshUI();
 });
 
 playLoopBtn.addEventListener('click', () => {
@@ -827,11 +833,9 @@ function renderLoopItem(vid, loop) {
       endInput.value = formatTime(loop.end);
       setSpeed(loop.speed);
       noteInput.value = loop.note || '';
-      updateDurationDisplay();
-      updateSaveButton();
-      // Programmatic .value = does not fire 'input' events, so the loop
-      // toggle keeps looping the OLD range unless we sync it explicitly.
-      syncActiveLoop();
+      // Programmatic .value = fires no 'input' event, so nothing here happens
+      // on its own — refreshUI covers the sync the loop range needs.
+      refreshUI();
       renderLoops();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -897,8 +901,7 @@ function startLoopFromSaved(loop) {
   startInput.value = formatTime(loop.start);
   endInput.value = formatTime(loop.end);
   noteInput.value = loop.note || '';
-  updateDurationDisplay();
-  updateSaveButton();
+  refreshUI();
   renderLoops();
   player.seekTo(loop.start, true);
   scheduleDelayedPlay();
@@ -926,9 +929,7 @@ document.addEventListener('keydown', e => {
     const cur = parseTime(target.value);
     const base = (cur === null || isNaN(cur)) ? 0 : cur;
     target.value = formatTime(Math.max(0, roundTo(base + delta, 2)));
-    updateDurationDisplay();
-    updateSaveButton();
-    syncActiveLoop();
+    refreshUI();
     return;
   }
 
