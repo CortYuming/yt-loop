@@ -264,23 +264,50 @@ function updateSaveButton() {
 // ============================================================
 // Player
 // ============================================================
+// Pull the title out of the player if it has one yet. Only overwrites when the
+// player actually reports something, so a title already filled in from oEmbed
+// isn't wiped back to empty.
+function refreshTitleFromPlayer() {
+  try {
+    const data = player.getVideoData();
+    if (data && data.title) currentVideoTitle = data.title;
+  } catch (e) {}
+  backfillTitle();
+}
+
+// Everything that has to happen once the player is sitting on a new video.
+// Both entry points — the very first YT.Player (onReady) and every later
+// loadVideoById — run this one sequence. With a copy each they had drifted:
+// only one started the clock, and they disagreed about wiping the title.
+function afterVideoReady(onReadyCb) {
+  refreshTitleFromPlayer();
+  startTimeLoop();
+  if (onReadyCb) onReadyCb();
+  fillDefaultEnd();
+  activateLoopFromInputs();
+  renderLoops();
+  updateSaveButton();
+}
+
+// loadVideoById fires no second onReady, so the post-load work has to wait for
+// the player to actually pick the video up. We run on its first state change
+// and keep a timer as a backstop in case none arrives. The fixed 800ms delay
+// this replaces just fired blind, dropping the callback on a slow load.
+const LOAD_FALLBACK_MS = 2000;
+let pendingLoad = null; // {cb, timer}
+
+function runPendingLoad() {
+  if (!pendingLoad) return;
+  const { cb, timer } = pendingLoad;
+  pendingLoad = null;
+  clearTimeout(timer);
+  afterVideoReady(cb);
+}
+
 function createOrLoadPlayer(videoId, onReadyCb) {
   currentVideoId = videoId;
   currentVideoTitle = '';
   fetchTitle(videoId);
-  const readyHandler = () => {
-    try {
-      const data = player.getVideoData();
-      currentVideoTitle = data.title || '';
-    } catch (e) {}
-    backfillTitle();
-    startTimeLoop();
-    if (onReadyCb) onReadyCb();
-    fillDefaultEnd();
-    activateLoopFromInputs();
-    renderLoops();
-    updateSaveButton();
-  };
   if (!player) {
     player = new YT.Player('player', {
       videoId,
@@ -291,36 +318,27 @@ function createOrLoadPlayer(videoId, onReadyCb) {
         playsinline: 1
       },
       events: {
-        onReady: readyHandler,
+        onReady: () => afterVideoReady(onReadyCb),
         onStateChange: onPlayerStateChange
       }
     });
   } else {
+    // Armed before the call so a fast state change can't beat us to it.
+    pendingLoad = { cb: onReadyCb, timer: setTimeout(runPendingLoad, LOAD_FALLBACK_MS) };
     player.loadVideoById(videoId);
-    setTimeout(() => {
-      try {
-        const data = player.getVideoData();
-        if (data && data.title) currentVideoTitle = data.title;
-      } catch (e) {}
-      backfillTitle();
-      if (onReadyCb) onReadyCb();
-      fillDefaultEnd();
-      activateLoopFromInputs();
-      renderLoops();
-      updateSaveButton();
-    }, 800);
   }
   controls.hidden = false;
 }
 
 function onPlayerStateChange(e) {
-  try {
-    const data = player.getVideoData();
-    if (data && data.title) currentVideoTitle = data.title;
-  } catch (err) {}
-  backfillTitle();
+  refreshTitleFromPlayer();
 
   const state = e && e.data;
+  // Any state but "unstarted" means the newly loaded video has landed. Run the
+  // post-load work before the interception below, so activeLoop is already up
+  // to date by the time we decide where to seek.
+  if (state !== (window.YT && YT.PlayerState.UNSTARTED)) runPendingLoad();
+
   if (state === (window.YT && YT.PlayerState.PLAYING)) {
     if (intentionalPlay) {
       intentionalPlay = false;
