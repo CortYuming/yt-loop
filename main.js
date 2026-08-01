@@ -630,20 +630,27 @@ newBtn.addEventListener('click', () => {
   updateSaveButton();
 });
 
+// Confirm, then remove a loop. Both the toolbar 🗑 and each list item's 🗑 land
+// here, so the prompt wording, the drop-the-video-when-empty cleanup and the
+// editing-state reset can't drift apart.
+function deleteLoop(vid, loop) {
+  if (!confirm(`Delete this loop (${formatTime(loop.start)} → ${formatTime(loop.end)})?`)) return;
+  const data = loadData();
+  const v = data.videos[vid];
+  if (v) {
+    v.loops = v.loops.filter(l => l.id !== loop.id);
+    if (v.loops.length === 0) delete data.videos[vid];
+    saveData(data);
+  }
+  if (editingLoopId === loop.id) editingLoopId = null;
+  renderLoops();
+  updateSaveButton();
+}
+
 deleteBtn.addEventListener('click', () => {
   const { isInList, savedVersion } = computeSaveState();
   if (!isInList || !savedVersion) return;
-  if (!confirm(`Delete this loop (${formatTime(savedVersion.start)} → ${formatTime(savedVersion.end)})?`)) return;
-  const data = loadData();
-  const v = data.videos[currentVideoId];
-  if (v) {
-    v.loops = v.loops.filter(l => l.id !== savedVersion.id);
-    if (v.loops.length === 0) delete data.videos[currentVideoId];
-    saveData(data);
-  }
-  editingLoopId = null;
-  renderLoops();
-  updateSaveButton();
+  deleteLoop(currentVideoId, savedVersion);
 });
 
 // ---------- Share (🔗 URL / 📝 MD) ----------
@@ -860,18 +867,7 @@ function renderLoopItem(vid, loop) {
   const delBtn = document.createElement('button');
   delBtn.textContent = '🗑';
   delBtn.title = 'Delete this loop';
-  delBtn.addEventListener('click', () => {
-    if (!confirm(`Delete this loop (${formatTime(loop.start)} → ${formatTime(loop.end)})?`)) return;
-    const data = loadData();
-    const v = data.videos[vid];
-    if (!v) return;
-    v.loops = v.loops.filter(l => l.id !== loop.id);
-    if (v.loops.length === 0) delete data.videos[vid];
-    saveData(data);
-    if (editingLoopId === loop.id) editingLoopId = null;
-    renderLoops();
-    updateSaveButton();
-  });
+  delBtn.addEventListener('click', () => deleteLoop(vid, loop));
 
   const urlBtn = document.createElement('button');
   urlBtn.textContent = '🔗 URL';
