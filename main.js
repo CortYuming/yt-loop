@@ -47,6 +47,19 @@ function refreshUI() {
   syncActiveLoop();
 }
 
+// Push a loop into the form. Callers pass whatever they know: a saved loop has
+// all four fields, a share URL may carry only some, and anything left undefined
+// keeps whatever the input already holds. Edit, Play-from-list and the
+// share-URL landing each used to set these inputs by hand — which is how the
+// URL path ended up being the only one that never touched Note.
+function applyLoopToForm(loop) {
+  if (loop.start != null && !isNaN(loop.start)) startInput.value = formatTime(loop.start);
+  if (loop.end   != null && !isNaN(loop.end))   endInput.value   = formatTime(loop.end);
+  if (loop.speed != null && !isNaN(loop.speed)) setSpeed(loop.speed);
+  if (loop.note  !== undefined)                 noteInput.value  = loop.note || '';
+  refreshUI();
+}
+
 // Fill End with the video duration if it's still empty. Called on player
 // ready and on New so a fresh session covers the whole clip by default.
 function fillDefaultEnd() {
@@ -140,9 +153,13 @@ window.onYouTubeIframeAPIReady = () => {
       const s = params.get('s');
       const e = params.get('e');
       const r = params.get('r');
-      if (s) startInput.value = formatTime(parseFloat(s));
-      if (e) endInput.value   = formatTime(parseFloat(e));
-      if (r) setSpeed(r);
+      // Note is deliberately left out: adoptMatchingSavedLoop fills it in from
+      // the saved loop when the range matches one.
+      applyLoopToForm({
+        start: s !== null ? parseFloat(s) : undefined,
+        end:   e !== null ? parseFloat(e) : undefined,
+        speed: r !== null ? parseFloat(r) : undefined
+      });
       adoptMatchingSavedLoop();
       refreshUI();
     });
@@ -829,13 +846,7 @@ function renderLoopItem(vid, loop) {
   editBtn.addEventListener('click', () => {
     const applyEdit = () => {
       editingLoopId = loop.id;
-      startInput.value = formatTime(loop.start);
-      endInput.value = formatTime(loop.end);
-      setSpeed(loop.speed);
-      noteInput.value = loop.note || '';
-      // Programmatic .value = fires no 'input' event, so nothing here happens
-      // on its own — refreshUI covers the sync the loop range needs.
-      refreshUI();
+      applyLoopToForm(loop);
       renderLoops();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -897,11 +908,7 @@ function startLoopFromSaved(loop) {
     saveData(data);
   }
   setLoopActive({ start: loop.start, end: loop.end });
-  setSpeed(loop.speed);
-  startInput.value = formatTime(loop.start);
-  endInput.value = formatTime(loop.end);
-  noteInput.value = loop.note || '';
-  refreshUI();
+  applyLoopToForm(loop);
   renderLoops();
   player.seekTo(loop.start, true);
   scheduleDelayedPlay();
