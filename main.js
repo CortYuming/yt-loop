@@ -329,13 +329,7 @@ function onPlayerStateChange(e) {
       // clicking the iframe or YT's own Space shortcut. Pause and restart
       // through the 1s warmup so the user has time to pick up their guitar.
       player.pauseVideo();
-      if (activeLoop) {
-        const t = player.getCurrentTime();
-        if (t < activeLoop.start || t >= activeLoop.end) {
-          player.seekTo(activeLoop.start, true);
-        }
-      }
-      scheduleDelayedPlay();
+      startPlaybackWithDelay();
       return;
     }
   }
@@ -401,6 +395,23 @@ function scheduleDelayedPlay() {
     }
   }, PLAY_DELAY_MS);
   updatePlayButton();
+}
+
+// The single entry point for starting playback: re-apply the speed (YT can
+// drop it across loads), pull the playhead into the loop range if it sits
+// outside, then warm up. Every trigger — the Play button, Space, and the
+// iframe-click interception — goes through here; when Space had its own copy
+// of this that skipped the seek, a shared URL played from 0 instead of Start.
+function startPlaybackWithDelay() {
+  if (!player) return;
+  if (player.setPlaybackRate) player.setPlaybackRate(getSpeed());
+  if (activeLoop && typeof player.getCurrentTime === 'function') {
+    const t = player.getCurrentTime();
+    if (t < activeLoop.start || t >= activeLoop.end) {
+      player.seekTo(activeLoop.start, true);
+    }
+  }
+  scheduleDelayedPlay();
 }
 
 function startTimeLoop() {
@@ -513,16 +524,9 @@ playLoopBtn.addEventListener('click', () => {
     player.pauseVideo();
     return;
   }
-  // Loop membership is owned by the toggle; here we just seek into range
+  // Loop membership is owned by the toggle; the helper just seeks into range
   // if the toggle is on and playback is currently outside it.
-  if (player.setPlaybackRate) player.setPlaybackRate(getSpeed());
-  if (activeLoop) {
-    const t = player.getCurrentTime();
-    if (t < activeLoop.start || t >= activeLoop.end) {
-      player.seekTo(activeLoop.start, true);
-    }
-  }
-  scheduleDelayedPlay();
+  startPlaybackWithDelay();
 });
 
 loopToggle.addEventListener('change', () => {
@@ -919,7 +923,7 @@ document.addEventListener('keydown', e => {
     if (cancelPendingPlay()) { updatePlayButton(); return; }
     const state = safeState();
     if (state === (window.YT && YT.PlayerState.PLAYING)) player.pauseVideo();
-    else scheduleDelayedPlay();
+    else startPlaybackWithDelay();
   } else if (e.key === 's' || e.key === 'S') {
     e.preventDefault();
     const s = parseTime(startInput.value);
