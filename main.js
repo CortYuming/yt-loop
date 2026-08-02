@@ -475,25 +475,60 @@ function startPlaybackWithDelay() {
   scheduleDelayedPlay();
 }
 
+// The loop-end check must NOT live in requestAnimationFrame: Chrome pauses RAF
+// entirely while the tab is hidden, so playback ran straight past End until the
+// tab was looked at again. Main-thread setInterval is no good either — hidden
+// pages only get their timers checked once per second, and a practice loop that
+// overshoots by up to 1s is unusable. A Worker's timers run on their own thread
+// and are not throttled. Measured on this machine with the tab hidden and a
+// 25ms target: worker 25.0ms median / 26.7ms max, main-thread interval 1000ms,
+// RAF zero callbacks.
+const LOOP_CHECK_MS = 25;
+let loopWorker = null;
+
+// Pull the playhead back to Start once it reaches End. Driven by the worker
+// clock; the RAF tick calls it too, but only as a fallback for the (unexpected)
+// case where the worker could not be created.
+function enforceLoopEnd() {
+  if (!player || !activeLoop || typeof player.getCurrentTime !== 'function') return;
+  if (safeState() !== (window.YT && YT.PlayerState.PLAYING)) return;
+  let t;
+  try { t = player.getCurrentTime(); } catch (e) { return; }
+  if (t < activeLoop.end) return;
+  // seekTo while PLAYING triggers BUFFERING → PLAYING again;
+  // claim it as ours so onPlayerStateChange doesn't warm-up-delay it.
+  intentionalPlay = true;
+  player.seekTo(activeLoop.start, true);
+}
+
+// Inlined as a blob so the app stays a flat set of files on GitHub Pages.
+function startLoopWorker() {
+  if (loopWorker) return;
+  const src = 'let id = null;' +
+              'onmessage = e => {' +
+              '  if (id) clearInterval(id);' +
+              '  id = setInterval(() => postMessage(0), e.data);' +
+              '};';
+  try {
+    const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+    loopWorker = new Worker(url);
+    URL.revokeObjectURL(url);
+    loopWorker.onmessage = enforceLoopEnd;
+    loopWorker.postMessage(LOOP_CHECK_MS);
+  } catch (e) {
+    loopWorker = null; // RAF fallback below keeps the visible case working.
+  }
+}
+
 function startTimeLoop() {
+  startLoopWorker();
   if (rafId) cancelAnimationFrame(rafId);
   const tick = () => {
     if (player && typeof player.getCurrentTime === 'function') {
       let t;
       try { t = player.getCurrentTime(); } catch (e) { t = 0; }
       currentTimeEl.textContent = formatTime(t);
-
-      if (activeLoop) {
-        const state = safeState();
-        if (state === (window.YT && YT.PlayerState.PLAYING)) {
-          if (t >= activeLoop.end) {
-            // seekTo while PLAYING triggers BUFFERING → PLAYING again;
-            // claim it as ours so onPlayerStateChange doesn't warm-up-delay it.
-            intentionalPlay = true;
-            player.seekTo(activeLoop.start, true);
-          }
-        }
-      }
+      if (!loopWorker) enforceLoopEnd();
     }
     rafId = requestAnimationFrame(tick);
   };
