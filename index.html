@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=note1">
+<link rel="stylesheet" href="style.css?v=ramp4">
 </head>
 <body>
 <main>
@@ -41,7 +41,7 @@
     <div class="row">
       <span id="currentTime" class="time big">0:00.00</span>
       <div class="speed-slider">
-        <input type="range" id="speedRange" min="0" max="2" step="0.01" value="1"
+        <input type="range" id="speedRange" min="0.25" max="2" step="0.01" value="1"
                title="Playback speed" />
         <span id="speedDisplay" class="time">1.00x</span>
       </div>
@@ -56,7 +56,11 @@
         <option value="1.75">1.75x</option>
         <option value="2">2.00x</option>
       </select>
-      <label>Duration: <span id="durationDisplay" class="time">—</span></label>
+      <label class="toggle-switch ramp" title="Speed up: starts at 0.25x and gains 0.05x on every loop, up to 1.00x">
+        <input type="checkbox" id="rampToggle" />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span class="ramp-label">⤴️ <span id="rampFrom">0.25x</span> → 1.00x</span>
+      </label>
     </div>
 
     <div class="row start-end-row">
@@ -67,6 +71,7 @@
           <button id="captureStart" class="pin" title="Capture current time">📍</button>
         </div>
       </div>
+      <label class="duration-field" title="Loop duration (end − start)">⏱ <span id="durationDisplay" class="time">—</span></label>
       <div class="field-group">
         <span class="field-label">End</span>
         <div class="nudge-group">
@@ -101,6 +106,6 @@
 <!-- ?v= is a cache buster: GitHub Pages serves assets with max-age=600, so a
      deploy without it leaves browsers on the old script for up to 10 minutes.
      Bump this whenever main.js changes. -->
-<script src="main.js?v=3"></script>
+<script src="main.js?v=4"></script>
 </body>
 </html>

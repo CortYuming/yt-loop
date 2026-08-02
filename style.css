@@ -9,6 +9,7 @@
   --red-hover: #ff7373;
   --blue: #4a7fff;
   --blue-hover: #6b95ff;
+  --amber: #ffa726;
 }
 
 * { box-sizing: border-box; }
@@ -73,6 +74,11 @@ button {
   font-family: inherit;
 }
 button:hover { background: var(--panel-hover); }
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+button:disabled:hover { background: var(--panel); }
 button.primary {
   background: var(--blue);
   border-color: var(--blue);
@@ -114,7 +120,7 @@ button.primary:hover {
 .controls .row.buttons { margin-top: 4px; }
 
 .start-end-row {
-  gap: 16px;
+  gap: 12px;
 }
 .field-group {
   display: flex;
@@ -150,6 +156,12 @@ button.primary:hover {
   width: 140px;
   accent-color: var(--blue);
   cursor: pointer;
+}
+/* Locked while the ⤴️ ramp is running — it owns the speed until switched off. */
+.speed-slider input[type="range"]:disabled,
+select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 #speedDisplay {
   font-size: 13px;
@@ -237,6 +249,40 @@ button.pin {
 .toggle-switch input:checked + .toggle-track .toggle-thumb {
   transform: translateX(16px);
   background: #fff;
+}
+
+/* The ramp switch sits next to the Loop switch, so it gets its own colour —
+   two identical blue toggles in one row were hard to tell apart at a glance. */
+.toggle-switch.ramp input:checked + .toggle-track {
+  background: var(--amber);
+}
+.toggle-switch.ramp .ramp-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.toggle-switch.ramp .ramp-label {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: var(--sub);
+}
+.toggle-switch.ramp input:checked ~ .ramp-label {
+  color: var(--amber);
+}
+/* Fixed width so the row doesn't shift as the ramp climbs. */
+.toggle-switch.ramp #rampFrom {
+  display: inline-block;
+  min-width: 44px;
+  text-align: right;
+}
+
+/* Sits between Start and End, so the gap either side has to read as a
+   separator rather than as part of a field. */
+.duration-field {
+  color: var(--sub);
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .loop-item {

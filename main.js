@@ -111,6 +111,8 @@ const noteInput       = document.getElementById('noteInput');
 const captureStart    = document.getElementById('captureStart');
 const captureEnd      = document.getElementById('captureEnd');
 const loopToggle      = document.getElementById('loopToggle');
+const rampToggle      = document.getElementById('rampToggle');
+const rampFrom        = document.getElementById('rampFrom');
 const playLoopBtn     = document.getElementById('playLoopBtn');
 const saveBtn         = document.getElementById('saveBtn');
 const newBtn          = document.getElementById('newBtn');
@@ -137,17 +139,89 @@ function hasPresetFor(v) {
 
 // apply: false updates the UI only — used while dragging the slider, where
 // firing setPlaybackRate on every 'input' event makes playback stutter.
-function setSpeed(v, { apply = true } = {}) {
+// fromRamp: true marks the call as the ramp's own step, which is the one case
+// that must NOT re-baseline it (see rampBase below).
+function setSpeed(v, { apply = true, fromRamp = false } = {}) {
   const n = parseFloat(v);
   if (isNaN(n)) return;
-  currentSpeed = roundTo(Math.min(2, Math.max(0, n)), 2);
+  currentSpeed = roundTo(Math.min(2, Math.max(0.25, n)), 2);
   speedRange.value = String(currentSpeed);
   speedSelect.value = hasPresetFor(currentSpeed) ? String(currentSpeed) : '';
   speedDisplay.textContent = `${currentSpeed.toFixed(2)}x`;
   if (apply && player && player.setPlaybackRate) {
     player.setPlaybackRate(currentSpeed);
   }
+  updateRampLabel();
+  // A speed arriving from anywhere but the ramp itself — loading a saved loop,
+  // a share URL — is remembered as the speed to return to, but the ramp keeps
+  // its fixed 0.25x starting line rather than picking up from there.
+  if (!fromRamp && rampOn) {
+    rampBase = currentSpeed;
+    if (currentSpeed !== RAMP_START) setSpeed(RAMP_START, { apply, fromRamp: true });
+  }
 }
+
+// ============================================================
+// Speed-up ramp (⏫)
+// ============================================================
+// Practice aid: a fixed run from 0.25x up to the original tempo, gaining a
+// notch on every completed lap. 0.05 is small enough that a single lap doesn't
+// announce itself, so the speed creeps up without the player noticing. The
+// start is fixed rather than "wherever the slider happens to be" so that
+// switching it on always means the same thing.
+const RAMP_START = 0.25;
+const RAMP_STEP = 0.05;
+const RAMP_TARGET = 1;
+
+let rampOn = false;
+// The speed to go back to when the ramp is switched off. Also stands in for the
+// live, drifting speed wherever the *chosen* speed is what matters (saving,
+// share links).
+let rampBase = null;
+
+function effectiveSpeed() {
+  return rampBase !== null ? rampBase : getSpeed();
+}
+
+// "0.25x → 1.00x" while idle, with the left side tracking the live speed once
+// the ramp is running — the whole label doubles as the progress readout.
+function updateRampLabel() {
+  rampFrom.textContent = `${(rampOn ? getSpeed() : RAMP_START).toFixed(2)}x`;
+}
+
+// Practice mode is playback-only: the speed controls belong to the ramp while
+// it runs, and the buttons that edit or export a loop are held back so none of
+// them can be hit by mistake mid-run. (Save is handled in updateSaveButton,
+// which hides it outright.) The saved-loop list stays live — picking another
+// loop from it is a legitimate way to move on.
+function updateRampLock() {
+  speedRange.disabled = rampOn;
+  speedSelect.disabled = rampOn;
+  [newBtn, deleteBtn, shareBtn, shareMdBtn].forEach(b => { b.disabled = rampOn; });
+}
+
+// Called once per completed lap, from the loop-end handler.
+function bumpRampSpeed() {
+  if (!rampOn) return;
+  const cur = getSpeed();
+  if (cur >= RAMP_TARGET) return; // at (or past) the target: stay there
+  setSpeed(Math.min(RAMP_TARGET, roundTo(cur + RAMP_STEP, 2)), { fromRamp: true });
+}
+
+rampToggle.addEventListener('change', () => {
+  rampOn = rampToggle.checked;
+  if (rampOn) {
+    rampBase = getSpeed();
+    setSpeed(RAMP_START, { fromRamp: true });
+  } else if (rampBase !== null) {
+    const base = rampBase;
+    rampBase = null;
+    setSpeed(base);
+  }
+  updateRampLock();
+  updateRampLabel();
+  updateSaveButton();
+});
 
 // ============================================================
 // Load YouTube IFrame API
@@ -270,7 +344,9 @@ function roundTo(n, digits) {
 function computeSaveState() {
   const start = parseTime(startInput.value);
   const end   = parseTime(endInput.value);
-  const speed = getSpeed();
+  // The chosen speed, not the ramp's current one — otherwise a running ramp
+  // would report the loop as edited on every lap.
+  const speed = effectiveSpeed();
 
   const validTime = start !== null && end !== null && !isNaN(start) && !isNaN(end) && start < end;
 
@@ -295,7 +371,10 @@ function computeSaveState() {
 function updateSaveButton() {
   const { isInList, canSave } = computeSaveState();
 
-  saveBtn.hidden = !canSave;
+  // Saving is off the table while the ramp runs: the speed on screen isn't the
+  // one you picked, and saving it by mistake would bake a half-ramped rate
+  // into the loop.
+  saveBtn.hidden = !canSave || rampOn;
   saveBtn.textContent = isInList ? '💾 Update' : '💾 Save';
   saveBtn.title = isInList ? 'Update saved loop' : 'Save as new';
 
@@ -486,6 +565,12 @@ function startPlaybackWithDelay() {
 const LOOP_CHECK_MS = 25;
 let loopWorker = null;
 
+// Guards against handling one lap twice. seekTo takes tens of milliseconds to
+// land, during which the 25ms clock keeps reporting a time past End — enough
+// ticks to bump the ramp two or three notches per lap. Handle the crossing
+// once, then wait until the playhead is genuinely back inside the range.
+let wrapArmed = true;
+
 // Pull the playhead back to Start once it reaches End. Driven by the worker
 // clock; the RAF tick calls it too, but only as a fallback for the (unexpected)
 // case where the worker could not be created.
@@ -494,11 +579,16 @@ function enforceLoopEnd() {
   if (safeState() !== (window.YT && YT.PlayerState.PLAYING)) return;
   let t;
   try { t = player.getCurrentTime(); } catch (e) { return; }
-  if (t < activeLoop.end) return;
+  if (t < activeLoop.end) { wrapArmed = true; return; }
+  if (!wrapArmed) return;
+  wrapArmed = false;
   // seekTo while PLAYING triggers BUFFERING → PLAYING again;
   // claim it as ours so onPlayerStateChange doesn't warm-up-delay it.
   intentionalPlay = true;
   player.seekTo(activeLoop.start, true);
+  // After the seek, so the new rate lands on the fresh lap rather than on the
+  // last few frames of the old one.
+  bumpRampSpeed();
 }
 
 // Inlined as a blob so the app stays a flat set of files on GitHub Pages.
@@ -714,7 +804,7 @@ function currentFormLoop() {
   return {
     start: parseTime(startInput.value),
     end:   parseTime(endInput.value),
-    speed: getSpeed(),
+    speed: effectiveSpeed(),
     note:  noteInput ? noteInput.value.trim() : ''
   };
 }
@@ -798,6 +888,19 @@ function loadData() {
 function saveData(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
+
+// The ramp is deliberately NOT persisted: switching it on drops the rate to
+// 0.25x, so restoring it across reloads would mean every visit starts crawling
+// for no reason the user asked for. It's an action for the session in front of
+// you, not a preference.
+function initRamp() {
+  rampOn = false;
+  rampToggle.checked = false;
+  rampBase = null;
+  updateRampLock();
+  updateRampLabel();
+}
+initRamp();
 
 // ============================================================
 // Render saved loops
