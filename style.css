@@ -204,14 +204,20 @@ button.pin {
   line-height: 1;
 }
 
-#saveBtn {
-  background: var(--red);
-  border-color: var(--red);
-  color: #fff;
+/* An edited value and the 🔗 / 📝 buttons blink together, so the link visibly
+   follows the edit. White, because every colour here already means something —
+   blue is focus and Loop, amber is the ramp, red is delete — and a neutral ring
+   can't be read as any of them. No fill, no movement, since this can fire mid-drag
+   on the slider. It holds briefly before fading: a straight fade-out was over
+   before the eye got to it. */
+@keyframes flash-ring {
+  0%   { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }
+  35%  { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5); }
+  100% { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0); }
 }
-#saveBtn:hover {
-  background: var(--red-hover);
-  border-color: var(--red-hover);
+.flash {
+  animation: flash-ring 1s ease-out;
+  border-radius: 4px;
 }
 
 
@@ -294,11 +300,6 @@ button.pin {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  border-left: 3px solid transparent;
-}
-.loop-item.editing {
-  border-left-color: #4a7fff;
-  background: #2f3a55;
 }
 .loop-item .info { flex: 1; min-width: 200px; }
 .loop-item .loop-range-row {
@@ -381,6 +382,20 @@ button.pin {
   color: var(--blue);
   font-weight: bold;
   margin-right: 6px;
+}
+/* Clears this video's history. Kept quiet until hovered — it sits inside a header
+   whose whole surface is a "load this video" target. */
+.video-group-header .clear-video {
+  padding: 4px 8px;
+  font-size: 13px;
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--sub);
+  background: transparent;
+}
+.video-group-header .clear-video:hover {
+  background: var(--panel-hover);
+  border-color: var(--red);
 }
 
 .empty {

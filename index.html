@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=ramp4">
+<link rel="stylesheet" href="style.css?v=1785832566">
 </head>
 <body>
 <main>
@@ -31,9 +31,6 @@
         <span class="toggle-track"><span class="toggle-thumb"></span></span>
         <span>Loop</span>
       </label>
-      <button id="saveBtn" hidden>💾 Save</button>
-      <button id="newBtn">＋ New</button>
-      <button id="deleteBtn" hidden>🗑 Delete</button>
       <button id="shareBtn">🔗 URL</button>
       <button id="shareMdBtn">📝 MD</button>
     </div>
@@ -94,18 +91,30 @@
   </section>
 
   <section class="loops">
-    <h2>Saved loops</h2>
+    <h2>History</h2>
     <div id="loopList"></div>
   </section>
 
   <footer>
-    <small>All data is stored in your browser's localStorage.</small>
+    <small>
+      Playing a range records it here, and editing Start / End / speed / Note while
+      it plays rewrites that same entry — so what you settle on is what's kept.
+      Replaying a range at the same speed moves its entry back to the top instead
+      of adding another. Each video keeps
+      its 5 most recent ranges, and the 5 most recently played videos are kept —
+      older ones drop off. 🗑 next to a video clears that video's history.
+      Bookmark a 🔗 URL to keep a range for good. All of it lives in your
+      browser's localStorage.
+    </small>
   </footer>
 </main>
 
-<!-- ?v= is a cache buster: GitHub Pages serves assets with max-age=600, so a
+<!-- The version query is a cache buster: GitHub Pages serves assets with max-age=600, so a
      deploy without it leaves browsers on the old script for up to 10 minutes.
-     Bump this whenever main.js changes. -->
-<script src="main.js?v=4"></script>
+     The value is a unix timestamp (`date +%s`) — set it to the current one on every
+     edit to main.js or style.css. A hand-kept counter kept getting reused across
+     several changes, which left the browser on stale files while they were being
+     tested. -->
+<script src="main.js?v=1785832566"></script>
 </body>
 </html>
