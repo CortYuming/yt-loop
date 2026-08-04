@@ -383,6 +383,16 @@ function runPendingLoad() {
 function createOrLoadPlayer(videoId, onReadyCb) {
   currentVideoId = videoId;
   currentVideoTitle = '';
+  // A new video gets a new default range. Start back to zero and End cleared so
+  // fillDefaultEnd puts this clip's duration in — otherwise the previous video's
+  // range stayed in the fields and was played, and recorded, against a clip it
+  // had nothing to do with. Callers that know better (a share URL, a history
+  // entry) overwrite these from their onReady callback.
+  startInput.value = formatTime(0);
+  endInput.value = '';
+  refreshUI();
+  // The previous video's playback owned a history row; this one starts with none.
+  liveEntryId = null;
   fetchTitle(videoId);
   if (!player) {
     player = new YT.Player('player', {
