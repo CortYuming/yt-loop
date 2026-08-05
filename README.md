@@ -13,11 +13,12 @@ https://cortyuming.github.io/yt-loop/
 - **⤴️ Speed up** — a practice run from 0.25x to 1.00x: the rate gains 0.05x on every completed lap. The label doubles as the progress readout (`0.60x → 1.00x`). While it runs the speed controls and the 🔗 / 📝 buttons are locked; switch it off to return to your previous speed
 - Set start / end times, loop the region
 - **📍 pin** — snap the field to the current playback time
-- Nudge start / end with arrow keys (±0.05s, Shift ±1s) while the field is focused
+- **⏮** — jump to the loop start without changing play / pause state
+- Nudge start / end by ±0.05s with `Shift + ←` / `→` while the field is focused (the bare arrows move the caret)
 - **Live duration** display (end − start)
 - **Loop toggle** — turn looping on/off without losing your start/end
 - **History** — every range you play is remembered on its own, newest first, grouped by video. No save button: ▶ Play on an entry puts its range, speed and note back in the controls. 🗑 on an entry drops it; 🗑 on a video header clears that video's history
-- **🔗 URL** — copies a link that encodes video, start, end, and rate as query params. This is how you keep a loop for good: bookmark the link. Editing a value flashes the field and both copy buttons, so it's visible that the link tracks the form
+- **🔗 URL** — copies a link that encodes video, start, end, rate and note as query params. This is how you keep a loop for good: bookmark the link. Editing a value flashes the field and both copy buttons, so it's visible that the link tracks the form. Notes are capped at 30 characters, since percent-encoding costs 9 characters per Japanese character. On landing, a note already in this browser's history wins over the one in the link — the link's copy only fills in where there's no local entry, which is the case it exists for (another machine, or storage that got cleared)
 - **📝 MD** — copies the same link as a Markdown link, labelled with the video title and time range
 - Keyboard shortcuts (see below)
 
@@ -27,9 +28,8 @@ https://cortyuming.github.io/yt-loop/
 |-----|--------|
 | `Space` | Play / pause |
 | `S` | Jump to loop start |
-| `E` | Jump to loop end |
-| `←` / `→` | Seek 0.05 seconds (or nudge the value when Start/End is focused) |
-| `Shift + ←` / `→` | Seek 1 second (or nudge by 1s when Start/End is focused) |
+| `←` / `→` | Seek 0.05 seconds (move the caret when Start/End is focused) |
+| `Shift + ←` / `→` | Seek 1 second (nudge the value by 0.05s when Start/End is focused) |
 
 ## Run locally
 

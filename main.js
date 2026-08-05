@@ -17,6 +17,11 @@ const PLAY_DELAY_MS = 1000;
 const HISTORY_PER_VIDEO = 5;
 const HISTORY_VIDEOS = 5;
 
+// Notes ride along in the share URL, and percent-encoding costs 9 characters per
+// Japanese character — so the field is capped and share links clamp to the same
+// length, which also covers notes saved before the cap existed.
+const NOTE_MAX = 30;
+
 let player = null;
 let currentVideoId = null;
 let currentVideoTitle = '';
@@ -115,6 +120,7 @@ const loopToggle      = document.getElementById('loopToggle');
 const rampToggle      = document.getElementById('rampToggle');
 const rampFrom        = document.getElementById('rampFrom');
 const playLoopBtn     = document.getElementById('playLoopBtn');
+const toStartBtn      = document.getElementById('toStartBtn');
 const shareBtn        = document.getElementById('shareBtn');
 const shareMdBtn      = document.getElementById('shareMdBtn');
 const loopList        = document.getElementById('loopList');
@@ -237,14 +243,22 @@ window.onYouTubeIframeAPIReady = () => {
       const s = params.get('s');
       const e = params.get('e');
       const r = params.get('r');
-      // Note is deliberately left out: adoptNoteFromHistory fills it in when
-      // the landing range matches something we've played before.
+      const n = params.get('n');
+      // Note is deliberately left out here so the two sources below can be tried
+      // in order.
       applyLoopToForm({
         start: s !== null ? parseFloat(s) : undefined,
         end:   e !== null ? parseFloat(e) : undefined,
         speed: r !== null ? parseFloat(r) : undefined
       });
-      adoptNoteFromHistory();
+      // Local history wins over the link's note, and the link only speaks up when
+      // this range is one we've never played here — which is exactly the case the
+      // param exists for (a different machine, or storage that got cleared). The
+      // other way round loses data: an entry you've since refined is newer than
+      // whatever got bookmarked, and recordHistory() writes the form's note
+      // straight back into it, so a stale `n` would be overwritten in on the next
+      // Play. Links made before `n` existed still land on the history path.
+      if (!adoptNoteFromHistory() && n) noteInput.value = n.slice(0, NOTE_MAX);
       refreshUI();
     });
   } else {
@@ -252,17 +266,21 @@ window.onYouTubeIframeAPIReady = () => {
   }
 };
 
-// A share URL carries no note, so recover it from history when the range it
-// lands on is one we already have an entry for.
+// Recover the note for a landing range from history. Returns whether an entry
+// matched, so the caller knows whether the share URL's own note still has a job
+// to do. A match with an empty note still counts: clearing a note is deliberate,
+// so it should stay cleared rather than being refilled from the link.
 function adoptNoteFromHistory() {
-  if (!currentVideoId) return;
+  if (!currentVideoId) return false;
   const s = parseTime(startInput.value);
   const e = parseTime(endInput.value);
-  if (s === null || e === null || isNaN(s) || isNaN(e)) return;
+  if (s === null || e === null || isNaN(s) || isNaN(e)) return false;
   const video = loadData().videos[currentVideoId];
-  if (!video) return;
+  if (!video) return false;
   const match = video.history.find(h => sameRange(h, s, e, effectiveSpeed()));
-  if (match) noteInput.value = match.note || '';
+  if (!match) return false;
+  noteInput.value = match.note || '';
+  return true;
 }
 
 // ============================================================
@@ -737,6 +755,17 @@ playLoopBtn.addEventListener('click', () => {
   startPlaybackWithDelay();
 });
 
+// Jump to the start of the range without touching play / pause state. Shared by
+// the ⏮ Start button and the S shortcut.
+function seekToStart() {
+  if (!player || !player.seekTo) return;
+  const s = parseTime(startInput.value);
+  if (s === null || isNaN(s)) return;
+  player.seekTo(s, true);
+}
+
+toStartBtn.addEventListener('click', seekToStart);
+
 loopToggle.addEventListener('change', () => {
   if (loopToggle.checked) {
     const start = parseTime(startInput.value);
@@ -813,6 +842,8 @@ function buildShareUrl(vid, loop) {
   if (typeof loop.start === 'number' && !isNaN(loop.start)) params.set('s', loop.start.toFixed(2));
   if (typeof loop.end === 'number' && !isNaN(loop.end)) params.set('e', loop.end.toFixed(2));
   if (loop.speed && loop.speed !== 1) params.set('r', String(loop.speed));
+  const note = (loop.note || '').trim();
+  if (note) params.set('n', note.slice(0, NOTE_MAX));
   return `${location.origin}${location.pathname}?${params.toString()}`;
 }
 
@@ -1191,11 +1222,13 @@ document.addEventListener('keydown', e => {
   const tag = target && target.tagName;
   const inStartEnd = target === startInput || target === endInput;
 
-  // Arrow keys inside Start / End: nudge the field value instead of the player
+  // Arrow keys inside Start / End: plain ← → are left to the browser so the
+  // caret can move through the value; only Shift + ← → nudges it, by 0.05s.
+  // Nudging on the bare arrows made the field impossible to edit by hand.
   if (inStartEnd && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    if (!e.shiftKey) return;
     e.preventDefault();
-    const step = e.shiftKey ? 1 : 0.05;
-    const delta = e.key === 'ArrowLeft' ? -step : step;
+    const delta = e.key === 'ArrowLeft' ? -0.05 : 0.05;
     const cur = parseTime(target.value);
     const base = (cur === null || isNaN(cur)) ? 0 : cur;
     target.value = formatTime(Math.max(0, roundTo(base + delta, 2)));
@@ -1216,12 +1249,7 @@ document.addEventListener('keydown', e => {
     else startPlaybackWithDelay();
   } else if (e.key === 's' || e.key === 'S') {
     e.preventDefault();
-    const s = parseTime(startInput.value);
-    if (s !== null && !isNaN(s)) player.seekTo(s, true);
-  } else if (e.key === 'e' || e.key === 'E') {
-    e.preventDefault();
-    const en = parseTime(endInput.value);
-    if (en !== null && !isNaN(en)) player.seekTo(en, true);
+    seekToStart();
   } else if (e.key === 'l' || e.key === 'L') {
     e.preventDefault();
     loopToggle.checked = !loopToggle.checked;
