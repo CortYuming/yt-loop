@@ -504,8 +504,8 @@ button.pin {
   color: var(--text);
 }
 
-/* One unbroken row sliding under a playhead in the middle. The window clips it;
-   the row itself never wraps. */
+/* One unbroken row sliding under a playhead two thirds across. The window clips
+   it; the row itself never wraps. */
 .chord-viewport {
   position: relative;
   overflow: hidden;
@@ -520,10 +520,11 @@ button.pin {
   width: max-content;
   will-change: transform;
 }
-/* Now. The music runs through it. */
+/* Now. The music runs through it. Kept on the same fraction as PLAYHEAD_RATIO
+   in main.js, which is what actually slides the row. */
 .chord-playhead {
   position: absolute;
-  left: 50%;
+  left: 66.6667%;
   top: 0;
   bottom: 0;
   width: 2px;

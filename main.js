@@ -919,9 +919,9 @@ shareMdBtn.addEventListener('click', () => {
 // One sheet per video — the chords belong to the song, not to whichever range
 // happens to be in the fields. See chords.js for the notation.
 
-// The sheet is one unbroken row that slides under a playhead fixed in the
-// middle of the window: what is playing is always in the same place, and what
-// is coming arrives from the right.
+// The sheet is one unbroken row that slides under a playhead fixed two thirds
+// across the window: what is playing is always in the same place, and what is
+// coming arrives from the right.
 //
 // Every bar is four slots wide whatever it holds — a slot being one diagram —
 // and its chords take slots in proportion to the beats they get. That is what
@@ -936,6 +936,13 @@ const SLOTS_PER_BAR = 4;
 // number sets how large the whole sheet draws.
 const SLOT_MAX = 142;
 const BAR_BORDER = 2;   // the amber rule down the left of a bar
+// Where the playhead sits across the window. Not the middle: a bar of five or
+// more chords wraps to a second line inside its own width, so what is sounding
+// late in such a bar is drawn well left of the playhead — and off the window
+// entirely when only half of it lies behind. Two thirds keeps that in view at
+// the cost of some of the lookahead. Keep .chord-playhead's left in style.css
+// on the same fraction.
+const PLAYHEAD_RATIO = 2 / 3;
 let chordAnchors = [];  // {time, x} along the track, ascending by time
 
 // Re-reading and re-parsing the sheet on every render would be waste, so the
@@ -1087,8 +1094,8 @@ function chordXForTime(t) {
 function updateChordScroll(t) {
   if (!currentVideoId || chordSection.hidden || !getChordsVisible()) return;
   if (chordAnchors.length === 0) return;
-  const center = chordViewport.clientWidth / 2;
-  chordStrip.style.transform = `translateX(${center - chordXForTime(t)}px)`;
+  const playhead = chordViewport.clientWidth * PLAYHEAD_RATIO;
+  chordStrip.style.transform = `translateX(${playhead - chordXForTime(t)}px)`;
 }
 
 window.addEventListener('resize', () => { renderChordStrip(); });
