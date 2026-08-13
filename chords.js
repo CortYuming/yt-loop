@@ -233,13 +233,14 @@ const Chords = (() => {
 
   // Lay a range over a run of bars. They share it evenly: a transcription is
   // written bar by bar at a steady tempo, so dividing is the only thing one
-  // link across several bars can mean. A bar with its own `@` keeps it.
+  // link across several bars can mean. The run holds no bar that already has a
+  // time, so nothing written by hand is overwritten and nothing already timed
+  // eats into the share of the bars this link is actually for.
   function spreadRange(bars, from, to, range) {
     const count = to - from;
     if (count <= 0) return;
     const each = (range.end - range.start) / count;
     for (let i = from; i < to; i++) {
-      if (bars[i].start !== null) continue;
       bars[i].start = range.start + (i - from) * each;
       bars[i].end = bars[i].start + each;
     }
@@ -260,18 +261,27 @@ const Chords = (() => {
     }
   }
 
+  // Which bars a run of range lines is timing: the ones written just above it
+  // that have no time of their own. A bar carrying its own `@` ends the run —
+  // it is already placed, and everything before it belongs to whatever timed
+  // it. This is what lets a block be pasted into a sheet that is already timed:
+  // the link divides its range among the bars it came with, not among those and
+  // every bar above them.
+  function untimedRunAbove(bars) {
+    let from = bars.length;
+    while (from > 0 && bars[from - 1].start === null) from--;
+    return from;
+  }
+
   // Text → bars. Bars split on | or a newline; empty ones are dropped, so a
   // leading or trailing | is free.
   function parseSheet(text) {
     const bars = [];
-    let timed = 0;      // bars up to here already have their times
     let ranges = [];    // range lines seen since the last row of bars
 
     const flush = () => {
-      if (ranges.length && bars.length > timed) {
-        distribute(bars, timed, bars.length, ranges);
-        timed = bars.length;
-      }
+      const from = untimedRunAbove(bars);
+      if (ranges.length && from < bars.length) distribute(bars, from, bars.length, ranges);
       ranges = [];
     };
 
