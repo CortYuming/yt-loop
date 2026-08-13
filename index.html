@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=1785904280">
+<link rel="stylesheet" href="style.css?v=1786604889">
 </head>
 <body>
 <main>
@@ -91,6 +91,42 @@
     </div>
   </section>
 
+  <section class="chords" hidden>
+    <div class="row chord-toolbar">
+      <span class="chord-label">Chords</span>
+      <label class="toggle-switch small" title="Show the chord strip">
+        <input type="checkbox" id="chordShowToggle" checked />
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      </label>
+      <button id="chordEditBtn" class="chord-edit-btn" title="Edit this video's chords">🎼 Edit</button>
+      <div class="legend-toggle" role="group" aria-label="Dot labelling">
+        <button id="chordModeInterval" class="legend-toggle-btn active"
+                title="Label the dots with degrees">Interval</button>
+        <button id="chordModeNote" class="legend-toggle-btn"
+                title="Label the dots with note names">Note</button>
+      </div>
+    </div>
+
+    <div class="chord-editor" hidden>
+      <textarea id="chordInput" rows="4" spellcheck="false"
+                placeholder="@43.50 Bb9:1.1.1.0.. Eb9:.6.6.5.6. | @45.90 D7+9:.6.5.4.5."></textarea>
+      <div class="row">
+        <button id="chordStampBtn" title="Insert the current playback time">📍 Time</button>
+        <span class="hint">
+          Bars split on <code>|</code> or a newline &nbsp;·&nbsp;
+          <code>Name:frets</code> — six frets, 1st string first, blank for a muted string &nbsp;·&nbsp;
+          <code>@</code> sets where a bar starts &nbsp;·&nbsp;
+          Markdown links from Guitar Chord Viewer can be pasted as they are
+        </span>
+      </div>
+    </div>
+
+    <div class="chord-viewport" id="chordViewport">
+      <div class="chord-track" id="chordStrip"></div>
+      <div class="chord-playhead"></div>
+    </div>
+  </section>
+
   <section class="loops">
     <h2>History</h2>
     <div id="loopList"></div>
@@ -101,11 +137,10 @@
       Playing a range records it here, and editing Start / End / speed / Note while
       it plays rewrites that same entry — so what you settle on is what's kept.
       Replaying a range at the same speed moves its entry back to the top instead
-      of adding another. Each video keeps
-      its 5 most recent ranges, and the 5 most recently played videos are kept —
-      older ones drop off. 🗑 next to a video clears that video's history.
-      Bookmark a 🔗 URL to keep a range for good. All of it lives in your
-      browser's localStorage.
+      of adding another. Each video keeps its 5 most recent ranges; videos
+      themselves stay until you clear them with the 🗑 in their header, which
+      also drops that video's chords. Bookmark a 🔗 URL to keep a range for
+      good. All of it lives in your browser's localStorage.
     </small>
   </footer>
 </main>
@@ -113,9 +148,10 @@
 <!-- The version query is a cache buster: GitHub Pages serves assets with max-age=600, so a
      deploy without it leaves browsers on the old script for up to 10 minutes.
      The value is a unix timestamp (`date +%s`) — set it to the current one on every
-     edit to main.js or style.css. A hand-kept counter kept getting reused across
+     edit to main.js, chords.js or style.css. A hand-kept counter kept getting reused across
      several changes, which left the browser on stale files while they were being
      tested. -->
-<script src="main.js?v=1785904280"></script>
+<script src="chords.js?v=1786604889"></script>
+<script src="main.js?v=1786604889"></script>
 </body>
 </html>

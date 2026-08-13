@@ -2,20 +2,22 @@
 // YT Loop — loop any part of a YouTube video
 // ============================================================
 
-const STORAGE_KEY = 'yt-loop-data-v2';
+const STORAGE_KEY = 'yt-loop-data-v3';
 // v1 held hand-saved loops, back when saving was a button. v2 records playback
 // history by itself — keeping a range for good is a browser bookmark's job now,
-// which the 🔗 / 📝 buttons feed. The old key is migrated on first read and then
-// left alone, so rolling back to the previous version still finds its data.
+// which the 🔗 / 📝 buttons feed. v3 adds a chord sheet per video: typed work,
+// not a by-product of playing. Each older key is migrated on first read and
+// then left alone, so rolling back to a previous version still finds its data.
+const V2_STORAGE_KEY = 'yt-loop-data-v2';
 const LEGACY_STORAGE_KEY = 'yt-loop-data-v1';
 const PLAY_DELAY_MS = 1000;
 
-// Two caps, one per axis of the list: each video keeps its most recent ranges,
-// and only the most recently played videos are kept at all. History is a
-// short-term "back to what I was just on", not an archive — small enough to
-// scan in one glance is the whole point.
+// One cap, and only on the ranges inside a video: playing a range records it,
+// so without it a session of nudging a phrase into place fills the list with
+// the versions you passed through. Videos themselves are never dropped
+// automatically — one can hold a chord sheet, and losing that to a silent
+// eviction would be losing work. Clearing a video is a 🗑 away.
 const HISTORY_PER_VIDEO = 5;
-const HISTORY_VIDEOS = 5;
 
 // Notes ride along in the share URL, and percent-encoding costs 9 characters per
 // Japanese character — so the field is capped and share links clamp to the same
@@ -124,6 +126,19 @@ const toStartBtn      = document.getElementById('toStartBtn');
 const shareBtn        = document.getElementById('shareBtn');
 const shareMdBtn      = document.getElementById('shareMdBtn');
 const loopList        = document.getElementById('loopList');
+const chordSection    = document.querySelector('.chords');
+const chordToolbar    = document.querySelector('.chord-toolbar');
+const chordEditor     = document.querySelector('.chord-editor');
+const chordEditBtn    = document.getElementById('chordEditBtn');
+const chordInput      = document.getElementById('chordInput');
+const chordStampBtn   = document.getElementById('chordStampBtn');
+const chordStrip      = document.getElementById('chordStrip');
+const chordViewport   = document.getElementById('chordViewport');
+const chordModeBtns   = {
+  number: document.getElementById('chordModeInterval'),
+  note:   document.getElementById('chordModeNote')
+};
+const chordShowToggle = document.getElementById('chordShowToggle');
 
 // ============================================================
 // Playback speed
@@ -259,6 +274,7 @@ window.onYouTubeIframeAPIReady = () => {
       // straight back into it, so a stale `n` would be overwritten in on the next
       // Play. Links made before `n` existed still land on the history path.
       if (!adoptNoteFromHistory() && n) noteInput.value = n.slice(0, NOTE_MAX);
+      adoptSheetFromLink(params.get('k'));
       refreshUI();
     });
   } else {
@@ -381,6 +397,8 @@ function afterVideoReady(onReadyCb) {
   fillDefaultEnd();
   activateLoopFromInputs();
   renderHistory();
+  renderChordStrip();
+  if (!chordEditor.hidden) chordInput.value = getSheet(currentVideoId);
 }
 
 // loadVideoById fires no second onReady, so the post-load work has to wait for
@@ -411,6 +429,7 @@ function createOrLoadPlayer(videoId, onReadyCb) {
   refreshUI();
   // The previous video's playback owned a history row; this one starts with none.
   liveEntryId = null;
+  expandedVideos.add(videoId);
   fetchTitle(videoId);
   if (!player) {
     player = new YT.Player('player', {
@@ -606,6 +625,7 @@ function startTimeLoop() {
       let t;
       try { t = player.getCurrentTime(); } catch (e) { t = 0; }
       currentTimeEl.textContent = formatTime(t);
+      updateChordScroll(t);
       if (!loopWorker) enforceLoopEnd();
     }
     rafId = requestAnimationFrame(tick);
@@ -782,29 +802,35 @@ loopToggle.addEventListener('change', () => {
 });
 
 // Confirm, then drop one history entry — for the odd range you don't want
-// suggested back at you. A video with nothing left goes too, so no empty groups
-// linger in the list.
+// suggested back at you. A video left with nothing goes too, so no empty groups
+// linger in the list — unless it holds a chord sheet, which is the part of a
+// video worth keeping and has no business disappearing with a range.
 function deleteHistoryEntry(vid, entry) {
   if (!confirm(`Remove this from history (${formatTime(entry.start)} → ${formatTime(entry.end)})?`)) return;
   const data = loadData();
   const v = data.videos[vid];
   if (v) {
     v.history = v.history.filter(h => h.id !== entry.id);
-    if (v.history.length === 0) delete data.videos[vid];
+    if (v.history.length === 0 && !v.sheet) delete data.videos[vid];
     saveData(data);
   }
   renderHistory();
 }
 
 // Clear one video's history. Per video rather than one global Clear all: the list
-// is grouped by video, so that's the unit you actually want to be rid of.
+// is grouped by video, so that's the unit you actually want to be rid of. This is
+// the only thing that removes a video now, so the prompt spells out that a chord
+// sheet goes with it.
 function clearVideoHistory(vid) {
   const title = resolveVideoTitle(vid) || vid;
-  if (!confirm(`Clear the history for "${title}"? Bookmarked links are not affected.`)) return;
   const data = loadData();
+  const v = data.videos[vid];
+  const sheetWarning = v && v.sheet ? ' Its chord sheet goes too.' : '';
+  if (!confirm(`Clear the history for "${title}"?${sheetWarning} Bookmarked links are not affected.`)) return;
   delete data.videos[vid];
   saveData(data);
   renderHistory();
+  renderChordStrip();
 }
 
 // ---------- Share (🔗 URL / 📝 MD) ----------
@@ -888,19 +914,354 @@ shareMdBtn.addEventListener('click', () => {
 });
 
 // ============================================================
+// Chord sheet (🎼)
+// ============================================================
+// One sheet per video — the chords belong to the song, not to whichever range
+// happens to be in the fields. See chords.js for the notation.
+
+// The sheet is one unbroken row that slides under a playhead fixed in the
+// middle of the window: what is playing is always in the same place, and what
+// is coming arrives from the right.
+//
+// Every bar is four slots wide whatever it holds — a slot being one diagram —
+// and its chords take slots in proportion to the beats they get. That is what
+// makes the motion even: equal bars over equal time. (An earlier version let
+// each bar be as wide as its contents, which made the sheet speed up and slow
+// down bar by bar and was unfollowable.)
+//
+// The slot narrows on a window too small for four of them, so one whole bar
+// always fits across, and the sheet never wraps to a second line.
+const SLOTS_PER_BAR = 4;
+// A slot holds one diagram, drawn as an SVG scaled to fit it, so this single
+// number sets how large the whole sheet draws.
+const SLOT_MAX = 142;
+const BAR_BORDER = 2;   // the amber rule down the left of a bar
+let chordAnchors = [];  // {time, x} along the track, ascending by time
+
+// Re-reading and re-parsing the sheet on every render would be waste, so the
+// parse is kept and only redone when the text can have changed.
+let chordCache = { vid: null, bars: [], spans: [] };
+
+function refreshChordCache() {
+  const bars = Chords.parseSheet(getSheet(currentVideoId));
+  chordCache = { vid: currentVideoId, bars, spans: Chords.resolveSpans(bars) };
+  return chordCache;
+}
+
+function chordSlotWidth() {
+  const w = chordViewport.clientWidth || 860;
+  return Math.max(60, Math.min(SLOT_MAX, Math.floor(w / SLOTS_PER_BAR)));
+}
+
+function renderChordStrip() {
+  if (!currentVideoId) {
+    chordSection.hidden = true;
+    return;
+  }
+  chordSection.hidden = false;
+  const visible = getChordsVisible();
+  if (!visible) chordEditor.hidden = true;
+  chordViewport.hidden = !visible;
+  if (!visible) return;
+
+  const { bars, spans } = refreshChordCache();
+  chordStrip.textContent = '';
+  chordStrip.style.transform = '';
+  chordAnchors = [];
+
+  if (bars.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'empty';
+    empty.textContent = 'No chords for this video yet — 🎼 Edit to write some.';
+    chordStrip.appendChild(empty);
+    return;
+  }
+
+  const slot = chordSlotWidth();
+  chordStrip.style.setProperty('--slot', `${slot}px`);
+  let x = 0;
+
+  bars.forEach((bar, i) => {
+    const weights = Chords.slotWeights(bar.chords.length);
+    // Every bar is the same four slots wide. One holding more chords than that
+    // stacks them four to a line within its own width instead of growing wider,
+    // which would run it past the others and take the even pace with it.
+    const width = SLOTS_PER_BAR * slot;
+    const outer = width + BAR_BORDER;
+
+    const barEl = document.createElement('div');
+    barEl.className = 'chord-bar';
+    barEl.style.width = `${width}px`;
+
+    const head = document.createElement('div');
+    head.className = 'chord-bar-head';
+    head.textContent = spans[i].start === null
+      ? String(i + 1)
+      : `${i + 1}　${formatTime(spans[i].start)}`;
+    barEl.appendChild(head);
+
+    const cells = document.createElement('div');
+    cells.className = 'chord-bar-cells';
+    bar.chords.forEach((chord, j) => {
+      const cell = renderChord(chord);
+      cell.style.width = `${weights[j] * slot}px`;
+      cells.appendChild(cell);
+    });
+    barEl.appendChild(cells);
+    chordStrip.appendChild(barEl);
+
+    // Time is pinned to the bar's two edges. Inside, the chords already sit
+    // where their beats fall, so a straight line between the edges puts each
+    // one under the playhead exactly when it sounds.
+    if (spans[i].start !== null) {
+      chordAnchors.push({ time: spans[i].start, x });
+      if (spans[i].end !== null) chordAnchors.push({ time: spans[i].end, x: x + outer });
+    }
+    x += outer;
+  });
+
+  chordAnchors.sort((a, b) => a.time - b.time);
+  updateChordScroll(currentPlaybackTime());
+}
+
+function currentPlaybackTime() {
+  if (!player || typeof player.getCurrentTime !== 'function') return 0;
+  try { return player.getCurrentTime(); } catch (e) { return 0; }
+}
+
+// Where a moment in the music sits along the track. Outside the sheet the
+// nearest bar's speed carries on, so it drifts in and out rather than sticking.
+function chordXForTime(t) {
+  const a = chordAnchors;
+  if (a.length === 0) return 0;
+  if (a.length === 1) return a[0].x;
+  const last = a.length - 1;
+  const between = (i, j) => {
+    const span = a[j].time - a[i].time;
+    return span > 0 ? (a[j].x - a[i].x) / span : 0;
+  };
+  if (t <= a[0].time) return a[0].x + (t - a[0].time) * between(0, 1);
+  if (t >= a[last].time) return a[last].x + (t - a[last].time) * between(last - 1, last);
+  for (let i = 0; i < last; i++) {
+    if (t < a[i + 1].time) return a[i].x + (t - a[i].time) * between(i, i + 1);
+  }
+  return a[last].x;
+}
+
+// Called from the playback clock: a transform and nothing else, so the
+// compositor can carry it without a layout pass.
+function updateChordScroll(t) {
+  if (!currentVideoId || chordSection.hidden || !getChordsVisible()) return;
+  if (chordAnchors.length === 0) return;
+  const center = chordViewport.clientWidth / 2;
+  chordStrip.style.transform = `translateX(${center - chordXForTime(t)}px)`;
+}
+
+window.addEventListener('resize', () => { renderChordStrip(); });
+
+// A chord: its name linking out to the fretboard viewer, and the picked shape.
+// The time belongs to the bar, printed once in its header — a stamp under every
+// chord was four times the number for a quarter of the confidence, since a
+// chord's own moment is only its bar divided evenly.
+function renderChord(chord) {
+  const box = document.createElement('div');
+  box.className = 'chord';
+
+  const link = document.createElement('a');
+  link.href = Chords.viewerUrl(chord);
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.textContent = chord.name;
+  link.title = 'Open in Guitar Chord Viewer';
+  box.appendChild(link);
+
+  box.appendChild(Chords.diagram(chord.markers, chord.name, getChordMode()));
+  return box;
+}
+
+function openChordEditor() {
+  // Editing implies looking, so this turns the strip back on rather than
+  // opening a box whose result is hidden.
+  if (!getChordsVisible()) {
+    setChordsVisible(true);
+    chordShowToggle.checked = true;
+    renderChordStrip();
+  }
+  chordEditor.hidden = false;
+  chordInput.value = getSheet(currentVideoId);
+  chordInput.focus();
+  chordSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+chordEditBtn.addEventListener('click', () => {
+  if (chordEditor.hidden) openChordEditor();
+  else chordEditor.hidden = true;
+});
+
+// No save button, like everything else here: the box is the stored sheet.
+chordInput.addEventListener('input', () => {
+  setSheet(currentVideoId, chordInput.value);
+  renderChordStrip();
+});
+
+// A sheet pasted out of a notes file is a wall of markdown links. Once the
+// links have been read there is nothing left in them the short form doesn't
+// hold — the viewer link is rebuilt from the chord and its frets — so the box
+// is rewritten in the short form, one bar per line. Not while typing, which
+// would move the caret out from under you: on paste, and on leaving the field.
+function normalizeChordInput() {
+  const bars = Chords.parseSheet(chordInput.value);
+  if (!bars.length) return;
+  const compact = Chords.toCompact(bars, '\n');
+  if (compact === chordInput.value) return;
+  chordInput.value = compact;
+  setSheet(currentVideoId, compact);
+  renderChordStrip();
+}
+
+chordInput.addEventListener('paste', () => setTimeout(normalizeChordInput, 0));
+chordInput.addEventListener('blur', normalizeChordInput);
+
+// Writing `@0:43.50` by hand while a phrase is playing is the fiddly part, so
+// the pin drops the current time in at the caret.
+chordStampBtn.addEventListener('click', () => {
+  if (!player || !player.getCurrentTime) return;
+  const stamp = `@${roundTo(player.getCurrentTime(), 2).toFixed(2)} `;
+  const start = chordInput.selectionStart ?? chordInput.value.length;
+  const end = chordInput.selectionEnd ?? chordInput.value.length;
+  chordInput.value = chordInput.value.slice(0, start) + stamp + chordInput.value.slice(end);
+  const caret = start + stamp.length;
+  chordInput.setSelectionRange(caret, caret);
+  chordInput.focus();
+  setSheet(currentVideoId, chordInput.value);
+  renderChordStrip();
+});
+
+// Two halves of one pill with the live one lit, the same control Guitar Chord
+// Viewer uses for Degrees / Solfege. A lone button had to be read twice — once
+// for what it says and once for whether that is the state or the offer.
+function updateChordModeBtns() {
+  const mode = getChordMode();
+  Object.entries(chordModeBtns).forEach(([value, btn]) => {
+    btn.classList.toggle('active', value === mode);
+    btn.setAttribute('aria-pressed', String(value === mode));
+  });
+}
+
+Object.entries(chordModeBtns).forEach(([value, btn]) => {
+  btn.addEventListener('click', () => {
+    if (getChordMode() === value) return;
+    setChordMode(value);
+    updateChordModeBtns();
+    renderChordStrip();
+  });
+});
+
+chordShowToggle.addEventListener('change', () => {
+  setChordsVisible(chordShowToggle.checked);
+  renderChordStrip();
+});
+
+// A sheet still arrives in `k` — links made while the app had buttons for it
+// keep working, and it is how a sheet reaches another machine. Nothing builds
+// one any more: a second pair of 🔗 / 📝 next to the range's own pair was two
+// identical-looking buttons meaning different things. The sheet is text in the
+// editor, and text is copied by selecting it.
+// A sheet in the link fills in only where this browser has none — the same rule
+// the note follows. What is stored here was typed here, which makes it newer
+// than anything a bookmark carries.
+function adoptSheetFromLink(k) {
+  if (!k || !currentVideoId) return;
+  if (getSheet(currentVideoId)) return;
+  const bars = Chords.parseSheet(k);
+  if (!bars.length) return;
+  setSheet(currentVideoId, Chords.toCompact(bars));
+}
+
+// ============================================================
 // Data (localStorage)
 // ============================================================
 function loadData() {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return migrateLegacyData();
+  if (!raw) return migrateV2Data();
   try {
     const d = JSON.parse(raw);
     if (!d.videos) d.videos = {};
     Object.values(d.videos).forEach(v => {
       if (!Array.isArray(v.history)) v.history = [];
+      if (typeof v.sheet !== 'string') v.sheet = '';
     });
     return d;
   } catch { return { videos: {} }; }
+}
+
+// v3 is v2 plus a sheet per video, so this is a straight copy under the new key
+// — what actually changed is that videos stopped being pruned. Falls through to
+// the v1 path when there is no v2 either, so a long-dormant browser still lands
+// on its data.
+function migrateV2Data() {
+  const raw = localStorage.getItem(V2_STORAGE_KEY);
+  if (!raw) return migrateLegacyData();
+  let old;
+  try { old = JSON.parse(raw); } catch { return migrateLegacyData(); }
+  if (!old || !old.videos) return migrateLegacyData();
+
+  const data = { videos: {} };
+  Object.entries(old.videos).forEach(([vid, v]) => {
+    data.videos[vid] = {
+      title: v.title || '',
+      sheet: '',
+      history: Array.isArray(v.history) ? v.history : []
+    };
+  });
+  saveData(data);
+  return data;
+}
+
+// ---------- Chord sheets ----------
+function getSheet(vid) {
+  if (!vid) return '';
+  const v = loadData().videos[vid];
+  return (v && v.sheet) || '';
+}
+
+function setSheet(vid, text) {
+  if (!vid) return;
+  const data = loadData();
+  if (!data.videos[vid]) {
+    data.videos[vid] = { title: currentVideoTitle || '', sheet: '', history: [] };
+  }
+  data.videos[vid].sheet = text;
+  if (vid === currentVideoId && currentVideoTitle) data.videos[vid].title = currentVideoTitle;
+  saveData(data);
+}
+
+// Degree names or note names inside the diagram dots. Degrees are the default:
+// the point of the strip is what the shape does over the chord, not its letters.
+function getChordMode() {
+  return loadData().chordMode === 'note' ? 'note' : 'number';
+}
+
+function setChordMode(mode) {
+  const data = loadData();
+  data.chordMode = mode === 'note' ? 'note' : 'number';
+  saveData(data);
+}
+
+// Whether the strip is on show. Off leaves the toolbar in place, so the way
+// back is where the way out was. Held in memory as well as stored, since the
+// playback clock asks on every frame.
+let chordsVisible = true;
+
+function getChordsVisible() {
+  return chordsVisible;
+}
+
+function setChordsVisible(visible) {
+  chordsVisible = !!visible;
+  const data = loadData();
+  data.chordsHidden = !visible;
+  saveData(data);
 }
 
 function saveData(data) {
@@ -944,7 +1305,7 @@ function migrateLegacyData() {
         playedAt: Math.max(l.playedAt || 0, l.updatedAt || 0)
       }));
     if (history.length === 0) return;
-    data.videos[vid] = { title: v.title || '', history };
+    data.videos[vid] = { title: v.title || '', sheet: '', history };
   });
   saveData(data);
   return data;
@@ -965,7 +1326,7 @@ function recordHistory() {
 
   const data = loadData();
   if (!data.videos[currentVideoId]) {
-    data.videos[currentVideoId] = { title: currentVideoTitle || '', history: [] };
+    data.videos[currentVideoId] = { title: currentVideoTitle || '', sheet: '', history: [] };
   }
   const video = data.videos[currentVideoId];
   if (currentVideoTitle) video.title = currentVideoTitle;
@@ -1039,17 +1400,13 @@ function videoPlayedAt(video) {
   return video.history.reduce((m, h) => Math.max(m, h.playedAt || 0), 0);
 }
 
-// Apply both caps. The video being played is always the most recent one, so it
-// can never prune itself out from under the player.
+// Trim each video's ranges to the cap, newest first. Videos are left alone:
+// they only go when the user says so.
 function pruneHistory(data) {
   Object.values(data.videos).forEach(v => {
     v.history.sort(byPlayedAtDesc);
     v.history = v.history.slice(0, HISTORY_PER_VIDEO);
   });
-  Object.keys(data.videos)
-    .sort((a, b) => videoPlayedAt(data.videos[b]) - videoPlayedAt(data.videos[a]))
-    .slice(HISTORY_VIDEOS)
-    .forEach(vid => { delete data.videos[vid]; });
 }
 
 // The ramp is deliberately NOT persisted: switching it on drops the rate to
@@ -1064,6 +1421,15 @@ function initRamp() {
   updateRampLabel();
 }
 initRamp();
+
+// The Interval / Note choice and whether the strip is shown are preferences, so
+// unlike the ramp they do come back with you.
+function initChordControls() {
+  chordsVisible = loadData().chordsHidden !== true;
+  updateChordModeBtns();
+  chordShowToggle.checked = chordsVisible;
+}
+initChordControls();
 
 // ============================================================
 // Render history
@@ -1082,18 +1448,40 @@ function renderHistory() {
     const group = document.createElement('div');
     group.className = 'video-group';
     group.appendChild(renderVideoHeader(vid, videoData));
-    [...videoData.history]
-      .sort(byPlayedAtDesc)
-      .forEach(entry => { group.appendChild(renderHistoryItem(vid, entry)); });
+    if (expandedVideos.has(vid)) {
+      [...videoData.history]
+        .sort(byPlayedAtDesc)
+        .forEach(entry => { group.appendChild(renderHistoryItem(vid, entry)); });
+    }
     loopList.appendChild(group);
   });
 }
 
+// Which video groups show their ranges. Videos aren't capped any more, so a
+// list with every group open would run off the screen — the one in the player
+// is opened for you (see createOrLoadPlayer) and the rest wait to be asked.
+const expandedVideos = new Set();
+
 function renderVideoHeader(vid, videoData) {
   const isCurrent = vid === currentVideoId;
+  const isOpen = expandedVideos.has(vid);
   const header = document.createElement('div');
   header.className = 'video-group-header' + (isCurrent ? ' current' : '');
   header.title = isCurrent ? 'Currently loaded' : 'Load this video';
+
+  // Opening a group is not loading its video: reading what you practised on
+  // something else shouldn't yank the player off what's in it.
+  const toggle = document.createElement('button');
+  toggle.className = 'group-toggle';
+  toggle.textContent = isOpen ? '▾' : '▸';
+  toggle.title = isOpen ? 'Collapse' : `Show ${videoData.history.length} range(s)`;
+  toggle.addEventListener('click', e => {
+    e.stopPropagation();
+    if (isOpen) expandedVideos.delete(vid);
+    else expandedVideos.add(vid);
+    renderHistory();
+  });
+  header.appendChild(toggle);
 
   const thumb = document.createElement('img');
   thumb.className = 'thumb';
@@ -1112,12 +1500,29 @@ function renderVideoHeader(vid, videoData) {
   } else {
     title.textContent = titleText;
   }
+  // A collapsed group shows nothing of itself, so the counts move up here.
   const idEl = document.createElement('div');
   idEl.className = 'video-id';
-  idEl.textContent = vid;
+  const counts = [`${videoData.history.length} range(s)`];
+  if (videoData.sheet) counts.push('🎼');
+  idEl.textContent = `${vid} · ${counts.join(' · ')}`;
   meta.appendChild(title);
   meta.appendChild(idEl);
   header.appendChild(meta);
+
+  // Chords are written while the video plays, so this loads it first and drops
+  // you in the editor — one sheet, one place to edit it.
+  const sheetBtn = document.createElement('button');
+  sheetBtn.className = 'sheet-video';
+  sheetBtn.textContent = '🎼';
+  sheetBtn.title = videoData.sheet ? "Edit this video's chords" : 'Add chords for this video';
+  sheetBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (isCurrent) { openChordEditor(); return; }
+    urlInput.value = `https://youtu.be/${vid}`;
+    createOrLoadPlayer(vid, () => openChordEditor());
+  });
+  header.appendChild(sheetBtn);
 
   // Clearing this video's history sits in its own header. stopPropagation keeps
   // the click off the header, whose job is to load the video.

@@ -110,7 +110,9 @@ button.primary:hover {
   width: 100%; height: 100%;
 }
 
-.controls .row {
+/* Not scoped to .controls: the chord section lays its toolbar out the same way,
+   and a copy of this block for it drifted out of step the moment it existed. */
+.row {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -396,6 +398,195 @@ button.pin {
 .video-group-header .clear-video:hover {
   background: var(--panel-hover);
   border-color: var(--red);
+}
+/* Opens this video's chord editor. Same quiet treatment as 🗑. */
+.video-group-header .sheet-video {
+  padding: 4px 8px;
+  font-size: 13px;
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--sub);
+  background: transparent;
+}
+.video-group-header .sheet-video:hover {
+  background: var(--panel-hover);
+  border-color: var(--blue);
+}
+/* Expand / collapse. Narrow and borderless so it reads as a disclosure arrow
+   rather than a third button competing with 🎼 and 🗑. */
+.video-group-header .group-toggle {
+  padding: 2px 4px;
+  font-size: 12px;
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--sub);
+  background: transparent;
+  border-color: transparent;
+}
+.video-group-header .group-toggle:hover {
+  color: var(--text);
+  background: var(--panel-hover);
+}
+
+/* ---------- Chord sheet ---------- */
+/* The section heading moved into the toolbar: between the video and the
+   controls, a whole row for one word was height the sheet could be using. */
+.chord-label {
+  font-size: 14px;
+  font-weight: bold;
+}
+/* Smaller than the Loop switch — this one is a corner of a toolbar, not a
+   control you reach for mid-phrase. */
+.toggle-switch.small .toggle-track { width: 28px; height: 16px; }
+.toggle-switch.small .toggle-thumb { width: 12px; height: 12px; }
+.toggle-switch.small input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(12px);
+}
+
+/* Sized down to the pill beside it: this toolbar sits between the video and the
+   controls, where every row costs height that the sheet could be using. */
+.chord-edit-btn {
+  padding: 3px 10px;
+  font-size: 11px;
+}
+
+/* Two halves of one pill, the live one lit — the same control Guitar Chord
+   Viewer uses for Degrees / Solfege. */
+.legend-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.legend-toggle-btn {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--sub);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.12s, background 0.12s;
+}
+.legend-toggle-btn:hover { color: var(--text); background: transparent; }
+.legend-toggle-btn.active {
+  background: rgba(74, 127, 255, 0.18);
+  color: var(--blue);
+  font-weight: 600;
+}
+/* Which slice of a long sheet is on screen. */
+.chord-count {
+  width: 100%;
+  margin-bottom: 2px;
+  color: var(--sub);
+  font-size: 11px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+.chord-editor { margin-bottom: 12px; }
+.chord-editor textarea {
+  width: 100%;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.chord-editor .hint { margin: 0; }
+.chord-editor code {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  color: var(--text);
+}
+
+/* One unbroken row sliding under a playhead in the middle. The window clips it;
+   the row itself never wraps. */
+.chord-viewport {
+  position: relative;
+  overflow: hidden;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.chord-track {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  width: max-content;
+  will-change: transform;
+}
+/* Now. The music runs through it. */
+.chord-playhead {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--red);
+  opacity: 0.85;
+  pointer-events: none;
+}
+/* One bar. The rules on both sides stand in for the | of a chart, and the head
+   spans the whole bar so the diagrams sit on one line under it. */
+/* A bar: four slots wide, its chords sharing them out by beat. The width comes
+   from the script, which is the only place that knows the slot size. */
+.chord-bar {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  border-left: 2px solid var(--amber);
+  /* content-box on purpose: the script sets the width from the slot size, and
+     the bar line has to sit outside it or the last chord of a full bar wraps. */
+  box-sizing: content-box;
+}
+/* Bar number and the time it starts on, once per bar. */
+.chord-bar-head {
+  padding-left: 4px;
+  color: var(--sub);
+  font-size: 10px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+/* Four to a line, wrapping inside the bar's own width: five to eight chords
+   take two lines, nine and up take three. */
+.chord-bar-cells {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+}
+.chord {
+  flex: none;
+  text-align: center;
+  overflow: hidden;
+}
+/* The diagram keeps one size across the sheet; the cell around it is what grows
+   with the beats the chord holds. */
+.chord svg {
+  display: block;
+  margin: 3px auto 1px;
+  width: calc(var(--slot) - 8px);
+  height: auto;
+}
+.chord a {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+}
+.chord a:hover { color: var(--blue); text-decoration: underline; }
+/* An estimate, so it stays quiet: something to check a sheet against, not a
+   number to read while playing. */
+.chord .chord-time {
+  display: block;
+  color: #6f6f6f;
+  font-size: 10px;
+  font-weight: 400;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
 }
 
 .empty {
