@@ -506,13 +506,22 @@ button.pin {
 
 /* One unbroken row sliding under a playhead two thirds across. The window clips
    it; the row itself never wraps. */
+/* The row can be dragged to move the playhead, so it takes horizontal gestures
+   for itself and leaves vertical ones to the page — on a phone the sheet is
+   something you scroll past as often as you scrub. Selection is off because a
+   drag across chord names would otherwise highlight them instead. */
 .chord-viewport {
   position: relative;
   overflow: hidden;
   padding: 6px 0;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
 }
+.chord-viewport.dragging { cursor: grabbing; }
 .chord-track {
   display: flex;
   flex-wrap: nowrap;
@@ -551,13 +560,32 @@ button.pin {
      the bar line has to sit outside it or the last chord of a full bar wraps. */
   box-sizing: content-box;
 }
-/* Bar number and the time it starts on, once per bar. */
+/* Bar number and the time it starts on, once per bar — and, while editing, the
+   + that puts another chord in it. */
 .chord-bar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
   padding-left: 4px;
   color: var(--sub);
   font-size: 10px;
   font-family: "SF Mono", Menlo, Consolas, monospace;
 }
+.chord-add {
+  display: none;
+  flex: none;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--sub);
+  font-size: 11px;
+  line-height: 15px;
+  cursor: pointer;
+}
+.editing-mode .chord-add { display: block; }
+.chord-add:hover { border-color: var(--blue); color: var(--blue); }
 /* Four to a line, wrapping inside the bar's own width: five to eight chords
    take two lines, nine and up take three. */
 .chord-bar-cells {
@@ -566,9 +594,18 @@ button.pin {
   align-content: flex-start;
 }
 .chord {
+  display: block;
   flex: none;
   text-align: center;
   overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+}
+/* A bar held by a single chord gives it all four slots, and centring in that
+   much room pushed the chord away from the bar line it belongs to — it read as
+   sitting between two bars rather than at the head of one. */
+.chord:only-child {
+  text-align: left;
 }
 /* The diagram keeps one size across the sheet; the cell around it is what grows
    with the beats the chord holds. */
@@ -578,13 +615,84 @@ button.pin {
   width: calc(var(--slot) - 8px);
   height: auto;
 }
-.chord a {
+.chord:only-child svg { margin-left: 0; }
+.chord-name {
+  display: block;
   color: var(--text);
-  text-decoration: none;
   font-weight: 600;
   font-size: 13px;
 }
-.chord a:hover { color: var(--blue); text-decoration: underline; }
+/* Hovering anywhere in the cell answers, so the diagram reads as part of the
+   link rather than as something sitting next to one. */
+.chord:hover .chord-name { color: var(--blue); text-decoration: underline; }
+.chord:hover svg { opacity: 0.85; }
+/* With the editor open a chord is the two boxes it is written in — name and
+   frets — with the diagram they describe under them, redrawn as they are typed.
+   The buttons hang below whichever cell holds the caret, out of the flow, so
+   the row does not change height as the caret moves along it. */
+.chord-fields {
+  position: relative;
+  overflow: visible;
+  cursor: default;
+}
+.chord-fields:hover svg,
+.chord-fields:focus-within svg { opacity: 1; }
+/* Room for the buttons to hang in. Only needed in this mode, and the strip is
+   clipped, so they would be cut off without it. */
+.chord-viewport.editing-mode { padding-bottom: 32px; }
+.chord-ops {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 5;
+  display: none;
+  gap: 1px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+}
+.chord-fields:focus-within .chord-ops { display: flex; }
+.chord-op {
+  flex: none;
+  min-width: 20px;
+  padding: 0 3px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--sub);
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+.chord-op:hover { border-color: var(--blue); color: var(--blue); }
+.chord-edit-box {
+  display: block;
+  width: 100%;
+  padding: 0 3px;
+  border: 1px solid var(--blue);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: inherit;
+  /* The viewport turns selection off so drags scrub instead of highlighting;
+     inside a box, text is text again. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+.chord-edit-box:focus { outline: none; border-color: var(--blue-hover); }
+/* Frets are read as six slots split by dots, which only lines up in mono. */
+.chord-edit-frets {
+  margin-top: 2px;
+  border-color: var(--border);
+  color: var(--sub);
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 400;
+}
 /* An estimate, so it stays quiet: something to check a sheet against, not a
    number to read while playing. */
 .chord .chord-time {

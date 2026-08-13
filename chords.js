@@ -180,21 +180,52 @@ const Chords = (() => {
     return { start, end: end !== null && !isNaN(end) && end > start ? end : null };
   }
 
-  function parseChordToken(token) {
-    const link = token.match(MD_LINK);
-    if (link) {
-      let markers = null;
-      let name = link[1].trim();
-      try {
-        const u = new URL(link[2], location.href);
-        markers = parseMarkers(u.searchParams.get('m'));
-        if (!name) name = u.searchParams.get('c') || '';
-      } catch (e) { /* not a URL — keep the label as a bare chord name */ }
-      return name ? { name, markers } : null;
+  // A viewer link, as a markdown link or on its own. The label wins over `c=`
+  // when there is one — someone who renamed it meant it — and `m=` is the
+  // fingering either way.
+  function parseViewerLink(text) {
+    const link = text.match(MD_LINK);
+    const href = link ? link[2] : (/^https?:\/\//i.test(text) ? text : null);
+    if (href === null) return null;
+    let name = link ? link[1].trim() : '';
+    let markers = null;
+    try {
+      const u = new URL(href, location.href);
+      markers = parseMarkers(u.searchParams.get('m'));
+      if (!name) name = u.searchParams.get('c') || '';
+    } catch (e) {
+      // Not a URL after all — a markdown label is still a chord name.
+      if (!link) return null;
     }
+    return name ? { name, markers } : null;
+  }
+
+  function parseChordToken(token) {
+    const link = parseViewerLink(token);
+    if (link) return link;
+    if (MD_LINK.test(token) || /^https?:\/\//i.test(token)) return null;
     const colon = token.indexOf(':');
     if (colon === -1) return { name: token, markers: null };
     return { name: token.slice(0, colon), markers: parseMarkers(token.slice(colon + 1)) };
+  }
+
+  // What the editing boxes accept. A chord copied out of Guitar Chord Viewer
+  // arrives as `[Eb9](…?c=Eb9&m=.6.6.5..)` — the share button's own format — and
+  // pasting that whole thing into either box should fill in both, since going
+  // to the viewer to find a shape and bringing it back is the actual workflow.
+  function readChord(text) {
+    const s = String(text || '').trim();
+    if (!s) return null;
+    return parseChordToken(s.replace(/\s+/g, ' '));
+  }
+
+  // Same, for the fret box: a link pasted there gives up its `m=`, and anything
+  // else is read as the six frets it looks like.
+  function readMarkers(text) {
+    const s = String(text || '').trim();
+    if (!s) return null;
+    const link = parseViewerLink(s);
+    return link ? link.markers : parseMarkers(s);
   }
 
   function parseBar(barText) {
@@ -473,5 +504,8 @@ const Chords = (() => {
     return svg;
   }
 
-  return { parseSheet, resolveSpans, chordTimes, slotWeights, toCompact, viewerUrl, diagram };
+  return {
+    parseSheet, resolveSpans, chordTimes, slotWeights, toCompact, viewerUrl, diagram,
+    readChord, readMarkers, markersToText,
+  };
 })();

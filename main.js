@@ -960,7 +960,11 @@ function chordSlotWidth() {
   return Math.max(60, Math.min(SLOT_MAX, Math.floor(w / SLOTS_PER_BAR)));
 }
 
-function renderChordStrip() {
+// `fromCache` redraws from the parsed sheet already in memory instead of
+// re-reading the text. Editing works on that copy, and it can hold a chord with
+// no name yet — which the text deliberately does not — so adding and removing
+// must not go back to the text for the shape of what they have just changed.
+function renderChordStrip(fromCache) {
   if (!currentVideoId) {
     chordSection.hidden = true;
     return;
@@ -968,10 +972,13 @@ function renderChordStrip() {
   chordSection.hidden = false;
   const visible = getChordsVisible();
   if (!visible) chordEditor.hidden = true;
+  syncChordEditMode();
   chordViewport.hidden = !visible;
   if (!visible) return;
 
-  const { bars, spans } = refreshChordCache();
+  const { bars, spans } = fromCache && chordCache.vid === currentVideoId
+    ? chordCache
+    : refreshChordCache();
   chordStrip.textContent = '';
   chordStrip.style.transform = '';
   chordAnchors = [];
@@ -1029,18 +1036,36 @@ function renderChordStrip() {
     const barEl = document.createElement('div');
     barEl.className = 'chord-bar';
     barEl.style.width = `${width}px`;
+    barEl.dataset.bar = String(i);
 
     const head = document.createElement('div');
     head.className = 'chord-bar-head';
-    head.textContent = spans[i].start === null
+    const label = document.createElement('span');
+    label.textContent = spans[i].start === null
       ? String(i + 1)
       : `${i + 1}　${formatTime(spans[i].start)}`;
+    head.appendChild(label);
+    // Only of use while editing, so it is hidden with the editor closed — see
+    // .editing-mode in style.css. Chords are otherwise added from the cell that
+    // has the caret; this is how a bar emptied of all of them is started again.
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'chord-add';
+    addBtn.textContent = '+';
+    addBtn.title = 'Add a chord to this bar';
+    addBtn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const bar = chordCache.bars[i];
+      if (bar) insertChord(i, bar.chords.length);
+    });
+    head.appendChild(addBtn);
     barEl.appendChild(head);
 
     const cells = document.createElement('div');
     cells.className = 'chord-bar-cells';
     bar.chords.forEach((chord, j) => {
-      const cell = renderChord(chord);
+      const cell = renderChord(chord, i, j);
       cell.style.width = `${weights[j] * slot}px`;
       cells.appendChild(cell);
     });
@@ -1089,35 +1114,366 @@ function chordXForTime(t) {
   return a[last].x;
 }
 
-// Called from the playback clock: a transform and nothing else, so the
-// compositor can carry it without a layout pass.
+// The inverse: where along the track a point sits, in seconds. Anchors are
+// built left to right, so their x is already ascending and the same walk works
+// on either axis.
+function chordTimeForX(x) {
+  const a = chordAnchors;
+  if (a.length === 0) return 0;
+  if (a.length === 1) return a[0].time;
+  const last = a.length - 1;
+  const between = (i, j) => {
+    const span = a[j].x - a[i].x;
+    return span > 0 ? (a[j].time - a[i].time) / span : 0;
+  };
+  if (x <= a[0].x) return a[0].time + (x - a[0].x) * between(0, 1);
+  if (x >= a[last].x) return a[last].time + (x - a[last].x) * between(last - 1, last);
+  for (let i = 0; i < last; i++) {
+    if (x < a[i + 1].x) return a[i].time + (x - a[i].x) * between(i, i + 1);
+  }
+  return a[last].time;
+}
+
+// A transform and nothing else, so the compositor can carry it without a
+// layout pass. Both the clock and the dragging hand come through here.
+function placeChordStrip(x) {
+  const playhead = chordViewport.clientWidth * PLAYHEAD_RATIO;
+  chordStrip.style.transform = `translateX(${playhead - x}px)`;
+}
+
+// A seek takes tens of milliseconds to land, and until it does the player still
+// reports the old time. Read literally that snaps the strip back to where the
+// drag started for a few frames before it jumps forward, which looks like the
+// drag was refused. Hold the dropped position until the clock catches up.
+const SEEK_SETTLE_MS = 600;
+let pendingSeek = null;   // { time, until }
+// Declared up here because updateChordScroll below reads it, and the strip can
+// be drawn before this file has finished evaluating.
+let chordDrag = null;     // { pointerId, fromX, baseX, moved }
+
+function settledTime(t) {
+  if (!pendingSeek) return t;
+  if (performance.now() > pendingSeek.until || Math.abs(t - pendingSeek.time) < 0.3) {
+    pendingSeek = null;
+    return t;
+  }
+  return pendingSeek.time;
+}
+
+// Called from the playback clock.
 function updateChordScroll(t) {
   if (!currentVideoId || chordSection.hidden || !getChordsVisible()) return;
   if (chordAnchors.length === 0) return;
-  const playhead = chordViewport.clientWidth * PLAYHEAD_RATIO;
-  chordStrip.style.transform = `translateX(${playhead - chordXForTime(t)}px)`;
+  if (chordDrag && chordDrag.moved) return;   // the hand has the row
+  // The cell holding the caret stays where it is: sliding a box out from under
+  // a word being typed is the one thing worse than not scrolling.
+  if (chordStrip.contains(document.activeElement)) return;
+  placeChordStrip(chordXForTime(settledTime(t)));
 }
 
-window.addEventListener('resize', () => { renderChordStrip(); });
+// ---------- dragging the strip ----------
+// The row is a timeline you can take hold of: drag it and the playhead comes
+// with it, so pulling the previous bar under the marker is how you wind the
+// music back a phrase. A press that barely moves is left alone — that is a
+// click on a chord, and a chord opens the fretboard viewer.
+const CHORD_DRAG_SLOP = 6;
+let suppressChordClick = false;
 
-// A chord: its name linking out to the fretboard viewer, and the picked shape.
+function chordDragX(drag, clientX) {
+  return drag.baseX - (clientX - drag.fromX);
+}
+
+function seekFromStrip(x) {
+  const wanted = Math.max(0, chordTimeForX(x));
+  let duration = 0;
+  try {
+    duration = player && typeof player.getDuration === 'function' ? player.getDuration() : 0;
+  } catch (e) { duration = 0; }
+  const time = duration > 0 ? Math.min(wanted, duration) : wanted;
+  // Drawn from the clamped time, so a drag past either end of the video settles
+  // on the frame it actually seeks to rather than out in the blank.
+  placeChordStrip(chordXForTime(time));
+  currentTimeEl.textContent = formatTime(time);
+  if (!player || typeof player.seekTo !== 'function') return;
+  // seekTo while PLAYING bounces the player through BUFFERING back to PLAYING;
+  // claim that as ours so the state handler doesn't read it as someone else
+  // starting playback and pause it for the warm-up delay.
+  if (safeState() === (window.YT && YT.PlayerState.PLAYING)) intentionalPlay = true;
+  player.seekTo(time, true);
+  pendingSeek = { time, until: performance.now() + SEEK_SETTLE_MS };
+}
+
+chordViewport.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (chordAnchors.length === 0) return;   // a sheet with no times has no timeline
+  // A press on a box or a button is aiming at that, not at the strip: the caret
+  // has to be placeable and a word has to be selectable by dragging over it.
+  if (e.target.closest && e.target.closest('.chord-edit-box, .chord-ops, .chord-add')) return;
+  chordDrag = {
+    pointerId: e.pointerId,
+    fromX: e.clientX,
+    baseX: chordXForTime(settledTime(currentPlaybackTime())),
+    moved: false,
+  };
+});
+
+chordViewport.addEventListener('pointermove', e => {
+  if (!chordDrag || e.pointerId !== chordDrag.pointerId) return;
+  if (!chordDrag.moved) {
+    if (Math.abs(e.clientX - chordDrag.fromX) < CHORD_DRAG_SLOP) return;
+    chordDrag.moved = true;
+    chordViewport.classList.add('dragging');
+    // Capture, so a fast drag that leaves the strip keeps being followed.
+    try { chordViewport.setPointerCapture(e.pointerId); } catch (err) { /* no-op */ }
+  }
+  placeChordStrip(chordDragX(chordDrag, e.clientX));
+  e.preventDefault();
+});
+
+function endChordDrag(e, seek) {
+  if (!chordDrag || e.pointerId !== chordDrag.pointerId) return;
+  const drag = chordDrag;
+  chordDrag = null;
+  chordViewport.classList.remove('dragging');
+  try { chordViewport.releasePointerCapture(drag.pointerId); } catch (err) { /* no-op */ }
+  if (!drag.moved) return;   // a tap: leave it to the chord's own link
+  // The click this pointerup is about to fire would open the viewer for
+  // whichever chord the finger came to rest on. It was a drag, so swallow it.
+  suppressChordClick = true;
+  if (seek) seekFromStrip(chordDragX(drag, e.clientX));
+  else updateChordScroll(currentPlaybackTime());
+}
+
+chordViewport.addEventListener('pointerup', e => endChordDrag(e, true));
+// A cancelled pointer has no landing place — the browser took the gesture — so
+// the strip goes back to following the clock instead of seeking somewhere the
+// finger never chose.
+chordViewport.addEventListener('pointercancel', e => endChordDrag(e, false));
+
+chordViewport.addEventListener('click', e => {
+  if (!suppressChordClick) return;
+  suppressChordClick = false;
+  e.preventDefault();
+  e.stopPropagation();
+}, true);
+
+window.addEventListener('resize', () => {
+  // The redraw throws the boxes away, so what is in the open one is kept first.
+  commitFocusedChordCell();
+  renderChordStrip();
+});
+
+// A chord in the strip. With the editor closed it is a link to the fretboard
+// viewer — the whole cell, diagram included, since the shape is the larger and
+// the more obvious half of a chord. With the editor open it is instead the pair
+// of boxes the chord is written in, ready to be typed into.
 // The time belongs to the bar, printed once in its header — a stamp under every
 // chord was four times the number for a quarter of the confidence, since a
 // chord's own moment is only its bar divided evenly.
-function renderChord(chord) {
-  const box = document.createElement('div');
+function renderChord(chord, barIndex, chordIndex) {
+  return chordEditor.hidden
+    ? renderChordLink(chord)
+    : renderChordFields(chord, barIndex, chordIndex);
+}
+
+function renderChordLink(chord) {
+  const box = document.createElement('a');
   box.className = 'chord';
+  box.href = Chords.viewerUrl(chord);
+  box.target = '_blank';
+  box.rel = 'noopener';
+  box.title = 'Open in Guitar Chord Viewer';
+  // Without this a drag starting on a chord becomes the browser's own link
+  // drag — a ghost of the URL follows the cursor and the strip stays put.
+  box.draggable = false;
 
-  const link = document.createElement('a');
-  link.href = Chords.viewerUrl(chord);
-  link.target = '_blank';
-  link.rel = 'noopener';
-  link.textContent = chord.name;
-  link.title = 'Open in Guitar Chord Viewer';
-  box.appendChild(link);
-
+  const name = document.createElement('span');
+  name.className = 'chord-name';
+  name.textContent = chord.name;
+  box.appendChild(name);
   box.appendChild(Chords.diagram(chord.markers, chord.name, getChordMode()));
   return box;
+}
+
+// ---------- editing, in place ----------
+// With the editor open every chord is already its two boxes — name and frets —
+// with the diagram under them redrawn as they are typed. Nothing has to be
+// clicked first: the mode is the invitation. The controls for adding and
+// removing chords belong to whichever cell holds the caret, since four buttons
+// under every chord in the sheet would be unreadable.
+function renderChordFields(chord, barIndex, chordIndex) {
+  const box = document.createElement('div');
+  box.className = 'chord chord-fields';
+  box.dataset.bar = String(barIndex);
+  box.dataset.chord = String(chordIndex);
+
+  const name = document.createElement('input');
+  name.className = 'chord-edit-box';
+  name.value = chord.name;
+  name.spellcheck = false;
+  name.placeholder = 'Chord';
+  name.setAttribute('aria-label', `Bar ${barIndex + 1}, chord ${chordIndex + 1}`);
+
+  const frets = document.createElement('input');
+  frets.className = 'chord-edit-box chord-edit-frets';
+  frets.value = chord.markers ? Chords.markersToText(chord.markers) : '';
+  frets.spellcheck = false;
+  frets.placeholder = '6.8.7.6..';
+  frets.setAttribute('aria-label', 'Frets, 1st string first');
+
+  const ops = chordOps(barIndex, chordIndex, name, frets);
+  box.appendChild(name);
+  box.appendChild(frets);
+  box.appendChild(Chords.diagram(chord.markers, chord.name, getChordMode()));
+  box.appendChild(ops);
+
+  const redraw = () => {
+    const old = box.querySelector('svg');
+    if (old) old.remove();
+    box.insertBefore(
+      Chords.diagram(Chords.readMarkers(frets.value), name.value, getChordMode()),
+      ops,
+    );
+  };
+
+  [name, frets].forEach(input => {
+    input.addEventListener('input', () => {
+      // A link dropped in either box is unpacked into both: that is how a shape
+      // arrives from the viewer, and splitting it by hand is the fiddly part.
+      // Only a link is taken apart — plain typing is left exactly as typed,
+      // since rewriting a name halfway through it is maddening.
+      if (/^\s*\[|^\s*https?:\/\//i.test(input.value)) {
+        const pasted = Chords.readChord(input.value);
+        if (pasted) {
+          name.value = pasted.name;
+          frets.value = pasted.markers ? Chords.markersToText(pasted.markers) : '';
+        }
+      }
+      redraw();
+    });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      else if (e.key === 'Escape') {
+        // Back to what the sheet last agreed to, which is what `chord` still
+        // holds — nothing is written until the caret leaves the cell.
+        e.preventDefault();
+        name.value = chord.name;
+        frets.value = chord.markers ? Chords.markersToText(chord.markers) : '';
+        redraw();
+        input.blur();
+      }
+    });
+    // Moving between the boxes and the buttons is one visit to the cell;
+    // leaving it altogether is what writes the sheet back.
+    input.addEventListener('blur', e => {
+      if (e.relatedTarget && box.contains(e.relatedTarget)) return;
+      commitChordCell(box);
+    });
+  });
+
+  return box;
+}
+
+// Add before, add after, remove, and a way out to the viewer — the last of
+// which the cell used to be, before it became something you type in.
+function chordOps(barIndex, chordIndex, name, frets) {
+  const ops = document.createElement('div');
+  ops.className = 'chord-ops';
+  const button = (text, title, run) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chord-op';
+    b.textContent = text;
+    b.title = title;
+    // Taking focus would blur the box, which writes the sheet back and can
+    // redraw the strip out from under the click that is still in flight.
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); run(); });
+    ops.appendChild(b);
+  };
+  // Laid out as the sheet reads: the two + point at the gaps they fill, and
+  // remove sits between them where the chord itself is.
+  button('+←', 'Add a chord before this one', () => insertChord(barIndex, chordIndex));
+  button('🗑', 'Remove this chord', () => removeChord(barIndex, chordIndex));
+  button('+→', 'Add a chord after this one', () => insertChord(barIndex, chordIndex + 1));
+  button('↗', 'Open in Guitar Chord Viewer', () => {
+    const url = Chords.viewerUrl({ name: name.value, markers: Chords.readMarkers(frets.value) });
+    window.open(url, '_blank', 'noopener');
+  });
+  return ops;
+}
+
+// The boxes read back into the parsed sheet, and the sheet rewritten from it.
+// Nothing is redrawn: the cell already shows what it says, and rebuilding the
+// strip would take the caret with it.
+function commitChordCell(box) {
+  if (!box || chordCache.vid !== currentVideoId) return;
+  const bar = chordCache.bars[Number(box.dataset.bar)];
+  const chord = bar && bar.chords[Number(box.dataset.chord)];
+  if (!chord) return;
+  const boxes = box.querySelectorAll('.chord-edit-box');
+  const typed = Chords.readChord(boxes[0].value);
+  const name = typed ? typed.name : '';
+  const markers = Chords.readMarkers(boxes[1].value);
+  const same = name === chord.name
+    && Chords.markersToText(markers || []) === Chords.markersToText(chord.markers || []);
+  if (same) return;
+  chord.name = name;
+  chord.markers = markers;
+  writeSheetFromCache();
+}
+
+function commitFocusedChordCell() {
+  const el = document.activeElement;
+  commitChordCell(el && el.closest ? el.closest('.chord-fields') : null);
+}
+
+// An unnamed chord is one still being written, not one to keep: it stays in the
+// parsed sheet and on the screen, but the text is built without it. So a box
+// left empty leaves no trace, and a bar emptied of chords drops out with them —
+// the sheet only ever holds what someone actually wrote.
+function writeSheetFromCache() {
+  const bars = chordCache.bars
+    .map(bar => ({ start: bar.start, end: bar.end, chords: bar.chords.filter(c => c.name) }))
+    .filter(bar => bar.chords.length);
+  const text = Chords.toCompact(bars, '\n');
+  setSheet(currentVideoId, text);
+  chordInput.value = text;
+}
+
+// Added to the parsed sheet and drawn from it, without going through the text:
+// a chord with no name has nothing to write yet. The strip is rebuilt from the
+// cache so the bar's four slots are shared out afresh and the indexes after the
+// new one shift up.
+function insertChord(barIndex, at) {
+  commitFocusedChordCell();
+  const bar = chordCache.bars[barIndex];
+  if (!bar) return;
+  bar.chords.splice(at, 0, { name: '', markers: null });
+  renderChordStrip(true);
+  focusChordCell(barIndex, at);
+}
+
+function removeChord(barIndex, chordIndex) {
+  commitFocusedChordCell();
+  const bar = chordCache.bars[barIndex];
+  if (!bar) return;
+  bar.chords.splice(chordIndex, 1);
+  writeSheetFromCache();
+  renderChordStrip(true);
+  // The caret lands on the neighbour that took its place, or on the one before
+  // it when the last chord in the bar went.
+  focusChordCell(barIndex, Math.min(chordIndex, bar.chords.length - 1));
+}
+
+function focusChordCell(barIndex, chordIndex) {
+  const cell = chordStrip.querySelector(
+    `.chord-fields[data-bar="${barIndex}"][data-chord="${chordIndex}"]`,
+  );
+  const input = cell && cell.querySelector('.chord-edit-box');
+  if (!input) return;
+  input.focus();
+  input.select();
 }
 
 function openChordEditor() {
@@ -1129,14 +1485,32 @@ function openChordEditor() {
     renderChordStrip();
   }
   chordEditor.hidden = false;
+  // The strip is drawn differently in this mode — boxes rather than links — so
+  // it is rebuilt rather than restyled.
+  syncChordEditMode();
+  renderChordStrip();
   chordInput.value = getSheet(currentVideoId);
   chordInput.focus();
   chordSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+// With the editor open the strip is a form: every chord is the pair of boxes it
+// is written in, and each bar offers a +. The whole look hangs off one class so
+// the strip and the editor can never disagree about which mode it is in.
+function syncChordEditMode() {
+  chordViewport.classList.toggle('editing-mode', !chordEditor.hidden);
+}
+
 chordEditBtn.addEventListener('click', () => {
   if (chordEditor.hidden) openChordEditor();
-  else chordEditor.hidden = true;
+  // Closing puts the chords back to being links, so whatever is in the open box
+  // is banked before the strip is rebuilt without it.
+  else {
+    commitFocusedChordCell();
+    chordEditor.hidden = true;
+    syncChordEditMode();
+    renderChordStrip();
+  }
 });
 
 // No save button, like everything else here: the box is the stored sheet.
