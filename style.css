@@ -536,6 +536,11 @@ button.pin {
    spans the whole bar so the diagrams sit on one line under it. */
 /* A bar: four slots wide, its chords sharing them out by beat. The width comes
    from the script, which is the only place that knows the slot size. */
+/* The seconds the sheet says nothing about. Blank on purpose: the row keeps
+   moving through them, and the emptiness is the honest answer. */
+.chord-gap {
+  flex: none;
+}
 .chord-bar {
   display: flex;
   flex: none;

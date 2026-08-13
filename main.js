@@ -980,6 +980,20 @@ function renderChordStrip() {
   const slot = chordSlotWidth();
   chordStrip.style.setProperty('--slot', `${slot}px`);
   let x = 0;
+  let lastTime = null;   // anchor times, which only ever move forward
+  let prevEnd = null;    // the furthest the sheet has reached, for spotting holes
+
+  // Along the strip time only goes one way. A sheet can say otherwise — two
+  // phrases written from links that overlap, a bar counted in both — and read
+  // literally that scrolls the row backwards, which reads as the app losing its
+  // place. A bar that starts before the sheet has got there keeps its position
+  // in the row and gives up its width in time: the playhead crosses it at once
+  // rather than rewinding for it.
+  const anchor = (time, at) => {
+    const t = lastTime === null ? time : Math.max(time, lastTime);
+    chordAnchors.push({ time: t, x: at });
+    lastTime = t;
+  };
 
   bars.forEach((bar, i) => {
     const weights = Chords.slotWeights(bar.chords.length);
@@ -988,6 +1002,22 @@ function renderChordStrip() {
     // which would run it past the others and take the even pace with it.
     const width = SLOTS_PER_BAR * slot;
     const outer = width + BAR_BORDER;
+
+    // A stretch of music the sheet says nothing about is drawn as the blank it
+    // is, as wide as this bar's own pace makes those seconds. The row then runs
+    // at one speed through the hole and arrives on the next bar in time.
+    // Standing still under the playhead until the music caught up looked like
+    // scrolling had stopped, which is the one thing the row must never look
+    // like — it is how you tell playback is alive.
+    if (spans[i].start !== null && spans[i].end !== null
+        && prevEnd !== null && spans[i].start > prevEnd) {
+      const gap = document.createElement('div');
+      gap.className = 'chord-gap';
+      const gapW = (spans[i].start - prevEnd) * (outer / (spans[i].end - spans[i].start));
+      gap.style.width = `${gapW}px`;
+      chordStrip.appendChild(gap);
+      x += gapW;
+    }
 
     const barEl = document.createElement('div');
     barEl.className = 'chord-bar';
@@ -1014,13 +1044,17 @@ function renderChordStrip() {
     // where their beats fall, so a straight line between the edges puts each
     // one under the playhead exactly when it sounds.
     if (spans[i].start !== null) {
-      chordAnchors.push({ time: spans[i].start, x });
-      if (spans[i].end !== null) chordAnchors.push({ time: spans[i].end, x: x + outer });
+      anchor(spans[i].start, x);
+      if (spans[i].end !== null) {
+        anchor(spans[i].end, x + outer);
+        prevEnd = prevEnd === null ? spans[i].end : Math.max(prevEnd, spans[i].end);
+      }
     }
     x += outer;
   });
 
-  chordAnchors.sort((a, b) => a.time - b.time);
+  // Built in the order they are drawn and clamped as they go, so the list is
+  // already ascending — sorting it would only shuffle bars the sheet overlapped.
   updateChordScroll(currentPlaybackTime());
 }
 
