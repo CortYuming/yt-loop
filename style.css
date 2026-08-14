@@ -572,6 +572,56 @@ button.pin {
   font-size: 10px;
   font-family: "SF Mono", Menlo, Consolas, monospace;
 }
+.chord-bar-no { flex: none; }
+/* The number and the time stay together at the head's left edge; the auto
+   margin is what keeps the + over on the right, where space-between had it
+   back when the two were one label. */
+.chord-bar-time {
+  position: relative;
+  flex: none;
+  margin-right: auto;
+}
+/* A button that reads as the text it replaced until you go near it. */
+.chord-time-face {
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.chord-time-face:hover,
+.chord-bar-time.open .chord-time-face { color: var(--blue); text-decoration: underline; }
+/* Hangs below the head, over the diagrams — the strip is clipped, so there is
+   nowhere else for it to go, and it is gone again the moment it is used. */
+.chord-time-pins {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 6;
+  display: none;
+  gap: 1px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  white-space: nowrap;
+}
+.chord-bar-time.open .chord-time-pins { display: flex; }
+.chord-time-pin {
+  flex: none;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--sub);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+.chord-time-pin:hover { border-color: var(--blue); color: var(--blue); }
 .chord-add {
   display: none;
   flex: none;

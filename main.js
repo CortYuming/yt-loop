@@ -163,7 +163,9 @@ function hasPresetFor(v) {
 function setSpeed(v, { apply = true, fromRamp = false } = {}) {
   const n = parseFloat(v);
   if (isNaN(n)) return;
-  currentSpeed = roundTo(Math.min(2, Math.max(0.25, n)), 2);
+  // The floor is 0, not YouTube's own 0.25: the slider is allowed to ask for
+  // anything down to a standstill and the player takes it as far as it will go.
+  currentSpeed = roundTo(Math.min(2, Math.max(0, n)), 2);
   speedRange.value = String(currentSpeed);
   speedSelect.value = hasPresetFor(currentSpeed) ? String(currentSpeed) : '';
   speedDisplay.textContent = `${currentSpeed.toFixed(2)}x`;
@@ -944,6 +946,10 @@ const BAR_BORDER = 2;   // the amber rule down the left of a bar
 // on the same fraction.
 const PLAYHEAD_RATIO = 2 / 3;
 let chordAnchors = [];  // {time, x} along the track, ascending by time
+// The one bar head whose 📍 buttons are open, if any. Declared up here with the
+// rest of the strip's state because the strip can be drawn before this file has
+// finished evaluating.
+let openTimePins = null;
 
 // Re-reading and re-parsing the sheet on every render would be waste, so the
 // parse is kept and only redone when the text can have changed.
@@ -982,6 +988,7 @@ function renderChordStrip(fromCache) {
   chordStrip.textContent = '';
   chordStrip.style.transform = '';
   chordAnchors = [];
+  openTimePins = null;   // the head holding them has just been thrown away
 
   if (bars.length === 0) {
     const empty = document.createElement('p');
@@ -1041,10 +1048,12 @@ function renderChordStrip(fromCache) {
     const head = document.createElement('div');
     head.className = 'chord-bar-head';
     const label = document.createElement('span');
-    label.textContent = spans[i].start === null
-      ? String(i + 1)
-      : `${i + 1}　${formatTime(spans[i].start)}`;
+    label.className = 'chord-bar-no';
+    label.textContent = String(i + 1);
     head.appendChild(label);
+    // A bar with a time on it carries the loop controls for that moment; one
+    // without is just its number.
+    if (spans[i].start !== null) head.appendChild(barTimePins(spans[i].start));
     // Only of use while editing, so it is hidden with the editor closed — see
     // .editing-mode in style.css. Chords are otherwise added from the cell that
     // has the caret; this is how a bar emptied of all of them is started again.
@@ -1089,6 +1098,80 @@ function renderChordStrip(fromCache) {
   // already ascending — sorting it would only shuffle bars the sheet overlapped.
   updateChordScroll(currentPlaybackTime());
 }
+
+// The time in a bar head, which is also how a loop is marked out from the
+// sheet: click it and start📍 / end📍 appear, each dropping that bar's moment
+// into the box it names. Setting a range by ear means catching it twice as it
+// goes past; the sheet already knows where the bars are, so picking the two
+// ends off it is the accurate way — click bar 5's time for the start, bar 9's
+// for the end. The buttons stay hidden until asked for because every bar has a
+// time, and a pair of them under each would bury the chords.
+function barTimePins(time) {
+  const wrap = document.createElement('span');
+  wrap.className = 'chord-bar-time';
+
+  const face = document.createElement('button');
+  face.type = 'button';
+  face.className = 'chord-time-face';
+  face.textContent = formatTime(time);
+  face.title = 'Use this time as the loop start or end';
+
+  const pins = document.createElement('span');
+  pins.className = 'chord-time-pins';
+  const pin = (text, title, input) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chord-time-pin';
+    b.textContent = text;
+    b.title = title;
+    // Same reason as the chord ops: taking focus can blur an open box, which
+    // writes the sheet back and redraws the strip out from under this click.
+    b.addEventListener('mousedown', e => e.preventDefault());
+    b.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      input.value = formatTime(time);
+      refreshUI();
+      handleValueEdit(input);
+      closeChordTimePins();
+    });
+    pins.appendChild(b);
+  };
+  pin('start📍', 'Set this time as the loop start', startInput);
+  pin('end📍', 'Set this time as the loop end', endInput);
+
+  face.addEventListener('mousedown', e => e.preventDefault());
+  face.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const wasOpen = wrap.classList.contains('open');
+    closeChordTimePins();
+    if (!wasOpen) {
+      wrap.classList.add('open');
+      openTimePins = wrap;
+    }
+  });
+
+  wrap.appendChild(face);
+  wrap.appendChild(pins);
+  return wrap;
+}
+
+function closeChordTimePins() {
+  if (openTimePins) openTimePins.classList.remove('open');
+  openTimePins = null;
+}
+
+// Anywhere else is a way out: the buttons are a question, and going back to the
+// music is a legitimate answer to it.
+document.addEventListener('click', e => {
+  if (!openTimePins) return;
+  if (e.target.closest && e.target.closest('.chord-bar-time')) return;
+  closeChordTimePins();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeChordTimePins();
+});
 
 function currentPlaybackTime() {
   if (!player || typeof player.getCurrentTime !== 'function') return 0;
@@ -1208,7 +1291,8 @@ chordViewport.addEventListener('pointerdown', e => {
   if (chordAnchors.length === 0) return;   // a sheet with no times has no timeline
   // A press on a box or a button is aiming at that, not at the strip: the caret
   // has to be placeable and a word has to be selectable by dragging over it.
-  if (e.target.closest && e.target.closest('.chord-edit-box, .chord-ops, .chord-add')) return;
+  if (e.target.closest
+      && e.target.closest('.chord-edit-box, .chord-ops, .chord-add, .chord-bar-time')) return;
   chordDrag = {
     pointerId: e.pointerId,
     fromX: e.clientX,
