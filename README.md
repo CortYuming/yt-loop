@@ -10,7 +10,7 @@ https://cortyuming.github.io/yt-loop/
 
 - Paste a YouTube URL, play the video inline
 - Switch playback speed — presets (0.25x – 2.0x, YouTube's own steps) plus a slider covering 0 – 2.0x in 0.01 steps
-- **⤴️ Speed up** — a practice run from 0.25x to 1.00x: the rate gains 0.05x on every completed lap. The label doubles as the progress readout (`0.60x → 1.00x`). While it runs the speed controls and the 🔗 / 📝 buttons are locked; switch it off to return to your previous speed
+- **⤴️ Speed up** — a practice run from whatever speed is set when you switch it on up to 1.00x: the rate gains 0.05x on every completed lap. Switching it on never changes the tempo, so slow the part down until it is playable and let it climb from there. The label doubles as the progress readout (`0.60x → 1.00x`). While it runs the speed controls and the 🔗 / 📝 buttons are locked; switch it off to return to the speed you started from
 - Set start / end times, loop the region
 - **📍 pin** — snap the field to the current playback time
 - **⏮** — jump to the loop start without changing play / pause state

@@ -174,23 +174,20 @@ function setSpeed(v, { apply = true, fromRamp = false } = {}) {
   }
   updateRampLabel();
   // A speed arriving from anywhere but the ramp itself — loading a saved loop,
-  // a share URL — is remembered as the speed to return to, but the ramp keeps
-  // its fixed 0.25x starting line rather than picking up from there.
-  if (!fromRamp && rampOn) {
-    rampBase = currentSpeed;
-    if (currentSpeed !== RAMP_START) setSpeed(RAMP_START, { apply, fromRamp: true });
-  }
+  // a share URL — becomes both the new starting line and the speed to return
+  // to when the ramp is switched off.
+  if (!fromRamp && rampOn) rampBase = currentSpeed;
 }
 
 // ============================================================
 // Speed-up ramp (⏫)
 // ============================================================
-// Practice aid: a fixed run from 0.25x up to the original tempo, gaining a
-// notch on every completed lap. 0.05 is small enough that a single lap doesn't
-// announce itself, so the speed creeps up without the player noticing. The
-// start is fixed rather than "wherever the slider happens to be" so that
-// switching it on always means the same thing.
-const RAMP_START = 0.25;
+// Practice aid: a run from whatever speed is set when it is switched on up to
+// the original tempo, gaining a notch on every completed lap. 0.05 is small
+// enough that a single lap doesn't announce itself, so the speed creeps up
+// without the player noticing. Starting where the slider already is means
+// switching it on never jerks the tempo — you slow the part down until it is
+// playable, then let it climb from there.
 const RAMP_STEP = 0.05;
 const RAMP_TARGET = 1;
 
@@ -204,10 +201,11 @@ function effectiveSpeed() {
   return rampBase !== null ? rampBase : getSpeed();
 }
 
-// "0.25x → 1.00x" while idle, with the left side tracking the live speed once
-// the ramp is running — the whole label doubles as the progress readout.
+// "0.60x → 1.00x": the left side is the speed the ramp would start from while
+// idle, and the live speed once it is running — the label doubles as both the
+// preview and the progress readout.
 function updateRampLabel() {
-  rampFrom.textContent = `${(rampOn ? getSpeed() : RAMP_START).toFixed(2)}x`;
+  rampFrom.textContent = `${getSpeed().toFixed(2)}x`;
 }
 
 // Practice mode is playback-only: the speed controls belong to the ramp while it
@@ -231,8 +229,8 @@ function bumpRampSpeed() {
 rampToggle.addEventListener('change', () => {
   rampOn = rampToggle.checked;
   if (rampOn) {
+    // The speed is left exactly where it is; only the lock and the label change.
     rampBase = getSpeed();
-    setSpeed(RAMP_START, { fromRamp: true });
   } else if (rampBase !== null) {
     const base = rampBase;
     rampBase = null;
@@ -1908,10 +1906,10 @@ function pruneHistory(data) {
   });
 }
 
-// The ramp is deliberately NOT persisted: switching it on drops the rate to
-// 0.25x, so restoring it across reloads would mean every visit starts crawling
-// for no reason the user asked for. It's an action for the session in front of
-// you, not a preference.
+// The ramp is deliberately NOT persisted: it locks the speed controls and
+// starts creeping the rate up on its own, which is not a state a reload should
+// drop you into unasked. It's an action for the session in front of you, not a
+// preference.
 function initRamp() {
   rampOn = false;
   rampToggle.checked = false;

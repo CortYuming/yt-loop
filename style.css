@@ -572,7 +572,16 @@ button.pin {
   font-size: 10px;
   font-family: "SF Mono", Menlo, Consolas, monospace;
 }
-.chord-bar-no { flex: none; }
+/* The number takes the bar line's own colour, and the time is left in the head's
+   grey. They used to share both, which read as one string — "5 1:23.45" — with
+   nothing to say where the number ended. Colour rather than a bracket or a
+   badge: it costs no width, so the narrowest bars still fit their head, and it
+   ties the number to the line it counts. */
+.chord-bar-no {
+  flex: none;
+  color: var(--amber);
+  font-weight: bold;
+}
 /* The number and the time stay together at the head's left edge; the auto
    margin is what keeps the + over on the right, where space-between had it
    back when the two were one label. */

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=1786673647">
+<link rel="stylesheet" href="style.css?v=1786787886">
 </head>
 <body>
 <main>
@@ -26,7 +26,6 @@
   <section class="controls" hidden>
     <div class="row buttons">
       <button id="playLoopBtn">▶ Play</button>
-      <button id="toStartBtn" title="Jump to start (S)">⏮</button>
       <label class="toggle-switch">
         <input type="checkbox" id="loopToggle" checked />
         <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -37,6 +36,7 @@
     </div>
 
     <div class="row">
+      <button id="toStartBtn" title="Jump to start (S)">⏮</button>
       <span id="currentTime" class="time big">0:00.00</span>
       <div class="speed-slider">
         <input type="range" id="speedRange" min="0" max="2" step="0.01" value="1"
@@ -54,10 +54,10 @@
         <option value="1.75">1.75x</option>
         <option value="2">2.00x</option>
       </select>
-      <label class="toggle-switch ramp" title="Speed up: starts at 0.25x and gains 0.05x on every loop, up to 1.00x">
+      <label class="toggle-switch ramp" title="Speed up: starts at the current speed and gains 0.05x on every loop, up to 1.00x">
         <input type="checkbox" id="rampToggle" />
         <span class="toggle-track"><span class="toggle-thumb"></span></span>
-        <span class="ramp-label">⤴️ <span id="rampFrom">0.25x</span> → 1.00x</span>
+        <span class="ramp-label">⤴️ <span id="rampFrom">1.00x</span> → 1.00x</span>
       </label>
     </div>
 
@@ -151,7 +151,7 @@
      edit to main.js, chords.js or style.css. A hand-kept counter kept getting reused across
      several changes, which left the browser on stale files while they were being
      tested. -->
-<script src="chords.js?v=1786673647"></script>
-<script src="main.js?v=1786673647"></script>
+<script src="chords.js?v=1786787886"></script>
+<script src="main.js?v=1786787886"></script>
 </body>
 </html>
