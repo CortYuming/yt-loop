@@ -504,6 +504,70 @@ button.pin {
   color: var(--text);
 }
 
+/* Where the sheet has been, sitting open under the box it belongs to. It was
+   behind a fold at first, which put the way back one click away behind a mark
+   nobody reads — and the moment it is wanted is the worst moment to go looking
+   for it. */
+.chord-revisions { margin: 6px 0; }
+.chord-rev-head {
+  margin: 0 0 3px;
+  color: var(--sub);
+  font-size: 12px;
+  line-height: 1.3;
+}
+/* Kept short on purpose: it sits between the box being typed in and the strip
+   the typing is for, and neither of those should be pushed off the screen by a
+   list that is only read now and then. */
+.chord-rev-list {
+  max-height: 84px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+}
+/* One row is one state to drop back into, so the whole row is the button —
+   there is nothing else in it to aim at. */
+.chord-rev {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 1px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+.chord-rev:last-child { border-bottom: 0; }
+.chord-rev:hover { background: var(--panel-hover); }
+.chord-rev-empty {
+  margin: 0;
+  padding: 1px 10px;
+  color: var(--sub);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.chord-rev-when {
+  flex: none;
+  width: 100px;   /* enough for a date and a clock: 8/14 14:32:07 */
+  color: var(--sub);
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+/* What the edit did, in a verb and a bar time. One line high, cut off rather
+   than wrapped, so the list is read straight down. */
+.chord-rev-what {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 /* One unbroken row sliding under a playhead two thirds across. The window clips
    it; the row itself never wraps. */
 /* The row can be dragged to move the playhead, so it takes horizontal gestures

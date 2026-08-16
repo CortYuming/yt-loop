@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=613ec0cb">
+<link rel="stylesheet" href="style.css?v=94f492ac">
 </head>
 <body>
 <main>
@@ -108,10 +108,13 @@
     </div>
 
     <div class="chord-editor" hidden>
-      <textarea id="chordInput" rows="4" spellcheck="false"
+      <textarea id="chordInput" rows="6" spellcheck="false"
                 placeholder="@43.50 Bb9:1.1.1.0.. Eb9:.6.6.5.6. | @45.90 D7+9:.6.5.4.5."></textarea>
+      <div class="chord-revisions" id="chordRevisions">
+        <p class="chord-rev-head">Versions — click one to put the sheet back to that point</p>
+        <div class="chord-rev-list" id="chordRevList"></div>
+      </div>
       <div class="row">
-        <button id="chordStampBtn" title="Insert the current playback time">📍 Time</button>
         <span class="hint">
           Bars split on <code>|</code> or a newline &nbsp;·&nbsp;
           <code>Name:frets</code> — six frets, 1st string first, blank for a muted string &nbsp;·&nbsp;
@@ -152,6 +155,6 @@
      scripts/bump-cache-buster.sh to refresh them locally. A hand-kept counter used to get
      reused across changes, which left the browser on stale files while they were tested. -->
 <script src="chords.js?v=81a35fed"></script>
-<script src="main.js?v=2707ca7b"></script>
+<script src="main.js?v=fee48f56"></script>
 </body>
 </html>

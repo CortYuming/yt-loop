@@ -131,9 +131,10 @@ const chordToolbar    = document.querySelector('.chord-toolbar');
 const chordEditor     = document.querySelector('.chord-editor');
 const chordEditBtn    = document.getElementById('chordEditBtn');
 const chordInput      = document.getElementById('chordInput');
-const chordStampBtn   = document.getElementById('chordStampBtn');
 const chordStrip      = document.getElementById('chordStrip');
 const chordViewport   = document.getElementById('chordViewport');
+const chordRevisions  = document.getElementById('chordRevisions');
+const chordRevList    = document.getElementById('chordRevList');
 const chordModeBtns   = {
   number: document.getElementById('chordModeInterval'),
   note:   document.getElementById('chordModeNote')
@@ -398,7 +399,13 @@ function afterVideoReady(onReadyCb) {
   activateLoopFromInputs();
   renderHistory();
   renderChordStrip();
-  if (!chordEditor.hidden) chordInput.value = getSheet(currentVideoId);
+  // Versions belong to the video, so the list changes with it — and an edit to
+  // the one just left never joins with the first edit to this one.
+  lastSheetEdit = { source: null, at: 0 };
+  if (!chordEditor.hidden) {
+    chordInput.value = getSheet(currentVideoId);
+    renderChordRevisions();
+  }
 }
 
 // loadVideoById fires no second onReady, so the post-load work has to wait for
@@ -1490,6 +1497,10 @@ function chordOps(barIndex, chordIndex, name, frets) {
 // strip would take the caret with it.
 function commitChordCell(box) {
   if (!box || chordCache.vid !== currentVideoId) return;
+  // A restore throws these boxes away while one of them still holds the caret.
+  // The blur that follows would write the old text straight back over what was
+  // just restored, so during a restore a cell has nothing to say.
+  if (restoringSheet) return;
   const bar = chordCache.bars[Number(box.dataset.bar)];
   const chord = bar && bar.chords[Number(box.dataset.chord)];
   if (!chord) return;
@@ -1519,8 +1530,153 @@ function writeSheetFromCache() {
     .map(bar => ({ start: bar.start, end: bar.end, chords: bar.chords.filter(c => c.name) }))
     .filter(bar => bar.chords.length);
   const text = Chords.toCompact(bars, '\n');
-  setSheet(currentVideoId, text);
+  editSheet(text, 'cell');
   chordInput.value = text;
+}
+
+// ---------- versions ----------
+// Every edit is written straight through to storage, which leaves nothing to
+// take back. So each one first files the sheet as it stood — a list of states
+// to drop back into rather than a stack of steps, since a mistake is usually
+// noticed a few edits after it was made and the way back should be a thing you
+// can look at and choose.
+const REVISION_CAP = 20;
+// Typing is filed once a hand comes to rest, not once per keystroke: a version
+// per letter is a list nobody can read.
+const REVISION_COALESCE_MS = 3000;
+let lastSheetEdit = { source: null, at: 0 };
+let restoringSheet = false;
+
+// The one door every edit goes through. What is filed is the text being
+// replaced, so the newest version in the list is the state before the last
+// thing you did.
+function editSheet(text, source) {
+  if (!currentVideoId) return;
+  const before = getSheet(currentVideoId);
+  if (before === text) return;
+  const now = Date.now();
+  const continuing = source === 'text'
+    && lastSheetEdit.source === source
+    && now - lastSheetEdit.at < REVISION_COALESCE_MS;
+  lastSheetEdit = { source, at: now };
+  const filed = continuing ? false : pushRevision(currentVideoId, before);
+  setSheet(currentVideoId, text);
+  if (filed) renderChordRevisions();
+}
+
+function restoreRevision(id) {
+  const revs = getRevisions(currentVideoId);
+  const rev = revs.find(r => r.id === id);
+  if (!rev) return;
+  const current = getSheet(currentVideoId);
+  if (current === rev.text) return;
+  restoringSheet = true;
+  // With the guard up, an open box is closed before the strip is rebuilt under
+  // it — deliberately, rather than leaving it to whatever the browser does with
+  // the focus when the element holding it is thrown away.
+  const open = document.activeElement;
+  if (open && chordStrip.contains(open) && open.blur) open.blur();
+  // Where you were is filed too, so a restore is itself something to come back
+  // from and there is no way to fall out of the list.
+  pushRevision(currentVideoId, current);
+  setSheet(currentVideoId, rev.text);
+  chordInput.value = rev.text;
+  renderChordStrip();
+  restoringSheet = false;
+  lastSheetEdit = { source: null, at: 0 };   // the next edit files a version of its own
+  renderChordRevisions();
+}
+
+// A row is an edit: when it happened and which bar it touched. Printing the
+// sheet itself was worse — the sheets are long and nearly identical, so the one
+// line a row gets went on text that was the same on every row, with the part
+// that differed off the end of it. What is left is the two things that tell one
+// edit from another: the moment, and where in the tune it landed.
+function renderChordRevisions() {
+  if (!chordRevList) return;
+  chordRevList.textContent = '';
+  const revs = getRevisions(currentVideoId);
+  // Shown even with nothing in it. Hiding the empty list meant the way back
+  // only appeared once you were already lost, which is too late to learn that
+  // it was there.
+  if (!revs.length) {
+    const empty = document.createElement('p');
+    empty.className = 'chord-rev-empty';
+    empty.textContent = 'No edits yet — each one files a version here.';
+    chordRevList.appendChild(empty);
+    return;
+  }
+  const current = getSheet(currentVideoId);
+  revs.forEach((rev, i) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'chord-rev';
+
+    const when = document.createElement('span');
+    when.className = 'chord-rev-when';
+    when.textContent = revisionTime(rev.at);
+
+    const what = document.createElement('span');
+    what.className = 'chord-rev-what';
+    // The edit that followed this version is what the row offers to take back,
+    // so it is read against whatever replaced it.
+    what.textContent = describeSheetChange(rev.text, i === 0 ? current : revs[i - 1].text);
+
+    row.appendChild(when);
+    row.appendChild(what);
+    // Same reason as the chord ops: taking focus blurs an open box, which
+    // writes the sheet back and redraws this list out from under the click.
+    row.addEventListener('mousedown', e => e.preventDefault());
+    row.addEventListener('click', e => { e.preventDefault(); restoreRevision(rev.id); });
+    chordRevList.appendChild(row);
+  });
+}
+
+// What one edit did to the sheet, as a verb and a place — written as the moment
+// before it, since that is where clicking the row lands you. Naming the edit
+// itself put the row the wrong way round: "added @50.61" on a row that removes
+// it when clicked is a sentence you have to invert before you can act on it.
+// Bars are a line each, so the untouched ones at either end fall away and what
+// is left in the middle is the edit.
+function describeSheetChange(from, to) {
+  const a = from ? from.split('\n') : [];
+  const b = to ? to.split('\n') : [];
+  if (!a.length) return 'before the sheet was written';
+  if (!b.length) return 'before the sheet was cleared';
+  let head = 0;
+  while (head < a.length && head < b.length && a[head] === b[head]) head++;
+  let tail = 0;
+  while (tail < a.length - head && tail < b.length - head
+         && a[a.length - 1 - tail] === b[b.length - 1 - tail]) tail++;
+  const was = a.slice(head, a.length - tail);
+  const now = b.slice(head, b.length - tail);
+  const rest = n => (n > 1 ? ` +${n - 1} more` : '');
+  if (!was.length) return `before adding ${barTime(now[0])}${rest(now.length)}`;
+  if (!now.length) return `before removing ${barTime(was[0])}${rest(was.length)}`;
+  return `before changing ${barTime(was[0])}${rest(Math.max(was.length, now.length))}`;
+}
+
+// Where in the tune a bar sits. Its end is left off — the start is enough to
+// find the place, and the pair is twice the number to read.
+function barTime(line) {
+  const m = /^\s*@(\S+)/.exec(line || '');
+  return m ? `@${m[1].split('-')[0]}` : 'an untimed bar';
+}
+
+// The clock, not the distance from now. Versions outlive the session that made
+// them, and "3d ago" on four rows in a row tells you nothing about which of
+// them is the one — where a date and a time still do.
+function revisionTime(ts) {
+  const d = new Date(ts);
+  // Seconds and all: edits land within the same minute all the time, and two
+  // rows reading 14:32 are two rows you cannot tell apart.
+  const clock = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+    + `:${String(d.getSeconds()).padStart(2, '0')}`;
+  const today = new Date();
+  const sameDay = d.getFullYear() === today.getFullYear()
+    && d.getMonth() === today.getMonth()
+    && d.getDate() === today.getDate();
+  return sameDay ? clock : `${d.getMonth() + 1}/${d.getDate()} ${clock}`;
 }
 
 // Added to the parsed sheet and drawn from it, without going through the text:
@@ -1572,6 +1728,7 @@ function openChordEditor() {
   syncChordEditMode();
   renderChordStrip();
   chordInput.value = getSheet(currentVideoId);
+  renderChordRevisions();
   chordInput.focus();
   chordSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -1597,7 +1754,7 @@ chordEditBtn.addEventListener('click', () => {
 
 // No save button, like everything else here: the box is the stored sheet.
 chordInput.addEventListener('input', () => {
-  setSheet(currentVideoId, chordInput.value);
+  editSheet(chordInput.value, 'text');
   renderChordStrip();
 });
 
@@ -1612,27 +1769,14 @@ function normalizeChordInput() {
   const compact = Chords.toCompact(bars, '\n');
   if (compact === chordInput.value) return;
   chordInput.value = compact;
-  setSheet(currentVideoId, compact);
+  // Filed under the same source as the typing it tidies up, so a paste and the
+  // rewrite that follows it are one version rather than two.
+  editSheet(compact, 'text');
   renderChordStrip();
 }
 
 chordInput.addEventListener('paste', () => setTimeout(normalizeChordInput, 0));
 chordInput.addEventListener('blur', normalizeChordInput);
-
-// Writing `@0:43.50` by hand while a phrase is playing is the fiddly part, so
-// the pin drops the current time in at the caret.
-chordStampBtn.addEventListener('click', () => {
-  if (!player || !player.getCurrentTime) return;
-  const stamp = `@${roundTo(player.getCurrentTime(), 2).toFixed(2)} `;
-  const start = chordInput.selectionStart ?? chordInput.value.length;
-  const end = chordInput.selectionEnd ?? chordInput.value.length;
-  chordInput.value = chordInput.value.slice(0, start) + stamp + chordInput.value.slice(end);
-  const caret = start + stamp.length;
-  chordInput.setSelectionRange(caret, caret);
-  chordInput.focus();
-  setSheet(currentVideoId, chordInput.value);
-  renderChordStrip();
-});
 
 // Two halves of one pill with the live one lit, the same control Guitar Chord
 // Viewer uses for Degrees / Solfege. A lone button had to be read twice — once
@@ -1687,6 +1831,8 @@ function loadData() {
     Object.values(d.videos).forEach(v => {
       if (!Array.isArray(v.history)) v.history = [];
       if (typeof v.sheet !== 'string') v.sheet = '';
+      // Videos stored before versions existed simply have none yet.
+      if (!Array.isArray(v.revisions)) v.revisions = [];
     });
     return d;
   } catch { return { videos: {} }; }
@@ -1726,11 +1872,37 @@ function setSheet(vid, text) {
   if (!vid) return;
   const data = loadData();
   if (!data.videos[vid]) {
-    data.videos[vid] = { title: currentVideoTitle || '', sheet: '', history: [] };
+    data.videos[vid] = { title: currentVideoTitle || '', sheet: '', history: [], revisions: [] };
   }
   data.videos[vid].sheet = text;
   if (vid === currentVideoId && currentVideoTitle) data.videos[vid].title = currentVideoTitle;
   saveData(data);
+}
+
+// Past states of a sheet, newest first, kept with the video they belong to so
+// they survive a reload — the edit you want back is often one you only spot the
+// next time you sit down with the tune.
+function getRevisions(vid) {
+  if (!vid) return [];
+  const v = loadData().videos[vid];
+  return (v && Array.isArray(v.revisions)) ? v.revisions : [];
+}
+
+function pushRevision(vid, text) {
+  if (!vid) return false;
+  const data = loadData();
+  if (!data.videos[vid]) {
+    data.videos[vid] = { title: currentVideoTitle || '', sheet: '', history: [], revisions: [] };
+  }
+  const v = data.videos[vid];
+  if (!Array.isArray(v.revisions)) v.revisions = [];
+  if (v.revisions.length && v.revisions[0].text === text) return false;
+  v.revisions.unshift({ id: newEntryId(), at: Date.now(), text });
+  // The oldest go first. Twenty is far enough back to cover a session's worth
+  // of second thoughts without turning the list into an archive to read.
+  if (v.revisions.length > REVISION_CAP) v.revisions.length = REVISION_CAP;
+  saveData(data);
+  return true;
 }
 
 // Degree names or note names inside the diagram dots. Degrees are the default:
