@@ -459,9 +459,11 @@ const Chords = (() => {
       return el;
     };
 
+    // The starting fret is the one label read from a distance, so it carries a
+    // size of its own rather than shrinking to a footnote.
     add('text', {
-      x: PAD_L, y: 10, fill: '#999', 'font-size': 10,
-      'font-family': 'ui-monospace, Menlo, monospace',
+      x: PAD_L, y: 12, fill: '#bbb', 'font-size': 14,
+      'font-family': 'ui-monospace, Menlo, monospace', 'font-weight': 600,
     }, String(from));
 
     for (let s = 0; s < 6; s++) {
