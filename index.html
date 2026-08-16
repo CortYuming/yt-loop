@@ -147,10 +147,10 @@
 
 <!-- The version query is a cache buster: GitHub Pages serves assets with max-age=600, so a
      deploy without it leaves browsers on the old script for up to 10 minutes.
-     The value is a unix timestamp (`date +%s`) — set it to the current one on every
-     edit to main.js, chords.js or style.css. A hand-kept counter kept getting reused across
-     several changes, which left the browser on stale files while they were being
-     tested. -->
+     The deploy workflow rewrites every value to a hash of the file it points at, so the
+     numbers committed here are placeholders and need no hand editing. Run
+     scripts/bump-cache-buster.sh to refresh them locally. A hand-kept counter used to get
+     reused across changes, which left the browser on stale files while they were tested. -->
 <script src="chords.js?v=1786787886"></script>
 <script src="main.js?v=1786787886"></script>
 </body>
