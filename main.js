@@ -1547,10 +1547,14 @@ function chordOps(barIndex, chordIndex, name, frets) {
     b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); run(); });
     ops.appendChild(b);
   };
-  // Laid out as the sheet reads: the two + point at the gaps they fill, and
-  // remove sits between them where the chord itself is.
+  // Laid out as the sheet reads: the arrows point at the gaps they fill, and
+  // remove sits between them where the chord itself is. A run of the same chord
+  // is the common shape of a bar — one voicing held while the tune moves — so
+  // beside each empty insert there is one that carries this chord with it.
   button('+←', 'Add a chord before this one', () => insertChord(barIndex, chordIndex));
+  button('⧉←', 'Copy this chord to the left', () => copyChord(barIndex, chordIndex, chordIndex));
   button('🗑', 'Remove this chord', () => removeChord(barIndex, chordIndex));
+  button('⧉→', 'Copy this chord to the right', () => copyChord(barIndex, chordIndex, chordIndex + 1));
   button('+→', 'Add a chord after this one', () => insertChord(barIndex, chordIndex + 1));
   button('↗', 'Open in Guitar Chord Viewer', () => {
     const url = Chords.viewerUrl({ name: name.value, markers: Chords.readMarkers(frets.value) });
@@ -1756,6 +1760,22 @@ function insertChord(barIndex, at) {
   const bar = chordCache.bars[barIndex];
   if (!bar) return;
   bar.chords.splice(at, 0, { name: '', markers: null });
+  renderChordStrip(true);
+  focusChordCell(barIndex, at);
+}
+
+// The same chord again, next to itself. Unlike an empty insert this one has
+// something to say the moment it exists, so the sheet is written straight away.
+function copyChord(barIndex, chordIndex, at) {
+  commitFocusedChordCell();
+  const bar = chordCache.bars[barIndex];
+  const source = bar && bar.chords[chordIndex];
+  if (!source) return;
+  bar.chords.splice(at, 0, {
+    name: source.name,
+    markers: source.markers ? source.markers.slice() : null,
+  });
+  writeSheetFromCache();
   renderChordStrip(true);
   focusChordCell(barIndex, at);
 }
