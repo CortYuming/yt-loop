@@ -542,6 +542,11 @@ const Chords = (() => {
   // have to clear the left edge, so the dot's own radius sets the offset.
   const GUTTER_X = DOT_R + 1;
   const COLS = 5;
+  // The frets a guitar marks on its own face — the dots at the 3rd, 5th, 7th
+  // and 9th, doubled at the 12th, and the same again an octave up. A player
+  // finds a position by these rather than by counting up from the nut, so they
+  // are what the numbers over a board name.
+  const MARK_FRETS = [3, 5, 7, 9, 12, 15, 17, 19, 21];
 
   // Where each chord's window falls when the row is read as a row. A shape on
   // its own wants the tightest window round it, and that is what this drew
@@ -613,14 +618,25 @@ const Chords = (() => {
       return el;
     };
 
-    // The starting fret is the one label read from a distance, so it carries a
-    // size of its own rather than shrinking to a footnote. Centred over the
-    // first fret rather than hung off the board's left edge, where it read as
-    // belonging to the gutter the muted strings live in.
-    add('text', {
-      x: PAD_L + CELL_W / 2, y: 12, fill: '#bbb', 'font-size': 14, 'text-anchor': 'middle',
-      'font-family': 'ui-monospace, Menlo, monospace', 'font-weight': 600,
-    }, String(from));
+    // Where on the neck this is. The number used to sit over the window's left
+    // edge, which is an address the neck itself does not mark — finding it means
+    // counting frets. So the numbers go over the marked frets instead, every one
+    // the window holds: they land where the eye already looks, and a row of them
+    // reads as the neck's own scale. Read from a distance, so they keep a size
+    // of their own rather than shrinking to a footnote.
+    // Above the 21st there is nothing left to name, and the left edge answers.
+    const number = (col, fret) => add('text', {
+      x: PAD_L + col * CELL_W + CELL_W / 2, y: 12, fill: '#bbb', 'font-size': 14,
+      'text-anchor': 'middle', 'font-family': 'ui-monospace, Menlo, monospace',
+      'font-weight': 600,
+    }, String(fret));
+    let named = false;
+    for (let c = 0; c < cols; c++) {
+      if (!MARK_FRETS.includes(from + c)) continue;
+      number(c, from + c);
+      named = true;
+    }
+    if (!named) number(0, from);
 
     for (let s = 0; s < 6; s++) {
       const y = PAD_T + s * CELL_H + CELL_H / 2;
