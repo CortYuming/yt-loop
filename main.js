@@ -961,6 +961,10 @@ let openTimePins = null;
 // Re-reading and re-parsing the sheet on every render would be waste, so the
 // parse is kept and only redone when the text can have changed.
 let chordCache = { vid: null, bars: [], spans: [], key: null };
+// Which fret each diagram in the row starts at, worked out over the whole sheet
+// so neighbours that fit one window share it — see Chords.fretWindows. Indexed
+// the way the sheet is, [bar][chord]; null where the chord takes no window.
+let chordWindows = [];
 
 function refreshChordCache() {
   const text = getSheet(currentVideoId);
@@ -1006,6 +1010,7 @@ function renderChordStrip(fromCache) {
   const { bars, spans } = fromCache && chordCache.vid === currentVideoId
     ? chordCache
     : refreshChordCache();
+  chordWindows = Chords.fretWindows(bars);
   chordStrip.textContent = '';
   chordStrip.style.transform = '';
   chordAnchors = [];
@@ -1411,12 +1416,13 @@ window.addEventListener('resize', () => {
 // chord was four times the number for a quarter of the confidence, since a
 // chord's own moment is only its bar divided evenly.
 function renderChord(chord, barIndex, chordIndex) {
+  const windowFrom = (chordWindows[barIndex] || [])[chordIndex];
   return chordEditor.hidden
-    ? renderChordLink(chord)
-    : renderChordFields(chord, barIndex, chordIndex);
+    ? renderChordLink(chord, windowFrom)
+    : renderChordFields(chord, barIndex, chordIndex, windowFrom);
 }
 
-function renderChordLink(chord) {
+function renderChordLink(chord, windowFrom) {
   const box = document.createElement('a');
   box.className = 'chord';
   box.href = Chords.viewerUrl(chord);
@@ -1432,7 +1438,7 @@ function renderChordLink(chord) {
   name.textContent = Chords.displayName(chord.name);
   box.appendChild(name);
   box.appendChild(
-    Chords.diagram(chord.markers, chord.name, effectiveChordMode(), currentChordKey()),
+    Chords.diagram(chord.markers, chord.name, effectiveChordMode(), currentChordKey(), windowFrom),
   );
   return box;
 }
@@ -1443,7 +1449,7 @@ function renderChordLink(chord) {
 // clicked first: the mode is the invitation. The controls for adding and
 // removing chords belong to whichever cell holds the caret, since four buttons
 // under every chord in the sheet would be unreadable.
-function renderChordFields(chord, barIndex, chordIndex) {
+function renderChordFields(chord, barIndex, chordIndex, windowFrom) {
   const box = document.createElement('div');
   box.className = 'chord chord-fields';
   box.dataset.bar = String(barIndex);
@@ -1467,7 +1473,7 @@ function renderChordFields(chord, barIndex, chordIndex) {
   box.appendChild(name);
   box.appendChild(frets);
   box.appendChild(
-    Chords.diagram(chord.markers, chord.name, effectiveChordMode(), currentChordKey()),
+    Chords.diagram(chord.markers, chord.name, effectiveChordMode(), currentChordKey(), windowFrom),
   );
   box.appendChild(ops);
 
@@ -1475,8 +1481,12 @@ function renderChordFields(chord, barIndex, chordIndex) {
     const old = box.querySelector('svg');
     if (old) old.remove();
     box.insertBefore(
+      // The window the row settled on is offered to what is being typed too, so
+      // the board does not jump about mid-edit; a shape that outgrows it falls
+      // back to its own window until the next redraw settles the row again.
       Chords.diagram(
         Chords.readMarkers(frets.value), name.value, effectiveChordMode(), currentChordKey(),
+        windowFrom,
       ),
       ops,
     );

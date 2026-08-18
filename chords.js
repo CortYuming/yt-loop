@@ -543,7 +543,44 @@ const Chords = (() => {
   const GUTTER_X = DOT_R + 1;
   const COLS = 5;
 
-  function diagram(markers, chordName, mode, key) {
+  // Where each chord's window falls when the row is read as a row. A shape on
+  // its own wants the tightest window round it, and that is what this drew
+  // until now — but then a hand moving up two frets between two chords shows as
+  // both shapes sitting in the same corner of their boards, and the movement,
+  // which is the thing being read, disappears. So neighbours share a window for
+  // as long as one window holds them: walking left to right, a chord joins the
+  // run it fits in and starts a new one where it does not.
+  // Two passes, because a run's left edge is only known once the run is closed
+  // — a later chord reaching lower moves it, and the shapes drawn before it
+  // would otherwise keep an edge the run no longer has.
+  // Open-string-only shapes are left out of it: their board is the nut, wherever
+  // the run happens to be, and they neither take a window nor break one.
+  function fretWindows(bars, cols) {
+    const span = cols || COLS;
+    const out = (bars || []).map(bar => (bar.chords || []).map(() => null));
+    const runs = [];
+    let run = null;
+    (bars || []).forEach((bar, b) => (bar.chords || []).forEach((chord, c) => {
+      const fretted = (chord.markers || []).filter(f => f !== null && f > 0);
+      if (!fretted.length) return;
+      const lo = Math.min(...fretted), hi = Math.max(...fretted);
+      if (!run || Math.max(run.hi, hi) - Math.min(run.lo, lo) + 1 > span) {
+        run = { lo, hi, cells: [] };
+        runs.push(run);
+      } else {
+        run.lo = Math.min(run.lo, lo);
+        run.hi = Math.max(run.hi, hi);
+      }
+      run.cells.push([b, c]);
+    }));
+    runs.forEach(r => r.cells.forEach(([b, c]) => { out[b][c] = r.lo; }));
+    return out;
+  }
+
+  // `windowFrom` is what fretWindows decided for this chord, and it is a
+  // suggestion only: a shape that will not sit in that window keeps the tight
+  // one it has always had rather than being drawn off the edge of its board.
+  function diagram(markers, chordName, mode, key, windowFrom) {
     const svg = document.createElementNS(NS, 'svg');
     const picked = markers ? markers.filter(f => f !== null) : [];
     if (!picked.length) {
@@ -553,8 +590,12 @@ const Chords = (() => {
     }
     const chord = parseChord(chordName);
     const fretted = picked.filter(f => f > 0);
-    const from = fretted.length ? Math.min(...fretted) : 1;
-    const cols = Math.max(COLS, (fretted.length ? Math.max(...fretted) : from) - from + 1);
+    const tight = fretted.length ? Math.min(...fretted) : 1;
+    const top = fretted.length ? Math.max(...fretted) : tight;
+    const shared = typeof windowFrom === 'number' && fretted.length
+      && windowFrom >= 1 && windowFrom <= tight && top - windowFrom + 1 <= COLS;
+    const from = shared ? windowFrom : tight;
+    const cols = Math.max(COLS, top - from + 1);
     const CELL_W = BOARD_W / cols;
     const w = PAD_L + BOARD_W + 4;
     const h = PAD_T + 6 * CELL_H + 2;
@@ -885,7 +926,7 @@ const Chords = (() => {
   }
 
   return {
-    parseSheet, resolveSpans, chordTimes, slotWeights, toCompact, viewerUrl, diagram,
+    parseSheet, resolveSpans, chordTimes, slotWeights, toCompact, viewerUrl, diagram, fretWindows,
     readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
     staffRange, staffBar, staffHead, staffHeadWidth,
   };
