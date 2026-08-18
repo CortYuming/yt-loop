@@ -725,13 +725,22 @@ const Chords = (() => {
 
   // A written pitch as a place on the staff and the sign in front of it. Which
   // of the two names it goes by is the key's business: in B♭ it is A♭, never G♯.
-  function staffNote(midi, flat) {
+  function staffNote(midi, flat, signed) {
     const pc = ((midi % 12) + 12) % 12;
     const name = flat ? NOTES_FLAT[pc] : NOTES_SHARP[pc];
+    const letter = LETTER_STEP[name[0]];
+    const own = name.length > 1 ? name[1] : '';
+    const bySignature = (signed && signed[letter]) || '';
+    // What the signature has already said is not said again — a ♭ written on a
+    // letter the signature already flattens reads as a change, not as agreement.
+    // The other way round it has to be cancelled out loud: where the signature
+    // alters a letter and this note does not want it, the natural is the only
+    // thing separating E♮ from the E♭ the signature would otherwise give.
+    const sign = own === bySignature ? '' : (own || '♮');
     return {
       pc,
-      step: (Math.floor(midi / 12) - 1) * 7 + LETTER_STEP[name[0]],
-      sign: name.length > 1 ? name[1] : '',
+      step: (Math.floor(midi / 12) - 1) * 7 + letter,
+      sign,
     };
   }
 
@@ -756,10 +765,21 @@ const Chords = (() => {
   // it because the colours are read off the chord as well as the notes.
   function staffChord(name, markers, key) {
     const flat = spellsFlat(name, key);
+    const signed = signedLetters(key);
     return {
       chord: parseChord(name),
-      notes: writtenPitches(markers).map(m => staffNote(m, flat)),
+      notes: writtenPitches(markers).map(m => staffNote(m, flat, signed)),
     };
+  }
+
+  // Which letters the key signature has already altered, and which way. Indexed
+  // by letter-step (C=0 … B=6), the same numbering the staff places count in,
+  // so a note can be asked about its own letter alone.
+  function signedLetters(key) {
+    const sig = signature(key);
+    const out = {};
+    for (const step of sig.steps) out[step % 7] = sig.sign;
+    return out;
   }
 
   // The key signature, in the order and on the places every printed staff puts
