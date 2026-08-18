@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=de803d7f">
+<link rel="stylesheet" href="style.css?v=67a3a73d">
 </head>
 <body>
 <main>
@@ -174,6 +174,37 @@
     <div id="loopList"></div>
   </section>
 
+  <section class="backup">
+    <h2>Backup</h2>
+    <div class="row backup-row">
+      <button id="exportBtn" title="Save everything this app keeps in your browser to a file">⬇ Export</button>
+      <button id="importBtn" title="Read a backup file back in">⬆ Import</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden />
+      <span class="hint" id="backupStatus">Chord sheets, versions, loop history and settings — one JSON file.</span>
+    </div>
+
+    <!-- An import is a picker, not a restore: a file from another machine is
+         usually wanted for its sheets alone, and whatever is not ticked here is
+         left exactly as it is. -->
+    <div class="import-panel" id="importPanel" hidden>
+      <p class="import-file" id="importFileName"></p>
+      <p class="import-head">What to bring in</p>
+      <div class="import-parts">
+        <label><input type="checkbox" id="importSheets" checked /> Chord sheets <span class="import-note">(the key rides along in the sheet)</span></label>
+        <label><input type="checkbox" id="importRevisions" /> Versions</label>
+        <label><input type="checkbox" id="importHistory" /> Loop history</label>
+        <label><input type="checkbox" id="importSettings" /> Display settings</label>
+      </div>
+      <p class="import-head" id="importVideosHead">Videos</p>
+      <div class="import-videos" id="importVideos"></div>
+      <div class="row import-actions">
+        <button id="importApplyBtn" class="primary">Import</button>
+        <button id="importCancelBtn">Cancel</button>
+        <span class="hint" id="importHint"></span>
+      </div>
+    </div>
+  </section>
+
   <footer>
     <small>
       Playing a range records it here, and editing Start / End / speed / Note while
@@ -193,7 +224,7 @@
      numbers committed here are placeholders and need no hand editing. Run
      scripts/bump-cache-buster.sh to refresh them locally. A hand-kept counter used to get
      reused across changes, which left the browser on stale files while they were tested. -->
-<script src="chords.js?v=eb2fd6ef"></script>
-<script src="main.js?v=4eb6f700"></script>
+<script src="chords.js?v=557bbad0"></script>
+<script src="main.js?v=4beae77b"></script>
 </body>
 </html>

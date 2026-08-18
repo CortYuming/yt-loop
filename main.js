@@ -142,6 +142,22 @@ const chordModeBtns   = {
   solfa:  document.getElementById('chordModeSolfa')
 };
 const chordShowToggle = document.getElementById('chordShowToggle');
+const exportBtn       = document.getElementById('exportBtn');
+const importBtn       = document.getElementById('importBtn');
+const importFile      = document.getElementById('importFile');
+const backupStatus    = document.getElementById('backupStatus');
+const importPanel     = document.getElementById('importPanel');
+const importFileName  = document.getElementById('importFileName');
+const importVideosEl  = document.getElementById('importVideos');
+const importHint      = document.getElementById('importHint');
+const importApplyBtn  = document.getElementById('importApplyBtn');
+const importCancelBtn = document.getElementById('importCancelBtn');
+const importPartBoxes = {
+  sheet:     document.getElementById('importSheets'),
+  revisions: document.getElementById('importRevisions'),
+  history:   document.getElementById('importHistory'),
+  settings:  document.getElementById('importSettings')
+};
 
 // ============================================================
 // Playback speed
@@ -2491,3 +2507,240 @@ document.addEventListener('keydown', e => {
     player.seekTo(player.getCurrentTime() + step, true);
   }
 });
+
+// ============================================================
+// Backup (export / import)
+// ============================================================
+// Everything here lives in one localStorage key and nowhere else, so a browser
+// wiped is work gone. Export writes the whole store — leaving something out of
+// a backup only shows up on the day it is needed. Import is the other way
+// round: what comes in is picked, because the usual reason to open a file from
+// another machine is the chord sheets in it, and the loop history and display
+// settings that rode along belong to the session they were made in.
+const BACKUP_FORMAT = 'yt-loop-backup';
+
+function backupFilename() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `yt-loop-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
+}
+
+function setBackupStatus(text) {
+  backupStatus.textContent = text;
+}
+
+exportBtn.addEventListener('click', () => {
+  const payload = {
+    format: BACKUP_FORMAT,
+    version: 3,
+    exportedAt: new Date().toISOString(),
+    data: loadData()
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = backupFilename();
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  const count = Object.keys(payload.data.videos).length;
+  setBackupStatus(`Exported ${count} video(s) to ${a.download}.`);
+});
+
+// The file waiting to be picked over, or null when the panel is closed.
+let pendingBackup = null;
+
+importBtn.addEventListener('click', () => importFile.click());
+
+// Reset first: picking the same file twice in a row fires no change event
+// otherwise, which reads as the button being broken.
+importFile.addEventListener('change', () => {
+  const file = importFile.files && importFile.files[0];
+  importFile.value = '';
+  if (!file) return;
+  file.text()
+    .then(text => {
+      const backup = readBackup(text);
+      if (!backup) {
+        closeImportPanel();
+        setBackupStatus('That file is not a YT Loop backup.');
+        return;
+      }
+      pendingBackup = backup;
+      openImportPanel(file.name);
+    })
+    .catch(() => {
+      closeImportPanel();
+      setBackupStatus('That file could not be read.');
+    });
+});
+
+// A backup written by this app, or — since the store is plain JSON — the store
+// itself, pasted out of devtools. Every field is rebuilt rather than trusted:
+// the file has been on a disk and through whatever else since it was written.
+function readBackup(text) {
+  let raw;
+  try { raw = JSON.parse(text); } catch { return null; }
+  if (!raw || typeof raw !== 'object') return null;
+  const data = (raw.data && typeof raw.data === 'object') ? raw.data : raw;
+  if (!data.videos || typeof data.videos !== 'object') return null;
+
+  const videos = {};
+  Object.entries(data.videos).forEach(([vid, v]) => {
+    if (!vid || !v || typeof v !== 'object') return;
+    videos[vid] = {
+      title: typeof v.title === 'string' ? v.title : '',
+      sheet: typeof v.sheet === 'string' ? v.sheet : '',
+      history: Array.isArray(v.history) ? v.history : [],
+      revisions: Array.isArray(v.revisions) ? v.revisions : []
+    };
+  });
+  if (!Object.keys(videos).length) return null;
+
+  return {
+    videos,
+    chordMode: CHORD_MODES.includes(data.chordMode) ? data.chordMode : 'number',
+    chordsHidden: data.chordsHidden === true
+  };
+}
+
+function openImportPanel(filename) {
+  const vids = Object.keys(pendingBackup.videos);
+  importFileName.textContent = `${filename} — ${vids.length} video(s)`;
+  renderImportVideos();
+  importPanel.hidden = false;
+  setBackupStatus('Tick what to bring in, then Import.');
+  updateImportApply();
+}
+
+function closeImportPanel() {
+  pendingBackup = null;
+  importPanel.hidden = true;
+  importVideosEl.innerHTML = '';
+}
+
+importCancelBtn.addEventListener('click', () => {
+  closeImportPanel();
+  setBackupStatus('Import cancelled — nothing was changed.');
+});
+
+// One row per video in the file, saying plainly whether it is new here or about
+// to be written over. Sorted by title so the row you are looking for is where
+// the eye expects it, not in whatever order the file happens to hold.
+function renderImportVideos() {
+  const here = loadData().videos;
+  importVideosEl.innerHTML = '';
+  Object.entries(pendingBackup.videos)
+    .sort((a, b) => (a[1].title || a[0]).localeCompare(b[1].title || b[0]))
+    .forEach(([vid, v]) => {
+      const row = document.createElement('div');
+      row.className = 'import-video';
+
+      const label = document.createElement('label');
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = true;
+      box.dataset.vid = vid;
+      box.addEventListener('change', updateImportApply);
+      const title = document.createElement('span');
+      title.className = 'import-video-title';
+      title.textContent = v.title || vid;
+      title.title = `${v.title || '(no title)'} — ${vid}`;
+      label.appendChild(box);
+      label.appendChild(title);
+
+      const tag = document.createElement('span');
+      const known = !!here[vid];
+      tag.className = 'import-tag ' + (known ? 'is-overwrite' : 'is-new');
+      tag.textContent = known ? 'overwrite' : 'new';
+
+      row.appendChild(label);
+      row.appendChild(tag);
+      importVideosEl.appendChild(row);
+    });
+}
+
+function importSelection() {
+  const parts = {};
+  Object.entries(importPartBoxes).forEach(([key, box]) => { parts[key] = box.checked; });
+  const vids = Array.from(importVideosEl.querySelectorAll('input[type="checkbox"]'))
+    .filter(box => box.checked)
+    .map(box => box.dataset.vid);
+  return { parts, vids };
+}
+
+// Nothing ticked would import nothing, so the button says so before it is
+// pressed rather than after. Display settings are their own row: they belong to
+// no video and can come in on their own.
+function updateImportApply() {
+  const { parts, vids } = importSelection();
+  const perVideo = parts.sheet || parts.revisions || parts.history;
+  const doesSomething = (perVideo && vids.length > 0) || parts.settings;
+  importApplyBtn.disabled = !doesSomething;
+  importHint.textContent = doesSomething
+    ? ''
+    : (perVideo ? 'Tick at least one video.' : 'Tick at least one thing to bring in.');
+}
+
+Object.values(importPartBoxes).forEach(box => box.addEventListener('change', updateImportApply));
+
+importApplyBtn.addEventListener('click', () => {
+  if (!pendingBackup) return;
+  const { parts, vids } = importSelection();
+  const data = loadData();
+
+  // Only when something per-video was asked for. Without this an import of the
+  // display settings alone walks the ticked videos anyway and leaves an entry
+  // for each — titles with nothing in them, sitting in History as videos that
+  // were never played here.
+  const perVideo = parts.sheet || parts.revisions || parts.history;
+  (perVideo ? vids : []).forEach(vid => {
+    const src = pendingBackup.videos[vid];
+    if (!src) return;
+    if (!data.videos[vid]) {
+      data.videos[vid] = { title: '', sheet: '', history: [], revisions: [] };
+    }
+    const dst = data.videos[vid];
+    // The title comes along with whatever is taken: without it a video new to
+    // this browser would sit in History as a bare id until it is next played.
+    if (src.title) dst.title = src.title;
+    if (parts.sheet) dst.sheet = src.sheet;
+    // Capped on the way in, the same as they are on the way up: a file written
+    // by a build with roomier caps must not leave this one holding more than it
+    // would ever write itself.
+    if (parts.revisions) dst.revisions = src.revisions.slice(0, REVISION_CAP);
+    if (parts.history) dst.history = src.history.slice(0, HISTORY_PER_VIDEO);
+  });
+
+  if (parts.settings) {
+    data.chordMode = pendingBackup.chordMode;
+    data.chordsHidden = pendingBackup.chordsHidden;
+  }
+  saveData(data);
+
+  const changed = perVideo ? vids.length : 0;
+  closeImportPanel();
+  refreshAfterImport();
+  setBackupStatus(
+    changed
+      ? `Imported ${changed} video(s).` + (parts.settings ? ' Display settings too.' : '')
+      : 'Imported the display settings.'
+  );
+});
+
+// The store has changed under everything on screen — the strip is drawn from
+// the current video's sheet, the Versions list from its revisions, and the key
+// select and mode pill are read out of the sheet as well.
+function refreshAfterImport() {
+  initChordControls();
+  renderHistory();
+  if (currentVideoId) {
+    if (!chordEditor.hidden) chordInput.value = getSheet(currentVideoId);
+    renderChordRevisions();
+  }
+  updateChordKeySelect();
+  updateChordModeBtns();
+  renderChordStrip();
+}
