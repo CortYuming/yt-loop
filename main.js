@@ -135,9 +135,11 @@ const chordStrip      = document.getElementById('chordStrip');
 const chordViewport   = document.getElementById('chordViewport');
 const chordRevisions  = document.getElementById('chordRevisions');
 const chordRevList    = document.getElementById('chordRevList');
+const chordKeySelect  = document.getElementById('chordKeySelect');
 const chordModeBtns   = {
   number: document.getElementById('chordModeInterval'),
-  note:   document.getElementById('chordModeNote')
+  note:   document.getElementById('chordModeNote'),
+  solfa:  document.getElementById('chordModeSolfa')
 };
 const chordShowToggle = document.getElementById('chordShowToggle');
 
@@ -958,12 +960,22 @@ let openTimePins = null;
 
 // Re-reading and re-parsing the sheet on every render would be waste, so the
 // parse is kept and only redone when the text can have changed.
-let chordCache = { vid: null, bars: [], spans: [] };
+let chordCache = { vid: null, bars: [], spans: [], key: null };
 
 function refreshChordCache() {
-  const bars = Chords.parseSheet(getSheet(currentVideoId));
-  chordCache = { vid: currentVideoId, bars, spans: Chords.resolveSpans(bars) };
+  const text = getSheet(currentVideoId);
+  const bars = Chords.parseSheet(text);
+  chordCache = {
+    vid: currentVideoId, bars, spans: Chords.resolveSpans(bars), key: Chords.parseKey(text),
+  };
   return chordCache;
+}
+
+// The key the sheet on screen is in. Read from the parse rather than the text,
+// so every drawing of a dot costs nothing.
+function currentChordKey() {
+  if (chordCache.vid !== currentVideoId) refreshChordCache();
+  return chordCache.key;
 }
 
 function chordSlotWidth() {
@@ -981,6 +993,10 @@ function renderChordStrip(fromCache) {
     return;
   }
   chordSection.hidden = false;
+  updateChordKeySelect();
+  // The key decides whether solfège is on offer at all, so the pill is brought
+  // up to date wherever the sheet is.
+  updateChordModeBtns();
   const visible = getChordsVisible();
   if (!visible) chordEditor.hidden = true;
   syncChordEditMode();
@@ -1005,7 +1021,23 @@ function renderChordStrip(fromCache) {
 
   const slot = chordSlotWidth();
   chordStrip.style.setProperty('--slot', `${slot}px`);
+  // How high and low the staff has to reach, measured over the whole sheet so
+  // every bar draws its five lines in the same place and they meet across the
+  // row. Null when nothing in the sheet has a fingering — there is no music to
+  // put on a staff then, and an empty one is height taken for nothing.
+  const key = chordCache.key;
+  const staffReach = Chords.staffRange(bars, key);
+  // Clef and key signature go in a stretch of their own at the head of the row,
+  // where printed music puts them, and scroll away with it. Everything after
+  // starts that much further along, which is why x does not start at zero.
   let x = 0;
+  if (staffReach) {
+    const head = document.createElement('div');
+    head.className = 'chord-staff-head';
+    head.appendChild(Chords.staffHead(staffReach, key));
+    chordStrip.appendChild(head);
+    x = Chords.staffHeadWidth(key);
+  }
   let lastTime = null;   // anchor times, which only ever move forward
   let prevEnd = null;    // the furthest the sheet has reached, for spotting holes
 
@@ -1084,6 +1116,25 @@ function renderChordStrip(fromCache) {
       cells.appendChild(cell);
     });
     barEl.appendChild(cells);
+
+    // The same bar again, as the notes it sounds. Each chord sits at the beat
+    // it starts on — the left edge of its cell — rather than under the middle
+    // of its diagram, since what the staff is showing is when as much as what.
+    // Past four chords the cells wrap and there are no beat edges to follow, so
+    // those are spread evenly across the bar instead.
+    if (staffReach) {
+      const wide = bar.chords.length > SLOTS_PER_BAR;
+      let cellX = 0;
+      const items = bar.chords.map((chord, j) => {
+        const at = wide ? (j * width) / bar.chords.length : cellX;
+        cellX += weights[j] * slot;
+        return { x: at, name: chord.name, markers: chord.markers };
+      });
+      const staff = Chords.staffBar(items, width, staffReach, key, effectiveChordMode());
+      staff.setAttribute('class', 'chord-staff');
+      barEl.appendChild(staff);
+    }
+
     chordStrip.appendChild(barEl);
 
     // Time is pinned to the bar's two edges. Inside, the chords already sit
@@ -1378,9 +1429,11 @@ function renderChordLink(chord) {
 
   const name = document.createElement('span');
   name.className = 'chord-name';
-  name.textContent = chord.name;
+  name.textContent = Chords.displayName(chord.name);
   box.appendChild(name);
-  box.appendChild(Chords.diagram(chord.markers, chord.name, getChordMode()));
+  box.appendChild(
+    Chords.diagram(chord.markers, chord.name, effectiveChordMode(), currentChordKey()),
+  );
   return box;
 }
 
@@ -1413,14 +1466,18 @@ function renderChordFields(chord, barIndex, chordIndex) {
   const ops = chordOps(barIndex, chordIndex, name, frets);
   box.appendChild(name);
   box.appendChild(frets);
-  box.appendChild(Chords.diagram(chord.markers, chord.name, getChordMode()));
+  box.appendChild(
+    Chords.diagram(chord.markers, chord.name, effectiveChordMode(), currentChordKey()),
+  );
   box.appendChild(ops);
 
   const redraw = () => {
     const old = box.querySelector('svg');
     if (old) old.remove();
     box.insertBefore(
-      Chords.diagram(Chords.readMarkers(frets.value), name.value, getChordMode()),
+      Chords.diagram(
+        Chords.readMarkers(frets.value), name.value, effectiveChordMode(), currentChordKey(),
+      ),
       ops,
     );
   };
@@ -1529,7 +1586,8 @@ function writeSheetFromCache() {
   const bars = chordCache.bars
     .map(bar => ({ start: bar.start, end: bar.end, chords: bar.chords.filter(c => c.name) }))
     .filter(bar => bar.chords.length);
-  const text = Chords.toCompact(bars, '\n');
+  const key = chordCache.key;
+  const text = Chords.toCompact(bars, '\n', key ? key.label : '');
   editSheet(text, 'cell');
   chordInput.value = text;
 }
@@ -1766,7 +1824,8 @@ chordInput.addEventListener('input', () => {
 function normalizeChordInput() {
   const bars = Chords.parseSheet(chordInput.value);
   if (!bars.length) return;
-  const compact = Chords.toCompact(bars, '\n');
+  const key = Chords.parseKey(chordInput.value);
+  const compact = Chords.toCompact(bars, '\n', key ? key.label : '');
   if (compact === chordInput.value) return;
   chordInput.value = compact;
   // Filed under the same source as the typing it tidies up, so a paste and the
@@ -1781,12 +1840,29 @@ chordInput.addEventListener('blur', normalizeChordInput);
 // Two halves of one pill with the live one lit, the same control Guitar Chord
 // Viewer uses for Degrees / Solfege. A lone button had to be read twice — once
 // for what it says and once for whether that is the state or the offer.
-function updateChordModeBtns() {
+// What the dots are actually labelled with. The stored choice can be solfège
+// on a sheet that names no key — switch videos and it is — and there is no
+// reading of do then, so the strip and the pill both fall back to degrees
+// rather than disagreeing about what is on screen.
+function effectiveChordMode() {
   const mode = getChordMode();
+  return mode === 'solfa' && !currentChordKey() ? 'number' : mode;
+}
+
+function updateChordModeBtns() {
+  const mode = effectiveChordMode();
   Object.entries(chordModeBtns).forEach(([value, btn]) => {
     btn.classList.toggle('active', value === mode);
     btn.setAttribute('aria-pressed', String(value === mode));
   });
+  // Solfège is read from the key and from nothing else, so until a sheet names
+  // one the button has nothing to switch to. Disabled rather than hidden: the
+  // way in is to set the key, and the title is where that is said.
+  const hasKey = !!currentChordKey();
+  chordModeBtns.solfa.disabled = !hasKey;
+  chordModeBtns.solfa.title = hasKey
+    ? 'Label the dots with movable-do solfège, read from the key'
+    : 'Set the key first — solfège reads do from it';
 }
 
 Object.entries(chordModeBtns).forEach(([value, btn]) => {
@@ -1796,6 +1872,33 @@ Object.entries(chordModeBtns).forEach(([value, btn]) => {
     updateChordModeBtns();
     renderChordStrip();
   });
+});
+
+// The select and the sheet's own `key: Bb` line are two views of one value —
+// the sheet is what is stored, and picking from the list is a way of writing
+// that line without having to remember how it is spelled. A key typed into the
+// editor that the list has no entry for (`key: Cb`) is added to it rather than
+// silently reading as no key at all.
+let extraKeyOption = null;
+
+function updateChordKeySelect() {
+  if (extraKeyOption) { extraKeyOption.remove(); extraKeyOption = null; }
+  const key = currentChordKey();
+  const label = key ? key.label : '';
+  if (label && !Array.from(chordKeySelect.options).some(o => o.value === label)) {
+    extraKeyOption = new Option(label, label);
+    chordKeySelect.appendChild(extraKeyOption);
+  }
+  chordKeySelect.value = label;
+}
+
+chordKeySelect.addEventListener('change', () => {
+  if (!currentVideoId) return;
+  const key = Chords.parseKeyName(chordKeySelect.value);
+  const text = Chords.withKey(getSheet(currentVideoId), key ? key.label : '');
+  editSheet(text, 'key');
+  chordInput.value = text;
+  renderChordStrip();
 });
 
 chordShowToggle.addEventListener('change', () => {
@@ -1816,7 +1919,8 @@ function adoptSheetFromLink(k) {
   if (getSheet(currentVideoId)) return;
   const bars = Chords.parseSheet(k);
   if (!bars.length) return;
-  setSheet(currentVideoId, Chords.toCompact(bars));
+  const key = Chords.parseKey(k);
+  setSheet(currentVideoId, Chords.toCompact(bars, '|', key ? key.label : ''));
 }
 
 // ============================================================
@@ -1905,15 +2009,19 @@ function pushRevision(vid, text) {
   return true;
 }
 
-// Degree names or note names inside the diagram dots. Degrees are the default:
-// the point of the strip is what the shape does over the chord, not its letters.
+// Degrees, note names or solfège inside the diagram dots. Degrees are the
+// default: the point of the strip is what the shape does over the chord, not
+// its letters.
+const CHORD_MODES = ['note', 'solfa'];
+
 function getChordMode() {
-  return loadData().chordMode === 'note' ? 'note' : 'number';
+  const mode = loadData().chordMode;
+  return CHORD_MODES.includes(mode) ? mode : 'number';
 }
 
 function setChordMode(mode) {
   const data = loadData();
-  data.chordMode = mode === 'note' ? 'note' : 'number';
+  data.chordMode = CHORD_MODES.includes(mode) ? mode : 'number';
   saveData(data);
 }
 

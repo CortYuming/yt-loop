@@ -450,7 +450,26 @@ button.pin {
   font-size: 11px;
 }
 
-/* Two halves of one pill, the live one lit — the same control Guitar Chord
+/* The song's key, sitting next to the labelling pill it feeds. Quiet: it is set
+   once for a song and then left alone, unlike the pill beside it. */
+.chord-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--sub);
+  font-size: 11px;
+}
+.chord-key select {
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+}
+
+/* Three slices of one pill, the live one lit — the same control Guitar Chord
    Viewer uses for Degrees / Solfege. */
 .legend-toggle {
   display: inline-flex;
@@ -472,6 +491,10 @@ button.pin {
   transition: color 0.12s, background 0.12s;
 }
 .legend-toggle-btn:hover { color: var(--text); background: transparent; }
+/* Solfège with no key set. Still there, so it is clear what setting the key
+   buys — just not yet something to press. */
+.legend-toggle-btn:disabled,
+.legend-toggle-btn:disabled:hover { color: #555; cursor: not-allowed; }
 .legend-toggle-btn.active {
   background: rgba(74, 127, 255, 0.18);
   color: var(--blue);
@@ -586,10 +609,13 @@ button.pin {
   -webkit-user-select: none;
 }
 .chord-viewport.dragging { cursor: grabbing; }
+/* Bars stretch to the tallest of them so their staves line up: a bar of five
+   chords wraps to two rows of diagrams, and left to itself its staff would sit
+   that much lower than its neighbours' and the five lines would step. */
 .chord-track {
   display: flex;
   flex-wrap: nowrap;
-  align-items: flex-start;
+  align-items: stretch;
   width: max-content;
   will-change: transform;
 }
@@ -715,6 +741,29 @@ button.pin {
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
+  /* Takes the slack in a stretched bar, so the staff below it stays pinned to
+     the bottom edge every bar shares. */
+  flex: 1;
+}
+/* This bar's stretch of the staff, butted against its neighbours' so the five
+   lines meet. What breaks it is a hole in the sheet, which is the truth. */
+.chord-staff {
+  display: block;
+  flex: none;
+  margin-top: 4px;
+}
+/* Clef and key signature, at the far left of the row with nothing above them.
+   Pushed to the bottom so its five lines meet the bars', which sit under a
+   header and a row of diagrams. */
+.chord-staff-head {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.chord-staff-head svg {
+  display: block;
+  margin-top: 4px;
 }
 .chord {
   display: block;
@@ -743,7 +792,7 @@ button.pin {
   display: block;
   color: var(--text);
   font-weight: 600;
-  font-size: 13px;
+  font-size: 16px;
 }
 /* Hovering anywhere in the cell answers, so the diagram reads as part of the
    link rather than as something sitting next to one. */

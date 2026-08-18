@@ -20,10 +20,32 @@
 const Chords = (() => {
   // ---------- theory (mirrors guitar-chord-viewer's chord.ts) ----------
   const CONTEXTUAL_SUMMARY = ['R', '♭9', '9', '♭3', '3', '4', '♭5', '5', '♭6', '6', '♭7', 'Δ7'];
+  // Movable-do solfège, indexed by semitones above whatever is being called do.
+  // The same two tables guitar-chord-viewer uses, so a shape read in one app is
+  // spelled the same in the other. Which one applies is the accidental question
+  // again: a flat key gets the flat syllables.
+  const SOLFEGE_SHARP = ['do', 'di', 're', 'ri', 'mi', 'fa', 'fi', 'so', 'si', 'la', 'li', 'ti'];
+  const SOLFEGE_FLAT  = ['do', 'ro', 're', 'mo', 'mi', 'fa', 'swo', 'so', 'lo', 'la', 'to', 'ti'];
   const NOTES_SHARP = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
   const NOTES_FLAT  = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
   // Open strings in semitones, 1st string first — the row order the viewer uses.
   const OPEN_STRINGS = [4, 11, 7, 2, 9, 4];
+
+  // Degree hues, indexed by semitones above the chord root — guitar-chord-
+  // viewer's palette in its dark values, this app having only the one theme.
+  // The reasoning behind the twelve is written out in that app's App.css: an
+  // altered degree is a lighter or darker cast of the natural one it alters,
+  // and the sevenths and the 13 share the purple family. Kept in step with it
+  // so a shape carried between the two apps keeps its colours.
+  const DEGREE_HUE = [
+    '#e57672', '#b07f45', '#e6a45c', '#6d8f45', '#9cc267', '#6ec6c1',
+    '#98c9c4', '#6ea6de', '#c3b4ea', '#9b7ce6', '#d888cf', '#edbde6',
+  ];
+  // Labels inside a dot are white on every one of them. Picking ink or paper
+  // per hue read better in the abstract and worse on the strip: the labels
+  // flipped colour as the shape moved up the neck, which is motion that means
+  // nothing, and the dot's own hue is where the degree is said anyway.
+  const DOT_INK = '#ffffff';
 
   const AUG5 = [{ n: 5, sign: '♯', adjusted: 8 }];
   const ALT_TENSIONS = [
@@ -139,14 +161,86 @@ const Chords = (() => {
     return CONTEXTUAL_SUMMARY[semi];
   }
 
-  // What goes inside a dot: the picked note read against the chord's root.
-  function dotLabel(stringIdx, fret, chord, mode) {
+  // What goes inside a dot: the picked note read against the chord's root, or —
+  // in solfège — against the song's key. do is the key's and only the key's: a
+  // chord's own root moving do from bar to bar is a different reading of the
+  // same word and not the one a sheet is for. With no key there is nothing to
+  // be relative to, so the dots go back to degrees rather than inventing one.
+  function dotLabel(stringIdx, fret, chord, mode, key) {
     if (!chord) return '';
     const semi = (OPEN_STRINGS[stringIdx] + fret) % 12;
     if (mode === 'note') {
       return accidentalFor(chord) === '♭' ? NOTES_FLAT[semi] : NOTES_SHARP[semi];
     }
+    if (mode === 'solfa' && key) {
+      const table = key.accidental === '♭' ? SOLFEGE_FLAT : SOLFEGE_SHARP;
+      return table[(semi - key.tonic + 12) % 12];
+    }
     return contextualName((semi - chord.root + 12) % 12, chord);
+  }
+
+  // Which of the twelve hues a note wears. Colour and label have to be read off
+  // the same thing or they contradict each other: in solfège the label counts
+  // from the key, so the colour does too — do wears the R hue, re the 9, mi the
+  // 3. Elsewhere both count from the chord's own root, as the viewer does.
+  // Nothing to count from — an unparsed name in a mode that needs one — leaves
+  // the note plain.
+  function colourDegree(semi, chord, mode, key) {
+    if (mode === 'solfa' && key) return (semi - key.tonic + 24) % 12;
+    return chord ? (semi - chord.root + 24) % 12 : null;
+  }
+
+  // ---------- key ----------
+  // A sheet can name the song's key on a line of its own — `key: Bb` — which is
+  // what solfège is read from and, later, what the staff takes its signature
+  // from. It rides in the sheet rather than beside it so a share link carries it
+  // for free; in a link the sheet is one line of bars split by |, so the key is
+  // read as a segment there too.
+  // Stops at a |, so the one-line form a link carries — `key: Bb|@43.50 …` —
+  // gives up its key and keeps its bars rather than reading as key all the way
+  // to the end of the sheet.
+  const KEY_SEGMENT = /^key\s*:\s*([^|]*)$/i;
+
+  // A minor key is kept as the major it shares a signature with: `key: Am` is a
+  // C do. That is the la-based reading — in a minor tune the tonic is la, not do
+  // — and it is the right key signature either way.
+  function parseKeyName(input) {
+    const s = String(input || '').trim().replace(/\s+/g, '');
+    const m = s.match(/^([A-Ga-g])([#♯b♭]?)(m|min|minor)?$/);
+    if (!m) return null;
+    const letter = m[1].toUpperCase();
+    const sign = m[2] === '#' ? '♯' : m[2] === 'b' ? '♭' : m[2];
+    const minor = !!m[3];
+    const semi = (ROOT_MAP[letter] + (sign === '♯' ? 1 : sign === '♭' ? -1 : 0) + 12) % 12;
+    const flatRoots = minor ? FLAT_NATURAL_MINOR_ROOTS : FLAT_NATURAL_MAJOR_ROOTS;
+    return {
+      label: letter + (sign === '♯' ? '#' : sign === '♭' ? 'b' : '') + (minor ? 'm' : ''),
+      minor,
+      tonic: minor ? (semi + 3) % 12 : semi,
+      accidental: sign || (flatRoots.has(letter) ? '♭' : '♯'),
+    };
+  }
+
+  function parseKey(text) {
+    for (const line of String(text || '').split('\n')) {
+      for (const seg of line.split('|')) {
+        const m = seg.trim().match(KEY_SEGMENT);
+        const key = m && parseKeyName(m[1]);
+        if (key) return key;
+      }
+    }
+    return null;
+  }
+
+  // Put a key on a sheet, or take it off with ''. Whatever was there goes first,
+  // wherever it was written, so the sheet never ends up naming two keys.
+  function withKey(text, label) {
+    const body = String(text || '').split('\n')
+      .filter(line => !KEY_SEGMENT.test(line.trim()))
+      .map(line => line.split('|').filter(seg => !KEY_SEGMENT.test(seg.trim())).join('|'))
+      .join('\n');
+    if (!label) return body;
+    return body ? `key: ${label}\n${body}` : `key: ${label}`;
   }
 
   // ---------- notation ----------
@@ -319,7 +413,10 @@ const Chords = (() => {
     for (const line of String(text || '').split('\n')) {
       const range = parseRangeLine(line);
       if (range) { ranges.push(range); continue; }
-      const found = line.split('|').map(s => s.trim()).filter(Boolean)
+      // `key: Bb` names the song, not a bar of it — parseBar would otherwise
+      // read it as a chord called "key".
+      const found = line.split('|').map(s => s.trim())
+        .filter(s => s && !KEY_SEGMENT.test(s))
         .map(parseBar).filter(Boolean);
       if (!found.length) continue;
       // The ranges collected so far belong to the bars above them, not to these.
@@ -394,8 +491,8 @@ const Chords = (() => {
   // shrinks to a fraction of its size on the way out.
   // `sep` is '|' for a URL, where every character counts, and '\n' for the
   // editor, where one bar per line is what you can actually read and correct.
-  function toCompact(bars, sep = '|') {
-    return bars.map(bar => {
+  function toCompact(bars, sep = '|', key = '') {
+    const body = bars.map(bar => {
       const head = bar.start === null
         ? ''
         : `@${bar.start.toFixed(2)}${bar.end === null ? '' : `-${bar.end.toFixed(2)}`} `;
@@ -404,6 +501,22 @@ const Chords = (() => {
         .join(' ');
       return head + chords;
     }).join(sep);
+    // First, so the sheet reads as what it is before it reads as where it goes.
+    return key ? (body ? `key: ${key}${sep}${body}` : `key: ${key}`) : body;
+  }
+
+  // A chord as it is read rather than as it is typed. `b` and `#` are what a
+  // keyboard has and ♭ and ♯ are what the music says, so the sheet shows the
+  // second while everything written down — the editor, the share link, the
+  // viewer's URL — keeps the first and stays typeable.
+  // Only where they are accidentals: after the root letter, and in front of a
+  // tension number. `Bbm7b5` is B♭m7♭5; the b of a name is left alone.
+  function displayName(name) {
+    return String(name || '')
+      .replace(/^([A-Ga-g])b/, '$1♭')
+      .replace(/^([A-Ga-g])#/, '$1♯')
+      .replace(/b(\d)/g, '♭$1')
+      .replace(/#(\d)/g, '♯$1');
   }
 
   function viewerUrl(chord) {
@@ -430,7 +543,7 @@ const Chords = (() => {
   const GUTTER_X = DOT_R + 1;
   const COLS = 5;
 
-  function diagram(markers, chordName, mode) {
+  function diagram(markers, chordName, mode, key) {
     const svg = document.createElementNS(NS, 'svg');
     const picked = markers ? markers.filter(f => f !== null) : [];
     if (!picked.length) {
@@ -460,9 +573,11 @@ const Chords = (() => {
     };
 
     // The starting fret is the one label read from a distance, so it carries a
-    // size of its own rather than shrinking to a footnote.
+    // size of its own rather than shrinking to a footnote. Centred over the
+    // first fret rather than hung off the board's left edge, where it read as
+    // belonging to the gutter the muted strings live in.
     add('text', {
-      x: PAD_L, y: 12, fill: '#bbb', 'font-size': 14,
+      x: PAD_L + CELL_W / 2, y: 12, fill: '#bbb', 'font-size': 14, 'text-anchor': 'middle',
       'font-family': 'ui-monospace, Menlo, monospace', 'font-weight': 600,
     }, String(from));
 
@@ -487,27 +602,291 @@ const Chords = (() => {
         }, '×');
         return;
       }
-      const label = dotLabel(s, f, chord, mode);
-      const isRoot = !!chord && (OPEN_STRINGS[s] + f - chord.root + 24) % 12 === 0;
+      const label = dotLabel(s, f, chord, mode, key);
+      const degree = colourDegree((OPEN_STRINGS[s] + f) % 12, chord, mode, key);
+      const hue = degree === null ? '#4a7fff' : DEGREE_HUE[degree];
       const open = f === 0;
       const cx = open ? GUTTER_X : PAD_L + (f - from) * CELL_W + CELL_W / 2;
       add('circle', {
         cx, cy: y, r: DOT_R,
-        fill: open ? 'none' : isRoot ? '#ffa726' : '#4a7fff',
-        stroke: open ? (isRoot ? '#ffa726' : '#4a7fff') : 'none', 'stroke-width': 1.5,
+        fill: open ? 'none' : hue,
+        stroke: open ? hue : 'none', 'stroke-width': 1.5,
       });
+      // The dot is 17.6 across, so how large the label can be set depends on how
+      // much of it there is: `R` has the room to be read at a glance, `♭13` has
+      // to come down or it spills over the edge of the circle it belongs to.
+      const fs = label.length > 2 ? 10 : label.length > 1 ? 12 : 13;
       add('text', {
-        x: cx, y: y + 3.9,
-        fill: open ? (isRoot ? '#ffa726' : '#9bb6ff') : isRoot ? '#1a1a1a' : '#fff',
-        'font-size': label.length > 2 ? 9 : 11, 'text-anchor': 'middle',
+        x: cx, y: y + fs * 0.355,
+        fill: DOT_INK,
+        'font-size': fs, 'text-anchor': 'middle',
         'font-family': '-apple-system, BlinkMacSystemFont, sans-serif', 'font-weight': 600,
       }, label);
     });
     return svg;
   }
 
+  // ---------- staff ----------
+  // The same fingering again, as the notes it actually sounds. Guitar is
+  // written an octave above where it sounds, so this is a treble clef read
+  // 8vb — which is what puts an open 1st string in the top space instead of
+  // three ledger lines above the staff.
+  const OPEN_MIDI = [64, 59, 55, 50, 45, 40];   // sounding, 1st string first
+  const WRITTEN_8VA = 12;
+  const LETTER_STEP = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+  // Staff places are counted in letter-steps from C-1, which makes E4 — the
+  // bottom line of the treble staff — 30, and every line above it two more.
+  const BOTTOM_LINE = 30, TOP_LINE = 38;
+
+  // One staff space, which every other size here is a multiple of — the staff
+  // is 4 of them tall, a notehead a little over 1 of them wide, and a step
+  // between two neighbouring places is half of one. So this single number is
+  // how large the staff draws.
+  const SP = 10;
+  const HALF = SP / 2;
+  const NOTE_RX = SP * 0.62, NOTE_RY = SP * 0.44;
+  const STAFF_PAD = SP;
+  // Accidentals are the small print of a staff and were the first thing to go
+  // unreadable, so they are sized against the staff rather than left at
+  // whatever a note-sized glyph happens to be.
+  const SIGN_SIZE = SP * 2.1;
+  // Where a chord's notes sit inside its cell: at the beat it starts on, with
+  // room in front for an accidental.
+  const NOTE_INSET = 17;
+
+  // A written pitch as a place on the staff and the sign in front of it. Which
+  // of the two names it goes by is the key's business: in B♭ it is A♭, never G♯.
+  function staffNote(midi, flat) {
+    const pc = ((midi % 12) + 12) % 12;
+    const name = flat ? NOTES_FLAT[pc] : NOTES_SHARP[pc];
+    return {
+      pc,
+      step: (Math.floor(midi / 12) - 1) * 7 + LETTER_STEP[name[0]],
+      sign: name.length > 1 ? name[1] : '',
+    };
+  }
+
+  function writtenPitches(markers) {
+    if (!markers) return [];
+    const out = [];
+    markers.forEach((f, s) => {
+      if (f !== null) out.push(OPEN_MIDI[s] + f + WRITTEN_8VA);
+    });
+    return out.sort((a, b) => a - b);
+  }
+
+  // Without a key the chord spells itself, the same rule the diagram's note
+  // names follow; with one, the key decides for the whole sheet.
+  function spellsFlat(chordName, key) {
+    if (key) return key.accidental === '♭';
+    const chord = parseChord(chordName);
+    return !!chord && accidentalFor(chord) === '♭';
+  }
+
+  // What one chord puts on the staff, ready to draw. The parse comes back with
+  // it because the colours are read off the chord as well as the notes.
+  function staffChord(name, markers, key) {
+    const flat = spellsFlat(name, key);
+    return {
+      chord: parseChord(name),
+      notes: writtenPitches(markers).map(m => staffNote(m, flat)),
+    };
+  }
+
+  // The key signature, in the order and on the places every printed staff puts
+  // it: sharps from F upwards, flats from B downwards.
+  const SHARP_STEPS = [38, 35, 39, 36, 33, 37, 34];   // F5 C5 G5 D5 A4 E5 B4
+  const FLAT_STEPS  = [34, 37, 33, 36, 32, 35, 31];   // B4 E5 A4 D5 G4 C5 F4
+  const SHARP_COUNT = { 0: 0, 7: 1, 2: 2, 9: 3, 4: 4, 11: 5, 6: 6, 1: 7 };
+  const FLAT_COUNT  = { 0: 0, 5: 1, 10: 2, 3: 3, 8: 4, 1: 5, 6: 6, 11: 7 };
+
+  // Which way a key is written, and how many. A key kept as its relative major
+  // is the same signature either way, which is the other reason to store it so.
+  function signature(key) {
+    if (!key) return { sign: '', steps: [] };
+    const flat = key.accidental === '♭';
+    const count = (flat ? FLAT_COUNT : SHARP_COUNT)[key.tonic];
+    if (count !== undefined) {
+      return { sign: flat ? '♭' : '♯', steps: (flat ? FLAT_STEPS : SHARP_STEPS).slice(0, count) };
+    }
+    // A key spelled the way the other side of the circle writes it — take the
+    // signature that exists rather than none at all.
+    const other = (flat ? SHARP_COUNT : FLAT_COUNT)[key.tonic];
+    if (other === undefined) return { sign: '', steps: [] };
+    return {
+      sign: flat ? '♯' : '♭',
+      steps: (flat ? SHARP_STEPS : FLAT_STEPS).slice(0, other),
+    };
+  }
+
+  // How far the staff has to reach to hold a whole sheet. Every bar is drawn to
+  // the same reach, so the five lines meet across the sheet rather than
+  // stepping up and down with whatever each bar happens to hold. The signature
+  // counts too: a sharp sits above the top line and would be cropped otherwise.
+  function staffRange(bars, key) {
+    let top = TOP_LINE, bottom = BOTTOM_LINE, any = false;
+    for (const bar of bars) {
+      for (const chord of bar.chords) {
+        for (const n of staffChord(chord.name, chord.markers, key).notes) {
+          top = Math.max(top, n.step);
+          bottom = Math.min(bottom, n.step);
+          any = true;
+        }
+      }
+    }
+    if (!any) return null;
+    for (const step of signature(key).steps) {
+      top = Math.max(top, step);
+      bottom = Math.min(bottom, step);
+    }
+    return { top, bottom };
+  }
+
+  // A blank stretch of staff, its five lines drawn across the whole width, plus
+  // the two things everything else on it needs: somewhere to put an element and
+  // the height of a given place. Every stretch is measured from the same reach,
+  // which is what makes them line up when they are butted together.
+  function staffCanvas(width, range) {
+    const svg = document.createElementNS(NS, 'svg');
+    const yBottom = STAFF_PAD + (range.top - BOTTOM_LINE) * HALF;
+    const h = yBottom + (BOTTOM_LINE - range.bottom) * HALF + STAFF_PAD;
+    const y = step => yBottom - (step - BOTTOM_LINE) * HALF;
+
+    svg.setAttribute('width', String(width));
+    svg.setAttribute('height', String(h));
+    svg.setAttribute('viewBox', `0 0 ${width} ${h}`);
+    svg.setAttribute('aria-hidden', 'true');
+    const add = (tag, attrs, text) => {
+      const el = document.createElementNS(NS, tag);
+      for (const k in attrs) el.setAttribute(k, String(attrs[k]));
+      if (text !== undefined) el.textContent = text;
+      svg.appendChild(el);
+      return el;
+    };
+    for (let s = BOTTOM_LINE; s <= TOP_LINE; s += 2) {
+      add('line', {
+        x1: 0, y1: y(s), x2: width, y2: y(s), stroke: '#4d4d4d', 'stroke-width': 1,
+      });
+    }
+    return { svg, add, y };
+  }
+
+  // ---------- the head of the staff ----------
+  // Clef and key signature, in their own stretch at the far left of the sheet
+  // where printed music puts them. Drawn as a stretch of its own rather than
+  // inside the first bar: sharing a bar means sharing the room its first chord
+  // needs, and the two collided.
+  const CLEF_SIZE = SP * 4.4;
+  const CLEF_W = SP * 3;
+  const SIG_STEP = SP * 0.95;
+  const HEAD_LEFT = SP * 0.4;
+  // Centring a ♭ or ♯ glyph on its place leaves it reading high — the ink of
+  // both sits above the middle of the box they are drawn in — so the signature
+  // is dropped by a fraction of its own size to land on the line it names.
+  const SIG_DROP = 0.02;
+
+  function staffHeadWidth(key) {
+    return HEAD_LEFT + CLEF_W + signature(key).steps.length * SIG_STEP + SP * 0.8;
+  }
+
+  function staffHead(range, key) {
+    if (!range) {
+      const empty = document.createElementNS(NS, 'svg');
+      empty.setAttribute('width', '0');
+      empty.setAttribute('height', '0');
+      return empty;
+    }
+    const width = staffHeadWidth(key);
+    const { svg, add, y } = staffCanvas(width, range);
+    // The G of the G clef is the line its curl sits on, which is why the glyph
+    // hangs below the staff as far as it does.
+    add('text', {
+      x: HEAD_LEFT, y: y(BOTTOM_LINE) + SP * 0.9, fill: '#9a9a9a', 'font-size': CLEF_SIZE,
+      'font-family': '"Noto Music", "Apple Symbols", "Segoe UI Symbol", serif',
+    }, '𝄞');
+    const sig = signature(key);
+    sig.steps.forEach((step, i) => {
+      add('text', {
+        x: HEAD_LEFT + CLEF_W + i * SIG_STEP, y: y(step) + SIGN_SIZE * SIG_DROP,
+        fill: '#9a9a9a', 'font-size': SIGN_SIZE, 'dominant-baseline': 'central',
+        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+      }, sig.sign);
+    });
+    return svg;
+  }
+
+  // One bar's stretch of staff. Bars are drawn separately and butt against each
+  // other, so the 2px rule between them reads as the bar line it already is.
+  // `items` is [{ x, name, markers }], x measured from this bar's left edge.
+  // Every altered note carries its own sign even though the signature says so
+  // too: the row scrolls, and a signature that has slid off the left is no help
+  // reading what is under the playhead now.
+  function staffBar(items, width, range, key, mode) {
+    if (!range || width <= 0) {
+      const empty = document.createElementNS(NS, 'svg');
+      empty.setAttribute('width', '0');
+      empty.setAttribute('height', '0');
+      return empty;
+    }
+    const { svg, add, y } = staffCanvas(width, range);
+
+    for (const item of items) {
+      const { chord, notes } = staffChord(item.name, item.markers, key);
+      // Two notes a step apart cannot share a column — the heads would sit on
+      // top of each other — so the upper one moves to the right of the stack,
+      // which is what engraving does with a second.
+      let prevStep = null, side = 0;
+      const placed = notes.map(n => {
+        side = prevStep !== null && n.step - prevStep === 1 ? 1 - side : 0;
+        prevStep = n.step;
+        return { n, x: item.x + NOTE_INSET + side * NOTE_RX * 2 };
+      });
+
+      const ledgers = new Set();
+      const ledger = (s, x) => {
+        const at = `${s}@${x}`;
+        if (ledgers.has(at)) return;
+        ledgers.add(at);
+        add('line', {
+          x1: x - NOTE_RX - 3, y1: y(s), x2: x + NOTE_RX + 3, y2: y(s),
+          stroke: '#4d4d4d', 'stroke-width': 1,
+        });
+      };
+
+      let lastSign = null;
+      for (const { n, x } of placed) {
+        for (let s = TOP_LINE + 2; s <= n.step; s += 2) ledger(s, x);
+        for (let s = BOTTOM_LINE - 2; s >= n.step; s -= 2) ledger(s, x);
+        if (n.sign) {
+          // Two signs a step or two apart would collide, so the second of them
+          // hangs further out.
+          const near = lastSign !== null && n.step - lastSign <= 2;
+          // A ♭ marks its pitch with the bowl at the bottom of the glyph, not
+          // with its middle, so centring it on the note puts it a touch low.
+          const dy = n.sign === '♭' ? -SIGN_SIZE * 0.17 : 0;
+          add('text', {
+            x: x - NOTE_RX - 4 - (near ? SIGN_SIZE * 0.62 : 0), y: y(n.step) + dy,
+            fill: '#9a9a9a', 'font-size': SIGN_SIZE, 'text-anchor': 'end',
+            'dominant-baseline': 'central',
+            'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+          }, n.sign);
+          lastSign = near ? lastSign : n.step;
+        }
+        // The same hue the dot for this note wears in the diagram above it, so
+        // the two readings of one chord are tied together by colour.
+        const degree = colourDegree(n.pc, chord, mode, key);
+        add('ellipse', {
+          cx: x, cy: y(n.step), rx: NOTE_RX, ry: NOTE_RY,
+          fill: degree === null ? '#dcdcdc' : DEGREE_HUE[degree],
+        });
+      }
+    }
+    return svg;
+  }
+
   return {
     parseSheet, resolveSpans, chordTimes, slotWeights, toCompact, viewerUrl, diagram,
-    readChord, readMarkers, markersToText,
+    readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
+    staffRange, staffBar, staffHead, staffHeadWidth,
   };
 })();

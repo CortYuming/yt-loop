@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=94f492ac">
+<link rel="stylesheet" href="style.css?v=de803d7f">
 </head>
 <body>
 <main>
@@ -99,11 +99,49 @@
         <span class="toggle-track"><span class="toggle-thumb"></span></span>
       </label>
       <button id="chordEditBtn" class="chord-edit-btn" title="Edit this video's chords">🎼 Edit</button>
+      <!-- The song's key. Kept in the sheet itself as a `key:` line, so the
+           select and the first line of the editor are two views of one thing. -->
+      <label class="chord-key" title="The song's key — what solfège calls do">
+        <span class="field-label">Key</span>
+        <select id="chordKeySelect">
+          <option value="">—</option>
+          <optgroup label="Major">
+            <option value="C">C</option>
+            <option value="G">G</option>
+            <option value="D">D</option>
+            <option value="A">A</option>
+            <option value="E">E</option>
+            <option value="B">B</option>
+            <option value="F#">F♯</option>
+            <option value="Db">D♭</option>
+            <option value="Ab">A♭</option>
+            <option value="Eb">E♭</option>
+            <option value="Bb">B♭</option>
+            <option value="F">F</option>
+          </optgroup>
+          <optgroup label="Minor">
+            <option value="Am">Am</option>
+            <option value="Em">Em</option>
+            <option value="Bm">Bm</option>
+            <option value="F#m">F♯m</option>
+            <option value="C#m">C♯m</option>
+            <option value="G#m">G♯m</option>
+            <option value="Ebm">E♭m</option>
+            <option value="Bbm">B♭m</option>
+            <option value="Fm">Fm</option>
+            <option value="Cm">Cm</option>
+            <option value="Gm">Gm</option>
+            <option value="Dm">Dm</option>
+          </optgroup>
+        </select>
+      </label>
       <div class="legend-toggle" role="group" aria-label="Dot labelling">
         <button id="chordModeInterval" class="legend-toggle-btn active"
                 title="Label the dots with degrees">Interval</button>
         <button id="chordModeNote" class="legend-toggle-btn"
                 title="Label the dots with note names">Note</button>
+        <button id="chordModeSolfa" class="legend-toggle-btn"
+                title="Label the dots with movable-do solfège, read from the key">Solfege</button>
       </div>
     </div>
 
@@ -119,6 +157,7 @@
           Bars split on <code>|</code> or a newline &nbsp;·&nbsp;
           <code>Name:frets</code> — six frets, 1st string first, blank for a muted string &nbsp;·&nbsp;
           <code>@</code> sets where a bar starts &nbsp;·&nbsp;
+          <code>key: Bb</code> on its own line names the song's key &nbsp;·&nbsp;
           Markdown links from Guitar Chord Viewer can be pasted as they are
         </span>
       </div>
@@ -154,7 +193,7 @@
      numbers committed here are placeholders and need no hand editing. Run
      scripts/bump-cache-buster.sh to refresh them locally. A hand-kept counter used to get
      reused across changes, which left the browser on stale files while they were tested. -->
-<script src="chords.js?v=81a35fed"></script>
-<script src="main.js?v=fee48f56"></script>
+<script src="chords.js?v=eb2fd6ef"></script>
+<script src="main.js?v=4eb6f700"></script>
 </body>
 </html>
