@@ -708,6 +708,13 @@ const Chords = (() => {
   const HALF = SP / 2;
   const NOTE_RX = SP * 0.62, NOTE_RY = SP * 0.44;
   const STAFF_PAD = SP;
+  // A band above the staff for the chord names. Printed music writes the chord
+  // over the bar it sounds in, and the staff is the one place in the strip that
+  // does not already say which chord it is drawing — the diagrams above carry
+  // their own names, but by the time the eye is on the notes those are a row
+  // away.
+  const NAME_BAND = SP * 1.6;
+  const NAME_SIZE = SP * 1.2;
   // Accidentals are the small print of a staff and were the first thing to go
   // unreadable, so they are sized against the staff rather than left at
   // whatever a note-sized glyph happens to be.
@@ -810,7 +817,7 @@ const Chords = (() => {
   // which is what makes them line up when they are butted together.
   function staffCanvas(width, range) {
     const svg = document.createElementNS(NS, 'svg');
-    const yBottom = STAFF_PAD + (range.top - BOTTOM_LINE) * HALF;
+    const yBottom = NAME_BAND + STAFF_PAD + (range.top - BOTTOM_LINE) * HALF;
     const h = yBottom + (BOTTOM_LINE - range.bottom) * HALF + STAFF_PAD;
     const y = step => yBottom - (step - BOTTOM_LINE) * HALF;
 
@@ -891,6 +898,21 @@ const Chords = (() => {
       return empty;
     }
     const { svg, add, y } = staffCanvas(width, range);
+
+    // The names, over the beats they start on. A chord held across two beats is
+    // written once and read as still sounding — repeating it says it was struck
+    // again, which is a different bar. The run is only followed within the bar:
+    // a new bar restates what it is playing, as printed music does.
+    let held = null;
+    for (const item of items) {
+      if (item.name === held) continue;
+      held = item.name;
+      add('text', {
+        x: item.x + NOTE_INSET - NOTE_RX, y: NAME_BAND,
+        fill: '#ddd', 'font-size': NAME_SIZE, 'text-anchor': 'start',
+        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif', 'font-weight': 600,
+      }, displayName(item.name));
+    }
 
     for (const item of items) {
       const { chord, notes } = staffChord(item.name, item.markers, key);
