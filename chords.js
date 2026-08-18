@@ -931,9 +931,14 @@ const Chords = (() => {
         const at = `${s}@${x}`;
         if (ledgers.has(at)) return;
         ledgers.add(at);
+        // A ledger line is read against the note sitting on it, not against the
+        // staff, so it is drawn heavier and lighter than the five lines are: at
+        // this size, one grey thread the width of the note head simply vanished
+        // under it. Reaching well past the head on both sides is also what says
+        // it is a line the note is on rather than a mark the note carries.
         add('line', {
-          x1: x - NOTE_RX - 3, y1: y(s), x2: x + NOTE_RX + 3, y2: y(s),
-          stroke: '#4d4d4d', 'stroke-width': 1,
+          x1: x - NOTE_RX - 6, y1: y(s), x2: x + NOTE_RX + 6, y2: y(s),
+          stroke: '#8a8a8a', 'stroke-width': 1.4,
         });
       };
 
