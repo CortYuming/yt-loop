@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=67a3a73d">
+<link rel="stylesheet" href="style.css?v=03792ecf">
 </head>
 <body>
 <main>
@@ -167,6 +167,10 @@
       <div class="chord-track" id="chordStrip"></div>
       <div class="chord-playhead"></div>
     </div>
+
+    <!-- The ♪ panel: the whole neck, for writing the notes played over one
+         chord. Under the strip rather than in it, since the strip scrolls. -->
+    <div class="note-panel" id="notePanel" hidden></div>
   </section>
 
   <section class="loops">
@@ -224,7 +228,7 @@
      numbers committed here are placeholders and need no hand editing. Run
      scripts/bump-cache-buster.sh to refresh them locally. A hand-kept counter used to get
      reused across changes, which left the browser on stale files while they were tested. -->
-<script src="chords.js?v=557bbad0"></script>
-<script src="main.js?v=4beae77b"></script>
+<script src="chords.js?v=f2c5b419"></script>
+<script src="main.js?v=ba91008d"></script>
 </body>
 </html>

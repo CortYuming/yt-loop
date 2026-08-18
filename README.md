@@ -19,6 +19,7 @@ https://cortyuming.github.io/yt-loop/
 - **Loop toggle** — turn looping on/off without losing your start/end
 - **History** — every range you play is remembered on its own, newest first, grouped by video. No save button: ▶ Play on an entry puts its range, speed and note back in the controls. 🗑 on an entry drops it; 🗑 on a video header clears that video's history. The video in the player has its ranges open and the rest are collapsed to their header — ▸ opens one without disturbing playback
 - **🎼 Chords** — a chord sheet per video: the fingerings you picked in [Guitar Chord Viewer](https://cortyuming.github.io/guitar-chord-viewer/), drawn as diagrams of the five frets around the shape and laid out as one unbroken row that slides under a playhead fixed in the middle — what is playing stays in one place and what is coming arrives from the right. Every bar is four slots wide whatever it holds, its chords taking slots in proportion to their beats, so the sheet moves at one steady pace; a bar with more than four chords stacks them four to a line inside that same width. The slot narrows on a window too small for four, so a whole bar always fits across. Seconds the sheet says nothing about are drawn as blank of the same width those seconds would have taken, so the row keeps moving through a hole instead of parking under the playhead; where two phrases overlap it never runs backwards — a bar starting before the sheet has got there is crossed at once. An amber rule and the bar number mark where each bar starts. The time on a bar head is also how a range is marked out from the sheet: click it and **start📍 / end📍** appear, each putting that bar's moment in the box it names — one bar's time for the start, a later bar's for the end, instead of catching both by ear as they go past. Dots are labelled with degrees by default, note names on the **Interval / Note** switch; the root is set apart, open strings are hollow, muted ones get `×`. A chord name opens the full fretboard in the viewer. **Show** folds the strip away; 🎼 in a video's header loads that video and opens its editor. See the notation below
+- **♪ Single notes** — the line actually played over a chord, not just the chord: a solo, a riff, the head of the tune. Written on the staff with the durations it is played in — stems, beams, flags, rests, dots and ties — and again below it as tab, so the same phrase says what the music is and where it is on the neck. A tab row appears only in a sheet that has notes in it. Where a note falls is never written down: a note follows the one before it and the durations stack up from the start of the chord's stretch, so re-timing one slides the rest along instead of leaving a row of positions to correct by hand. Notes struck together — a double stop, the three-note chords a chord-melody ends on — are one event with more than one string in it. A tie holds a note on without striking it again, which is also how a note carries over a bar line: the tie is simply the first thing in the next bar, and the pitch is not written twice. In 🎼 Edit mode every chord cell has a ♪ that opens the whole neck under the strip: pick a duration, tap a fret, and it is written. Clicking a note in the strip — head, fret number, or the column between them — selects it, and the same buttons then re-time it, dot it, move it to another string, or turn it into a rest or a tie. The dots on the board are labelled by the same **Interval / Note / Solfege** switch the diagrams use. Keys while the panel is open: **← →** to walk the selection, **1**–**5** for the durations, **.** dot, **R** rest, **T** tie, **S** stack, **Backspace** delete, **Esc** out
 - **🔗 URL** — copies a link that encodes video, start, end, rate and note as query params. This is how you keep a loop for good: bookmark the link. Editing a value flashes the field and both copy buttons, so it's visible that the link tracks the form. Notes are capped at 30 characters, since percent-encoding costs 9 characters per Japanese character. On landing, a note already in this browser's history wins over the one in the link — the link's copy only fills in where there's no local entry, which is the case it exists for (another machine, or storage that got cleared)
 - **📝 MD** — copies the same link as a Markdown link, labelled with the video title and time range
 - Keyboard shortcuts (see below)
@@ -31,6 +32,7 @@ https://cortyuming.github.io/yt-loop/
 | `S` | Jump to loop start |
 | `←` / `→` | Seek 0.05 seconds (move the caret when Start/End is focused) |
 | `Shift + ←` / `→` | Seek 1 second (nudge the value by 0.05s when Start/End is focused) |
+| While ♪ is open | The panel takes the keyboard: `← →` walk the note selection, `1`–`5` set the duration, `.` dots it, `R` rest, `T` tie, `S` stack, `Backspace` delete, `Esc` back to writing at the end and then closed. Seeking with `← →` comes back as soon as it is closed |
 
 ## Chord notation
 
@@ -46,10 +48,23 @@ https://cortyuming.github.io/yt-loop/
 | `@43.50` | Where the bar starts. Also accepted as `@0:43.50` |
 | `@43.50-45.85` | Start and end, for a bar whose end can't be inferred |
 | `[Bb9](https://.../guitar-chord-viewer/?c=Bb9&m=1.1.1.0..)` | A Markdown link pasted straight out of a notes file works as a chord. It is stored in the short form above |
+| `6/7:8` | A note played over the chord in front of it: 6th string, 7th fret, an eighth long. The duration is the number printed music calls the note by — `1` whole, `2` half, `4` quarter, `8` eighth, `16` sixteenth, `32` — and a trailing dot is half again as long (`4.`). Leave `:` off and the note is as long as the one before it, which a run of eighths mostly is |
+| `2/10+3/9` | Two strings struck together — a double stop. Any number of them, joined by `+` |
+| `r:4` | A rest, as long as it says |
+| `_:8` | Holds the note before it on for that much longer, without striking it again. Written at the head of a bar, this is a note carried over the bar line — the pitch is not written twice |
 
 A bar with no end runs to the start of the next one; the last bar borrows the
 length of the one before it. **📍 Time** drops the current playback position in
 at the caret, which is the fiddly part to type while something is playing.
+
+Notes belong to the chord written in front of them, and where each one falls
+comes from the durations before it rather than from a position of its own. A bar
+is four beats, so a chord's stretch is its share of them — one of two chords in
+a bar holds two beats — and a phrase written longer than that overruns the bar,
+which the panel says out loud and the staff draws past the bar line. A phrase
+with no chord over it is written on its own; the sheet then says what is played
+and nothing about the harmony, which is a perfectly ordinary thing to write
+down.
 
 Within a bar the four beats split the way chord-vamp splits them — 2 chords into
 2+2, 3 into 2+1+1 — so a bar written in either app reads the same.

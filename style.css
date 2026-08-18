@@ -762,7 +762,9 @@ button.pin {
 .chord-staff-head {
   position: absolute;
   left: 0;
-  bottom: 6px;
+  /* The tab row sits below the staff, so the clef rises by its height to stay on
+     the same five lines. --tab-h is set on the viewport when there is one. */
+  bottom: calc(6px + var(--tab-h, 0px));
   z-index: 4;
   display: flex;
   flex: none;
@@ -771,6 +773,20 @@ button.pin {
   background: var(--bg);
   padding-right: 3px;
 }
+/* This bar's stretch of tab, under the staff. Only drawn where the sheet has
+   single notes in it — see Chords.hasNotes. */
+.chord-tab {
+  display: block;
+  flex: none;
+  margin-top: 2px;
+}
+/* One note, as somewhere to click. The whole column of it counts — head, fret
+   number, and the space between — since what is being aimed at is the moment
+   rather than either drawing of it. Only live while editing: with the editor
+   closed a chord is a link to the viewer and a click means that instead. */
+.editing-mode .staff-hit { cursor: pointer; }
+.editing-mode .staff-hit:hover { fill: var(--blue); fill-opacity: 0.12; }
+.editing-mode .staff-hit.on { fill: var(--blue); fill-opacity: 0.18; }
 /* The room the head would have taken in the row, kept empty so the bars still
    begin where they did. */
 .chord-staff-gap { flex: none; }
@@ -991,3 +1007,134 @@ footer {
   margin: 10px 0 0;
 }
 .import-actions .hint { margin-top: 0; }
+
+
+/* ============================================================
+   Single notes (♪)
+   ============================================================
+   The board for writing the notes played over one chord. Under the strip, and
+   only up while the editor is open — see renderNotePanel. */
+.note-panel {
+  margin-top: 10px;
+  padding: 10px 12px 12px;
+  background: var(--panel);
+  border: 1px solid var(--blue);
+  border-radius: 6px;
+}
+.note-panel[hidden] { display: none; }
+.note-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 0 0 9px;
+  font-size: 13px;
+}
+.note-panel-what { font-weight: 600; }
+.note-panel-mode, .note-panel-room { color: var(--sub); font-size: 12px; }
+/* More written than the bar has room for. Allowed — a phrase is often written
+   before its bar's timing is right — but said out loud, since the overrun is
+   drawn past the bar and reads as a fault in the sheet otherwise. */
+.note-panel-room.over { color: var(--red); }
+.note-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.note-tool {
+  position: relative;
+  background: #1f1f1f;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.note-tool:hover { background: var(--panel-hover); }
+.note-tool.on {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+/* A duration button wears the note itself: the shapes are what the buttons mean,
+   and a word for each of them is a row of words to read instead of glance at. */
+.note-tool.note-dur {
+  width: 46px;
+  height: 52px;
+  padding: 3px 6px 0;
+}
+.note-tool.note-dur svg { display: block; margin: 0 auto; }
+.note-key {
+  position: absolute;
+  right: 3px;
+  bottom: 1px;
+  font-size: 9px;
+  color: var(--sub);
+}
+.note-tool.on .note-key { color: #dbe6ff; }
+.note-tool-gap {
+  width: 1px;
+  height: 30px;
+  background: var(--border);
+  margin: 0 4px;
+}
+.note-keys, .note-hint {
+  color: var(--sub);
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 9px 0 0;
+}
+.note-board {
+  margin-top: 8px;
+  padding: 6px 0 2px;
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.note-board svg { display: block; }
+/* Every fret is a place to write a note. The dot is faint until the pointer is
+   on it — all 132 of them lit at once is a board nobody can read a shape off. */
+.board-cell { cursor: pointer; }
+.board-dot { opacity: 0.13; }
+.board-cell[data-fret="0"] .board-dot { opacity: 0.2; }
+.board-cell:hover .board-dot { opacity: 0.75; }
+.board-cell:hover .board-label { fill: #fff; }
+
+/* A bar that isn't there yet, at the end of the row. Only up while editing. */
+.chord-add-bar {
+  flex: none;
+  align-self: center;
+  margin: 0 10px;
+  padding: 6px 12px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.chord-add-bar:hover {
+  background: var(--panel-hover);
+  border-color: var(--blue);
+}
+/* The chord over the notes being written, put on from the panel itself. */
+.note-panel-name {
+  width: 110px;
+  background: #1f1f1f;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 13px;
+}
+.note-panel-name:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+/* A stretch of single notes with no fingering: the cell keeps the width its
+   beats are worth and draws nothing. See renderChord. */
+.chord-notes-only { flex: none; }

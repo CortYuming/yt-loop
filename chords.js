@@ -322,13 +322,105 @@ const Chords = (() => {
     return link ? link.markers : parseMarkers(s);
   }
 
+  // ---------- single notes ----------
+  // A chord can be followed by the notes actually played over it: `6/7:8` is
+  // the 6th string at the 7th fret, an eighth long. What a note is worth is
+  // written as the number printed music calls it by — 4 a quarter, 8 an eighth,
+  // a trailing dot half again as long — and left off when it is the same as the
+  // note before, which is what a run of eighths mostly is.
+  // Where a note falls is never written: positions come from the durations
+  // stacked up from the start of the chord's stretch. Typing both is typing the
+  // same thing twice, and the two disagree the moment a duration is changed.
+  const DUR_BY_TEXT = { 1: 4, 2: 2, 4: 1, 8: 0.5, 16: 0.25, 32: 0.125 };
+  const NOTE_TOKEN = /^(?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*|r|_)(?::\d{1,2}\.?)?$/;
+  // Long enough to be the whole of a bar, short enough to still be a note.
+  const DEFAULT_DUR = 0.5;
+
+  function parseDur(text) {
+    const m = /^(\d{1,2})(\.?)$/.exec(String(text || ''));
+    if (!m) return null;
+    const base = DUR_BY_TEXT[Number(m[1])];
+    if (!base) return null;
+    return m[2] ? base * 1.5 : base;
+  }
+
+  function durText(d) {
+    for (const k of Object.keys(DUR_BY_TEXT)) {
+      if (DUR_BY_TEXT[k] === d) return k;
+      if (DUR_BY_TEXT[k] * 1.5 === d) return `${k}.`;
+    }
+    return null;
+  }
+
+  // `r` is a rest and `_` holds the note before it on — which is also how a
+  // note carries over a bar line, since the tie is simply the first thing in
+  // the next bar and the pitch is not written again.
+  function parseNoteToken(token, lastDur) {
+    if (!NOTE_TOKEN.test(token)) return null;
+    const colon = token.indexOf(':');
+    const body = colon === -1 ? token : token.slice(0, colon);
+    const d = colon === -1 ? null : parseDur(token.slice(colon + 1));
+    if (colon !== -1 && d === null) return null;
+    const dur = d !== null ? d : (lastDur !== null ? lastDur : DEFAULT_DUR);
+    if (body === 'r') return { d: dur, rest: true, stops: [] };
+    if (body === '_') return { d: dur, tie: true, stops: [] };
+    const stops = body.split('+').map(part => {
+      const [str, fret] = part.split('/');
+      return { string: Number(str), fret: Number(fret) };
+    });
+    // A fret past the end of the neck is a typo, not a note.
+    if (stops.some(st => st.fret > 22)) return null;
+    return { d: dur, stops };
+  }
+
+  // The notes of one chord's stretch as text, leaving out every duration that
+  // repeats the one before it.
+  function notesToText(notes) {
+    let last = null;
+    return (notes || []).map(ev => {
+      const d = ev.d === last ? '' : `:${durText(ev.d) || '4'}`;
+      last = ev.d;
+      const body = ev.tie ? '_'
+        : ev.rest ? 'r'
+        : ev.stops.map(st => `${st.string}/${st.fret}`).join('+');
+      return body + d;
+    }).join(' ');
+  }
+
+  // Where each note of a stretch begins, in beats from the start of it, and how
+  // far the lot of them reach.
+  function noteBeats(notes) {
+    let at = 0;
+    const out = (notes || []).map((ev, index) => {
+      const b = at;
+      at += ev.d;
+      return { ev, beat: b, index };
+    });
+    return { items: out, length: at };
+  }
+
   function parseBar(barText) {
     const bar = { start: null, end: null, chords: [] };
     const tokens = barText.match(TOKEN) || [];
+    // Durations carry across a chord change within a bar: a run of eighths
+    // written over two chords is one run to whoever wrote it.
+    let lastDur = null;
     for (const token of tokens) {
       if (token[0] === '@') {
         const t = parseBarTime(token);
         if (t) { bar.start = t.start; bar.end = t.end; }
+        continue;
+      }
+      // Notes belong to the chord in front of them. A phrase written with no
+      // chord over it gets a nameless one to hang from — the sheet is then a
+      // line of music with nothing said about the harmony, which is a perfectly
+      // ordinary thing to write down.
+      const note = parseNoteToken(token, lastDur);
+      if (note) {
+        lastDur = note.d;
+        let target = bar.chords[bar.chords.length - 1];
+        if (!target) { target = { name: '', markers: null }; bar.chords.push(target); }
+        (target.notes = target.notes || []).push(note);
         continue;
       }
       const chord = parseChordToken(token);
@@ -497,7 +589,12 @@ const Chords = (() => {
         ? ''
         : `@${bar.start.toFixed(2)}${bar.end === null ? '' : `-${bar.end.toFixed(2)}`} `;
       const chords = bar.chords
-        .map(c => (c.markers ? `${c.name}:${markersToText(c.markers)}` : c.name))
+        .map(c => {
+          const head = c.markers ? `${c.name}:${markersToText(c.markers)}` : c.name;
+          if (!c.notes || !c.notes.length) return head;
+          const played = notesToText(c.notes);
+          return head ? `${head} ${played}` : played;
+        })
         .join(' ');
       return head + chords;
     }).join(sep);
@@ -699,6 +796,13 @@ const Chords = (() => {
   // Staff places are counted in letter-steps from C-1, which makes E4 — the
   // bottom line of the treble staff — 30, and every line above it two more.
   const BOTTOM_LINE = 30, TOP_LINE = 38;
+  // The middle line, which is what decides a stem's direction: a note above it
+  // hangs its stem down, one below it sends it up.
+  const MID_LINE = 34;
+  // Beats to a bar. Notes are placed from this rather than from the cells above
+  // them — a cell is as wide as its chord's share of the bar, while the notes
+  // inside it move at the beat.
+  const BEATS_PER_BAR = 4;
 
   // One staff space, which every other size here is a multiple of — the staff
   // is 4 of them tall, a notehead a little over 1 of them wide, and a step
@@ -751,6 +855,14 @@ const Chords = (() => {
       if (f !== null) out.push(OPEN_MIDI[s] + f + WRITTEN_8VA);
     });
     return out.sort((a, b) => a - b);
+  }
+
+  // One stopped string as a place on the staff. The same spelling rules as a
+  // chord's own notes: the key decides, and without one the chord does.
+  function stopNote(stop, chordName, key) {
+    const midi = OPEN_MIDI[stop.string - 1] + stop.fret + WRITTEN_8VA;
+    const note = staffNote(midi, spellsFlat(chordName, key), signedLetters(key));
+    return { step: note.step, sign: note.sign, pc: note.pc, string: stop.string, fret: stop.fret };
   }
 
   // Without a key the chord spells itself, the same rule the diagram's note
@@ -814,12 +926,16 @@ const Chords = (() => {
   // counts too: a sharp sits above the top line and would be cropped otherwise.
   function staffRange(bars, key) {
     let top = TOP_LINE, bottom = BOTTOM_LINE, any = false;
+    const reach = step => {
+      top = Math.max(top, step);
+      bottom = Math.min(bottom, step);
+      any = true;
+    };
     for (const bar of bars) {
       for (const chord of bar.chords) {
-        for (const n of staffChord(chord.name, chord.markers, key).notes) {
-          top = Math.max(top, n.step);
-          bottom = Math.min(bottom, n.step);
-          any = true;
+        for (const n of staffChord(chord.name, chord.markers, key).notes) reach(n.step);
+        for (const ev of chord.notes || []) {
+          for (const st of ev.stops) reach(stopNote(st, chord.name, key).step);
         }
       }
     }
@@ -910,7 +1026,75 @@ const Chords = (() => {
   // Every altered note carries its own sign even though the signature says so
   // too: the row scrolls, and a signature that has slid off the left is no help
   // reading what is under the playhead now.
-  function staffBar(items, width, range, key, mode) {
+  // ---------- note shapes ----------
+  // Heads, stems, flags, beams and rests, drawn rather than set in a music font:
+  // the code points for these are blank on most systems, and a blank where a
+  // note should be reads as a fault in the sheet rather than a missing glyph.
+  const STEM_LEN = SP * 3.4;
+  // A beam is about a third of a staff space thick with a little more than that
+  // between two of them: thicker and a pair of sixteenth beams closes into one
+  // block, which is exactly the eighth it has to be told apart from.
+  const BEAM_W = SP * 0.34;
+  const BEAM_GAP = SP * 0.72;
+
+  // How many beams or flags a duration carries. A dotted note carries what the
+  // note it is a dot on carries.
+  function beamCount(d) {
+    const plain = d / (isDottedDur(d) ? 1.5 : 1);
+    if (plain >= 1) return 0;
+    if (plain >= 0.5) return 1;
+    if (plain >= 0.25) return 2;
+    return 3;
+  }
+  function isDottedDur(d) {
+    return d === 3 || d === 1.5 || d === 0.75 || d === 0.375;
+  }
+
+  // A rest at the middle of the staff, near enough to read at this size: the
+  // quarter as its zigzag, the shorter ones as a slash with that many hooks,
+  // the longer ones as the blocks they are.
+  function drawRest(add, x, yMid, d, ink) {
+    ink = ink || '#c8c8c8';
+    if (d >= 2) {
+      add('rect', {
+        x: x - SP * 0.7, y: d >= 4 ? yMid - SP * 0.5 : yMid, width: SP * 1.4, height: SP * 0.5,
+        fill: ink,
+      });
+      return;
+    }
+    if (d >= 1) {
+      add('path', {
+        d: `M${x - SP * 0.3} ${yMid - SP * 1.1} l ${SP * 0.5} ${SP * 0.7}`
+          + ` l ${-SP * 0.5} ${SP * 0.5} l ${SP * 0.6} ${SP * 0.9}`,
+        fill: 'none', stroke: ink, 'stroke-width': SP * 0.24,
+      });
+      return;
+    }
+    const hooks = beamCount(d);
+    add('line', {
+      x1: x + SP * 0.45, y1: yMid - SP * 0.9, x2: x - SP * 0.4, y2: yMid + SP * 0.9,
+      stroke: ink, 'stroke-width': SP * 0.2,
+    });
+    for (let i = 0; i < hooks; i++) {
+      const y = yMid - SP * 0.8 + i * SP * 0.7;
+      add('circle', { cx: x - SP * 0.3, cy: y, r: SP * 0.24, fill: ink });
+      add('path', {
+        d: `M${x - SP * 0.3} ${y} q ${SP * 0.6} ${SP * 0.1} ${SP * 0.7} ${SP * 0.5}`,
+        fill: 'none', stroke: ink, 'stroke-width': SP * 0.18,
+      });
+    }
+  }
+
+  // One bar's stretch of staff. Bars are drawn separately and butt against each
+  // other, so the 2px rule between them reads as the bar line it already is.
+  // `items` is [{ x, name, markers, notes }], x measured from this bar's left
+  // edge. A chord with `notes` is drawn as the phrase played over it — heads at
+  // the beats their durations put them on — and one without as the notes its
+  // fingering sounds, all struck together on the beat it starts.
+  // Every altered note carries its own sign even though the signature says so
+  // too: the row scrolls, and a signature that has slid off the left is no help
+  // reading what is under the playhead now.
+  function staffBar(items, width, range, key, mode, beatWidth) {
     if (!range || width <= 0) {
       const empty = document.createElementNS(NS, 'svg');
       empty.setAttribute('width', '0');
@@ -918,6 +1102,7 @@ const Chords = (() => {
       return empty;
     }
     const { svg, add, y } = staffCanvas(width, range);
+    const beat = beatWidth || width / BEATS_PER_BAR;
 
     // The names, over the beats they start on. A chord held across two beats is
     // written once and read as still sounding — repeating it says it was struck
@@ -927,6 +1112,7 @@ const Chords = (() => {
     for (const item of items) {
       if (item.name === held) continue;
       held = item.name;
+      if (!item.name) continue;
       add('text', {
         x: item.x + NOTE_INSET - NOTE_RX, y: NAME_BAND,
         fill: '#ddd', 'font-size': NAME_SIZE, 'text-anchor': 'start',
@@ -934,47 +1120,45 @@ const Chords = (() => {
       }, displayName(item.name));
     }
 
-    for (const item of items) {
-      const { chord, notes } = staffChord(item.name, item.markers, key);
-      // Two notes a step apart cannot share a column — the heads would sit on
-      // top of each other — so the upper one moves to the right of the stack,
-      // which is what engraving does with a second.
-      let prevStep = null, side = 0;
+    // Ledger lines are shared: two notes on the same line at the same place get
+    // one line between them, not two on top of each other.
+    const ledgers = new Set();
+    const ledger = (s, x) => {
+      const at = `${s}@${x}`;
+      if (ledgers.has(at)) return;
+      ledgers.add(at);
+      // A ledger line is read against the note sitting on it, not against the
+      // staff, so it is drawn heavier and lighter than the five lines are: at
+      // this size, one grey thread the width of the note head simply vanished
+      // under it. Reaching well past the head on both sides is also what says
+      // it is a line the note is on rather than a mark the note carries.
+      add('line', {
+        x1: x - NOTE_RX - 6, y1: y(s), x2: x + NOTE_RX + 6, y2: y(s),
+        stroke: '#8a8a8a', 'stroke-width': 1.4,
+      });
+    };
+
+    // Heads of one event, spread the way engraving spreads a second, with the
+    // accidentals in front of them.
+    const drawHeads = (notes, x, chord, hollow, signs) => {
+      let prevStep = null, side = 0, lastSign = null;
       const placed = notes.map(n => {
         side = prevStep !== null && n.step - prevStep === 1 ? 1 - side : 0;
         prevStep = n.step;
-        return { n, x: item.x + NOTE_INSET + side * NOTE_RX * 2 };
+        return { n, x: x + side * NOTE_RX * 2 };
       });
-
-      const ledgers = new Set();
-      const ledger = (s, x) => {
-        const at = `${s}@${x}`;
-        if (ledgers.has(at)) return;
-        ledgers.add(at);
-        // A ledger line is read against the note sitting on it, not against the
-        // staff, so it is drawn heavier and lighter than the five lines are: at
-        // this size, one grey thread the width of the note head simply vanished
-        // under it. Reaching well past the head on both sides is also what says
-        // it is a line the note is on rather than a mark the note carries.
-        add('line', {
-          x1: x - NOTE_RX - 6, y1: y(s), x2: x + NOTE_RX + 6, y2: y(s),
-          stroke: '#8a8a8a', 'stroke-width': 1.4,
-        });
-      };
-
-      let lastSign = null;
-      for (const { n, x } of placed) {
-        for (let s = TOP_LINE + 2; s <= n.step; s += 2) ledger(s, x);
-        for (let s = BOTTOM_LINE - 2; s >= n.step; s -= 2) ledger(s, x);
-        if (n.sign) {
+      for (const { n, x: nx } of placed) {
+        for (let s = TOP_LINE + 2; s <= n.step; s += 2) ledger(s, nx);
+        for (let s = BOTTOM_LINE - 2; s >= n.step; s -= 2) ledger(s, nx);
+        if (n.sign && signs) {
           // Two signs a step or two apart would collide, so the second of them
           // hangs further out.
           const near = lastSign !== null && n.step - lastSign <= 2;
-          // A ♭ marks its pitch with the bowl at the bottom of the glyph, not
+          // A flat marks its pitch with the bowl at the bottom of the glyph, not
           // with its middle, so centring it on the note puts it a touch low.
           const dy = n.sign === '♭' ? -SIGN_SIZE * 0.17 : 0;
           add('text', {
-            x: x - NOTE_RX - 4 - (near ? SIGN_SIZE * 0.62 : 0), y: y(n.step) + dy,
+            x: nx - NOTE_RX - 4 - (near ? SIGN_SIZE * 0.62 : 0), y: y(n.step) + dy,
             fill: '#9a9a9a', 'font-size': SIGN_SIZE, 'text-anchor': 'end',
             'dominant-baseline': 'central',
             'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
@@ -984,10 +1168,389 @@ const Chords = (() => {
         // The same hue the dot for this note wears in the diagram above it, so
         // the two readings of one chord are tied together by colour.
         const degree = colourDegree(n.pc, chord, mode, key);
+        const ink = degree === null ? '#dcdcdc' : DEGREE_HUE[degree];
         add('ellipse', {
-          cx: x, cy: y(n.step), rx: NOTE_RX, ry: NOTE_RY,
-          fill: degree === null ? '#dcdcdc' : DEGREE_HUE[degree],
+          cx: nx, cy: y(n.step), rx: NOTE_RX, ry: NOTE_RY,
+          fill: hollow ? 'none' : ink,
+          stroke: hollow ? ink : 'none', 'stroke-width': 1.8,
         });
+      }
+      return placed;
+    };
+
+    // What a tie hangs on to: the last struck event.
+    let carried = null;
+    const ties = [];
+    // Where each note can be clicked, and which note that is. Collected as they
+    // are drawn and laid over the lot at the end, so a click lands on the note
+    // whichever part of it was aimed at.
+    const hits = [];
+
+    for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+      const item = items[itemIndex];
+      const chord = parseChord(item.name || 'C');
+      if (!item.notes || !item.notes.length) {
+        const { notes } = staffChord(item.name, item.markers, key);
+        if (notes.length) {
+          drawHeads(notes, item.x + NOTE_INSET, chord, false, true);
+          carried = { x: item.x + NOTE_INSET, stops: null, notes };
+        }
+        continue;
+      }
+
+      // Beamed groups: notes shorter than a beat, of the same duration, within
+      // one beat of the bar. A group is never carried across a chord change —
+      // the beam would then cross the cell edge the chord names sit on, and a
+      // beam is read as one gesture, which two chords are not.
+      const { items: placed } = noteBeats(item.notes);
+      const from = beat > 0 ? item.x / beat : 0;
+      const groups = [];
+      for (const p of placed) {
+        const last = groups[groups.length - 1];
+        const sameBeat = last
+          && Math.floor(from + last.items[last.items.length - 1].beat + 1e-6)
+             === Math.floor(from + p.beat + 1e-6);
+        if (!p.ev.rest && p.ev.d < 1 && last && !last.rest && last.d === p.ev.d && sameBeat) {
+          last.items.push(p);
+        } else {
+          groups.push({ d: p.ev.d, rest: !!p.ev.rest, items: [p] });
+        }
+      }
+
+      for (const grp of groups) {
+        // Which way the stems go is settled for the group, not per note: a beam
+        // is one line and cannot have ends pointing opposite ways.
+        let sum = 0, count = 0;
+        const heads = [];
+        for (const p of grp.items) {
+          const stops = p.ev.tie ? (carried && carried.stops) || [] : p.ev.stops;
+          const notes = stops.map(st => stopNote(st, item.name, key))
+            .sort((a, b) => a.step - b.step);
+          for (const n of notes) { sum += n.step; count++; }
+          heads.push({ p, notes, x: item.x + NOTE_INSET + p.beat * beat });
+        }
+        const up = count === 0 ? true : sum / count < MID_LINE;
+        const tips = [];
+
+        for (const h of heads) {
+          hits.push({ x: h.x, chord: itemIndex, note: h.p.index, on: item.sel === h.p.index });
+          if (h.p.ev.rest) { drawRest(add, h.x, y(MID_LINE), h.p.ev.d); continue; }
+          // A tie with nothing in front of it — the first thing in a sheet, or
+          // after the note it meant to hold was deleted — has nothing to say.
+          if (!h.notes.length) continue;
+          const hollow = h.p.ev.d >= 2;
+          // A tied note is not struck again, so it carries no accidental of its
+          // own: the sign in front of the note it continues still stands.
+          drawHeads(h.notes, h.x, chord, hollow, !h.p.ev.tie);
+          if (h.p.ev.tie) {
+            ties.push({
+              from: carried ? carried.x : 0, to: h.x, step: h.notes[0].step, up,
+            });
+          }
+          const hi = h.notes[h.notes.length - 1].step, lo = h.notes[0].step;
+          if (h.p.ev.d < 4) {
+            const sx = h.x + (up ? NOTE_RX : -NOTE_RX);
+            const tip = up ? y(hi) - STEM_LEN : y(lo) + STEM_LEN;
+            add('line', {
+              x1: sx, y1: up ? y(lo) : y(hi), x2: sx, y2: tip,
+              stroke: '#dcdcdc', 'stroke-width': 1.4,
+            });
+            if (beamCount(h.p.ev.d)) tips.push({ x: sx, tip });
+          }
+          if (isDottedDur(h.p.ev.d)) {
+            add('circle', {
+              cx: h.x + NOTE_RX + 5, cy: y(hi) + (hi % 2 === 0 ? -HALF : 0), r: 1.9,
+              fill: '#dcdcdc',
+            });
+          }
+          carried = { x: h.x, stops: h.p.ev.tie ? (carried && carried.stops) || [] : h.p.ev.stops };
+        }
+
+        if (!tips.length) continue;
+        // Beams sit at one height across the group, which is what makes them
+        // read as one gesture; the stems stretch to meet them.
+        const flat = up ? Math.min(...tips.map(t => t.tip)) : Math.max(...tips.map(t => t.tip));
+        for (const t of tips) {
+          add('line', {
+            x1: t.x, y1: t.tip, x2: t.x, y2: flat, stroke: '#dcdcdc', 'stroke-width': 1.4,
+          });
+        }
+        const beams = beamCount(grp.d);
+        if (tips.length > 1) {
+          for (let i = 0; i < beams; i++) {
+            const off = (up ? 1 : -1) * i * BEAM_GAP;
+            add('line', {
+              x1: tips[0].x, y1: flat + off, x2: tips[tips.length - 1].x, y2: flat + off,
+              stroke: '#dcdcdc', 'stroke-width': BEAM_W,
+            });
+          }
+        } else {
+          // A note alone in its beat gets flags instead of a beam, one per beam
+          // it would have had.
+          const dir = up ? 1 : -1;
+          for (let i = 0; i < beams; i++) {
+            const fy = flat + dir * i * BEAM_GAP;
+            add('path', {
+              d: `M${tips[0].x} ${fy} q ${SP * 0.9} ${dir * SP * 0.5} ${SP * 0.7} ${dir * SP * 1.5}`,
+              fill: 'none', stroke: '#dcdcdc', 'stroke-width': BEAM_W * 0.75,
+            });
+          }
+        }
+      }
+    }
+
+    // The notes are clickable, which is how one is picked out for editing. The
+    // whole column counts, not just the head: at this size a note head is a
+    // 12px target and the fret number under it is another, while what the eye
+    // is aiming at is the moment they share.
+    const fullHeight = Number(svg.getAttribute('height')) || 0;
+    for (const hit of hits) {
+      const box = add('rect', {
+        class: 'staff-hit' + (hit.on ? ' on' : ''), x: hit.x - 13, y: 0,
+        width: 26, height: fullHeight, rx: 4, fill: 'transparent',
+      });
+      box.dataset.chord = String(hit.chord);
+      box.dataset.note = String(hit.note);
+    }
+
+    // Ties last, so an arc is never drawn under a head it has to clear. It
+    // curves away from the stems, which is the side engraving puts it on.
+    for (const t of ties) {
+      const dir = t.up ? 1 : -1;
+      const y0 = y(t.step) + dir * (NOTE_RY + 5);
+      add('path', {
+        d: `M${t.from + NOTE_RX} ${y0} Q ${(t.from + t.to) / 2} ${y0 + dir * 7} ${t.to - NOTE_RX} ${y0}`,
+        fill: 'none', stroke: '#cfcfcf', 'stroke-width': 1.6,
+      });
+    }
+    return svg;
+  }
+
+  // ---------- tab ----------
+  // The same phrase again, as the frets to put fingers on. The staff says what
+  // the music is; this says where it is on the neck, which is the half a
+  // guitarist reads first and the reason a transcription is written on two rows
+  // at all.
+  const TAB_SP = SP * 0.95;
+  const TAB_PAD = SP * 0.8;
+  const TAB_NUM = 11.5;
+
+  function tabHeight() {
+    return TAB_PAD * 2 + 5 * TAB_SP;
+  }
+
+  function tabBar(items, width, key, mode, beatWidth) {
+    const svg = document.createElementNS(NS, 'svg');
+    const h = tabHeight();
+    svg.setAttribute('width', String(Math.max(0, width)));
+    svg.setAttribute('height', String(h));
+    svg.setAttribute('viewBox', `0 0 ${Math.max(0, width)} ${h}`);
+    svg.setAttribute('aria-hidden', 'true');
+    if (width <= 0) return svg;
+    const add = (tag, attrs, text) => {
+      const el = document.createElementNS(NS, tag);
+      for (const k in attrs) el.setAttribute(k, String(attrs[k]));
+      if (text !== undefined) el.textContent = text;
+      svg.appendChild(el);
+      return el;
+    };
+    const y = string => TAB_PAD + (string - 1) * TAB_SP;   // the 1st string on top
+    for (let s = 1; s <= 6; s++) {
+      add('line', { x1: 0, y1: y(s), x2: width, y2: y(s), stroke: '#4d4d4d', 'stroke-width': 1 });
+    }
+    const beat = beatWidth || width / BEATS_PER_BAR;
+    let carried = null;
+    const hits = [];
+    for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+      const item = items[itemIndex];
+      if (!item.notes || !item.notes.length) continue;
+      const chord = parseChord(item.name || 'C');
+      for (const p of noteBeats(item.notes).items) {
+        const x = item.x + NOTE_INSET + p.beat * beat;
+        hits.push({ x, chord: itemIndex, note: p.index, on: item.sel === p.index });
+        if (p.ev.rest) continue;
+        const stops = p.ev.tie ? carried || [] : p.ev.stops;
+        if (!stops.length) continue;
+        for (const st of stops) {
+          const note = stopNote(st, item.name, key);
+          const degree = colourDegree(note.pc, chord, mode, key);
+          const ink = degree === null ? '#dcdcdc' : DEGREE_HUE[degree];
+          // A tied note is not struck again, so its number is not repeated: a
+          // line carries the one before it on instead.
+          if (p.ev.tie) {
+            add('line', {
+              x1: x - TAB_SP, y1: y(st.string), x2: x + TAB_SP, y2: y(st.string),
+              stroke: ink, 'stroke-width': 1.6,
+            });
+            continue;
+          }
+          // The line is broken behind the number rather than run through it —
+          // at this size a digit sitting on a line is unreadable.
+          add('rect', { x: x - 8, y: y(st.string) - 6, width: 16, height: 12, fill: '#000' });
+          add('text', {
+            x, y: y(st.string), fill: ink, 'font-size': TAB_NUM, 'text-anchor': 'middle',
+            'dominant-baseline': 'central', 'font-weight': 600,
+            'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+          }, String(st.fret));
+        }
+        carried = stops;
+      }
+    }
+    for (const hit of hits) {
+      const box = add('rect', {
+        class: 'staff-hit' + (hit.on ? ' on' : ''), x: hit.x - 13, y: 0,
+        width: 26, height: h, rx: 4, fill: 'transparent',
+      });
+      box.dataset.chord = String(hit.chord);
+      box.dataset.note = String(hit.note);
+    }
+    return svg;
+  }
+
+  // Does this sheet have any single notes in it at all? What decides whether the
+  // strip carries a tab row — an empty one is height taken for nothing.
+  function hasNotes(bars) {
+    return (bars || []).some(bar => (bar.chords || []).some(c => c.notes && c.notes.length));
+  }
+
+  // ---------- glyphs for the buttons ----------
+  // The same shapes again, on their own, for the duration buttons of the input
+  // panel. Written out rather than set in a music font for the same reason the
+  // staff is: those code points come out blank on most systems, and a button
+  // showing a blank box is a button nobody can read.
+  function noteGlyph(d, dotted, scale) {
+    const k = scale || 1, w = 30 * k, h = 44 * k;
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', String(w));
+    svg.setAttribute('height', String(h));
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    svg.setAttribute('aria-hidden', 'true');
+    const add = (tag, attrs) => {
+      const el = document.createElementNS(NS, tag);
+      for (const key in attrs) el.setAttribute(key, String(attrs[key]));
+      svg.appendChild(el);
+      return el;
+    };
+    const cx = 11 * k, cy = 32 * k, rx = 7 * k, ry = 5.2 * k;
+    const hollow = d >= 2;
+    add('ellipse', {
+      cx, cy, rx, ry, transform: `rotate(-20 ${cx} ${cy})`,
+      fill: hollow ? 'none' : 'currentColor', stroke: 'currentColor',
+      'stroke-width': hollow ? 2 * k : 1 * k,
+    });
+    if (d < 4) {
+      const sx = cx + rx * 0.92, top = 6 * k;
+      add('line', { x1: sx, y1: cy - ry * 0.5, x2: sx, y2: top,
+        stroke: 'currentColor', 'stroke-width': 1.8 * k });
+      for (let i = 0; i < beamCount(d); i++) {
+        const fy = top + i * 7 * k;
+        add('path', { d: `M${sx} ${fy} q ${7 * k} ${3 * k} ${6 * k} ${10 * k}`,
+          fill: 'none', stroke: 'currentColor', 'stroke-width': 2.2 * k });
+      }
+    }
+    if (dotted) add('circle', { cx: cx + rx + 5 * k, cy, r: 2.2 * k, fill: 'currentColor' });
+    return svg;
+  }
+
+  function restGlyph(d, scale) {
+    const k = scale || 1, w = 26 * k, h = 44 * k;
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', String(w));
+    svg.setAttribute('height', String(h));
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    svg.setAttribute('aria-hidden', 'true');
+    const add = (tag, attrs) => {
+      const el = document.createElementNS(NS, tag);
+      for (const key in attrs) el.setAttribute(key, String(attrs[key]));
+      svg.appendChild(el);
+      return el;
+    };
+    // drawRest works in staff spaces, so the glyph is drawn at the middle of a
+    // box that size and scaled to the button.
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('transform', `translate(${13 * k} ${22 * k}) scale(${1.15 * k})`);
+    svg.appendChild(g);
+    const addIn = (tag, attrs) => {
+      const el = document.createElementNS(NS, tag);
+      for (const key in attrs) el.setAttribute(key, String(attrs[key]));
+      g.appendChild(el);
+      return el;
+    };
+    drawRest(addIn, 0, 0, d, 'currentColor');
+    return svg;
+  }
+
+  // ---------- the input board ----------
+  // The whole neck, as the fretboard viewer draws it, for writing notes by
+  // tapping them. Every cell carries which string and fret it is, so whoever
+  // opened it only has to listen for a click.
+  const BOARD_FRETS = 22;
+  const BOARD_FW = 30, BOARD_FH = 26, BOARD_PAD_L = 26, BOARD_PAD_T = 16;
+  const BOARD_MARKS = [3, 5, 7, 9, 12, 15, 17, 19, 21];
+
+  function board(chordName, mode, key) {
+    const chord = parseChord(chordName || 'C');
+    const w = BOARD_PAD_L + (BOARD_FRETS + 1) * BOARD_FW + 8;
+    const h = BOARD_PAD_T + 6 * BOARD_FH + 6;
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', String(w));
+    svg.setAttribute('height', String(h));
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    const add = (tag, attrs, text, parent) => {
+      const el = document.createElementNS(NS, tag);
+      for (const k in attrs) el.setAttribute(k, String(attrs[k]));
+      if (text !== undefined) el.textContent = text;
+      (parent || svg).appendChild(el);
+      return el;
+    };
+    const cx = f => BOARD_PAD_L + (f === 0 ? BOARD_FW * 0.5 : BOARD_FW * (f + 0.5));
+    const cy = s => BOARD_PAD_T + (s - 1) * BOARD_FH + BOARD_FH / 2;
+
+    for (const f of BOARD_MARKS) {
+      add('text', {
+        x: cx(f), y: BOARD_PAD_T - 4, fill: '#666', 'font-size': 10, 'text-anchor': 'middle',
+        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+      }, String(f));
+    }
+    // Strings thicken downwards, the way they do on the instrument.
+    for (let s = 1; s <= 6; s++) {
+      add('line', {
+        x1: BOARD_PAD_L, y1: cy(s), x2: BOARD_PAD_L + (BOARD_FRETS + 1) * BOARD_FW, y2: cy(s),
+        stroke: '#555', 'stroke-width': 0.7 + (s - 1) * 0.22,
+      });
+      add('text', {
+        x: BOARD_PAD_L - 8, y: cy(s), fill: '#777', 'font-size': 10, 'text-anchor': 'end',
+        'dominant-baseline': 'central',
+        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+      }, String(s));
+    }
+    for (let f = 0; f <= BOARD_FRETS + 1; f++) {
+      const x = BOARD_PAD_L + f * BOARD_FW;
+      add('line', {
+        x1: x, y1: cy(1), x2: x, y2: cy(6),
+        stroke: f === 1 ? '#bbb' : '#3d3d3d', 'stroke-width': f === 1 ? 3 : 1,
+      });
+    }
+    for (let s = 1; s <= 6; s++) {
+      for (let f = 0; f <= BOARD_FRETS; f++) {
+        const semi = (OPEN_STRINGS[s - 1] + f) % 12;
+        const degree = colourDegree(semi, chord, mode, key);
+        const g = add('g', {
+          class: 'board-cell', 'data-string': s, 'data-fret': f, tabindex: -1,
+        });
+        add('rect', {
+          x: cx(f) - BOARD_FW / 2, y: cy(s) - BOARD_FH / 2,
+          width: BOARD_FW, height: BOARD_FH, fill: 'transparent',
+        }, undefined, g);
+        add('circle', {
+          class: 'board-dot', cx: cx(f), cy: cy(s), r: 10,
+          fill: degree === null ? '#4a7fff' : DEGREE_HUE[degree],
+        }, undefined, g);
+        add('text', {
+          class: 'board-label', x: cx(f), y: cy(s), 'font-size': 10, 'text-anchor': 'middle',
+          'dominant-baseline': 'central', fill: '#cfcfcf', 'pointer-events': 'none',
+          'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+        }, dotLabel(s - 1, f, chord, mode, key), g);
       }
     }
     return svg;
@@ -997,5 +1560,8 @@ const Chords = (() => {
     parseSheet, resolveSpans, chordTimes, slotWeights, toCompact, viewerUrl, diagram, fretWindows,
     readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
     staffRange, staffBar, staffHead, staffHeadWidth,
+    // single notes
+    parseNoteToken, parseDur, durText, notesToText, noteBeats, isDottedDur,
+    tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, beatWeights, BEATS_PER_BAR,
   };
 })();
