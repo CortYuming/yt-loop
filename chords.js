@@ -644,9 +644,14 @@ const Chords = (() => {
     }
     for (let c = 0; c <= cols; c++) {
       const x = PAD_L + c * CELL_W;
+      // The nut is the one line on the board that is a landmark rather than a
+      // ruling, so it is drawn as one: thicker than the frets and lit brighter
+      // than them, since at this size thickness alone in the same grey reads as
+      // a smudge rather than as the end of the neck.
+      const nut = c === 0 && from === 1;
       add('line', {
         x1: x, y1: PAD_T + CELL_H / 2, x2: x, y2: PAD_T + 5 * CELL_H + CELL_H / 2,
-        stroke: '#4d4d4d', 'stroke-width': c === 0 && from === 1 ? 2.5 : 1,
+        stroke: nut ? '#9a9a9a' : '#4d4d4d', 'stroke-width': nut ? 4 : 1,
       });
     }
 
