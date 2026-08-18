@@ -1469,18 +1469,21 @@ function renderChordFields(chord, barIndex, chordIndex, windowFrom) {
   frets.placeholder = '6.8.7.6..';
   frets.setAttribute('aria-label', 'Frets, 1st string first');
 
+  // The buttons sit with the boxes rather than under the diagram. Under it they
+  // read as belonging to the picture, and which chord a row of them acted on was
+  // a guess; directly below what they edit, they belong to it plainly.
   const ops = chordOps(barIndex, chordIndex, name, frets);
   box.appendChild(name);
   box.appendChild(frets);
+  box.appendChild(ops);
   box.appendChild(
     Chords.diagram(chord.markers, chord.name, effectiveChordMode(), currentChordKey(), windowFrom),
   );
-  box.appendChild(ops);
 
   const redraw = () => {
     const old = box.querySelector('svg');
     if (old) old.remove();
-    box.insertBefore(
+    box.appendChild(
       // The window the row settled on is offered to what is being typed too, so
       // the board does not jump about mid-edit; a shape that outgrows it falls
       // back to its own window until the next redraw settles the row again.
@@ -1488,7 +1491,6 @@ function renderChordFields(chord, barIndex, chordIndex, windowFrom) {
         Chords.readMarkers(frets.value), name.value, effectiveChordMode(), currentChordKey(),
         windowFrom,
       ),
-      ops,
     );
   };
 
