@@ -1011,6 +1011,10 @@ function renderChordStrip(fromCache) {
     ? chordCache
     : refreshChordCache();
   chordWindows = Chords.fretWindows(bars);
+  // The clef and signature are drawn outside the strip — see below — so the pair
+  // from the last draw is cleared here rather than with the strip's contents.
+  const staleHead = chordViewport.querySelector('.chord-staff-head');
+  if (staleHead) staleHead.remove();
   chordStrip.textContent = '';
   chordStrip.style.transform = '';
   chordAnchors = [];
@@ -1032,15 +1036,24 @@ function renderChordStrip(fromCache) {
   // put on a staff then, and an empty one is height taken for nothing.
   const key = chordCache.key;
   const staffReach = Chords.staffRange(bars, key);
-  // Clef and key signature go in a stretch of their own at the head of the row,
-  // where printed music puts them, and scroll away with it. Everything after
-  // starts that much further along, which is why x does not start at zero.
+  // Clef and key signature go at the head of the row, where printed music puts
+  // them. They are also what every accidental after them is read against — which
+  // notes the staff has already flattened is a question asked in the middle of
+  // the tune, not at its start — and a row that scrolls carries them off the
+  // left within a bar or two. So the row keeps the space they take, and the
+  // signs themselves are drawn in a layer that does not move with it.
+  // Everything after starts that much further along, which is why x does not
+  // start at zero.
   let x = 0;
   if (staffReach) {
+    const gap = document.createElement('div');
+    gap.className = 'chord-staff-gap';
+    gap.style.width = `${Chords.staffHeadWidth(key)}px`;
+    chordStrip.appendChild(gap);
     const head = document.createElement('div');
     head.className = 'chord-staff-head';
     head.appendChild(Chords.staffHead(staffReach, key));
-    chordStrip.appendChild(head);
+    chordViewport.appendChild(head);
     x = Chords.staffHeadWidth(key);
   }
   let lastTime = null;   // anchor times, which only ever move forward

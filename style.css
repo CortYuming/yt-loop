@@ -755,12 +755,25 @@ button.pin {
 /* Clef and key signature, at the far left of the row with nothing above them.
    Pushed to the bottom so its five lines meet the bars', which sit under a
    header and a row of diagrams. */
+/* Pinned to the left edge instead of scrolling away with the row. Bottom rather
+   than top, since what has to line up is the staff, and the staff sits at the
+   foot of every bar — 6px being the viewport's own padding. Painted on the
+   page's background so the music passes behind it rather than through it. */
 .chord-staff-head {
+  position: absolute;
+  left: 0;
+  bottom: 6px;
+  z-index: 4;
   display: flex;
   flex: none;
   flex-direction: column;
   justify-content: flex-end;
+  background: var(--bg);
+  padding-right: 3px;
 }
+/* The room the head would have taken in the row, kept empty so the bars still
+   begin where they did. */
+.chord-staff-gap { flex: none; }
 .chord-staff-head svg {
   display: block;
   margin-top: 4px;
