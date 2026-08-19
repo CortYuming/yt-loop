@@ -1169,32 +1169,31 @@ function drawChordStrip(fromCache) {
 
     const head = document.createElement('div');
     head.className = 'chord-bar-head';
+    // A bar goes in before this one, so the button is at that edge — the head's
+    // own left, where the bar line is. Anywhere else in the head it reads as
+    // belonging to the bar on the other side of it. Only while editing — see
+    // .editing-mode in style.css. + Bar adds to the end, which is how a
+    // transcription grows; this is for the bar found missing later.
+    const insertBtn = document.createElement('button');
+    insertBtn.type = 'button';
+    insertBtn.className = 'chord-add';
+    insertBtn.textContent = '+';
+    insertBtn.title = `Add a bar before bar ${i + 1}`;
+    insertBtn.setAttribute('aria-label', `Add a bar before bar ${i + 1}`);
+    insertBtn.addEventListener('mousedown', e => e.preventDefault());
+    insertBtn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      askInsertBar(i);
+    });
+    head.appendChild(insertBtn);
     const label = document.createElement('span');
     label.className = 'chord-bar-no';
     label.textContent = String(i + 1);
     head.appendChild(label);
     // A bar with a time on it carries the loop controls for that moment; one
-    // without is just its number. While editing the time is instead the box it
-    // is written in: where a bar starts is the one thing about it that could
-    // only be typed into the sheet text, and a bar put between two others has to
-    // be told when it happens.
-    if (!chordEditor.hidden) head.appendChild(barTimeBox(i, spans[i].start));
-    else if (spans[i].start !== null) head.appendChild(barTimePins(spans[i].start));
-    // A bar goes in before this one, at the moment the video is at. Only while
-    // editing — see .editing-mode in style.css. + Bar adds to the end, which is
-    // how a transcription grows; this is for the bar found missing later.
-    const insertBtn = document.createElement('button');
-    insertBtn.type = 'button';
-    insertBtn.className = 'chord-add';
-    insertBtn.textContent = '+←';
-    insertBtn.title = 'Add a bar before this one, at the current time';
-    insertBtn.addEventListener('mousedown', e => e.preventDefault());
-    insertBtn.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      insertBar(i);
-    });
-    head.appendChild(insertBtn);
+    // without is just its number.
+    if (spans[i].start !== null) head.appendChild(barTimePins(spans[i].start));
     barEl.appendChild(head);
 
     // The cells are how a sheet is read: a chord's name with its shape drawn
@@ -1291,7 +1290,8 @@ function addBar() {
   const spans = Chords.resolveSpans(bars);
   const last = spans[spans.length - 1];
   const after = last ? (last.end !== null ? last.end : last.start) : null;
-  const start = roundTo(after === null ? currentPlaybackTime() : after, 2);
+  const start = roundTo(
+    after === null ? settledTime(currentPlaybackTime()) : after, 2);
   bars.push({ start, end: null, chords: [{ name: '', markers: null }] });
   // The cached spans are worked out per parse, and this adds a bar to that parse
   // without going back through it — so they are recomputed here or the new bar
@@ -1315,56 +1315,42 @@ function addBarButton() {
   return b;
 }
 
-// Where a bar starts, written where it is read. Empty means the sheet says
-// nothing about when this bar is, which is what an untimed bar is — the row then
-// places it by its neighbours. Committed on the way out rather than as it is
-// typed: the redraw that follows would take the box out from under the caret.
-function barTimeBox(barIndex, start) {
-  const box = document.createElement('input');
-  box.className = 'chord-bar-time-box';
-  box.value = start === null ? '' : formatTime(start);
-  box.spellcheck = false;
-  box.placeholder = 'time';
-  box.title = 'When this bar starts — 43.50 or 0:43.50';
-  box.setAttribute('aria-label', `Start time of bar ${barIndex + 1}`);
-  const held = () => (start === null ? '' : formatTime(start));
-  const commit = () => {
-    if (box.value.trim() === held()) return;
-    const bar = chordCache.bars[barIndex];
-    if (!bar) return;
-    const t = box.value.trim() ? parseTime(box.value) : null;
-    if (t === null && box.value.trim()) { box.value = held(); return; }
-    bar.start = t === null ? null : roundTo(t, 2);
-    chordCache.spans = Chords.resolveSpans(chordCache.bars);
-    writeSheetFromCache();
-    renderChordStrip(true);
-  };
-  box.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); box.blur(); }
-    else if (e.key === 'Escape') { e.preventDefault(); box.value = held(); box.blur(); }
-    e.stopPropagation();
-  });
-  box.addEventListener('blur', () => commit());
-  return box;
+// When the new bar starts, asked before it is made. The video is somewhere in
+// the bar being listened to, so that moment is the answer offered — a guess to
+// correct rather than a value to accept, which is why it is asked at all.
+function askInsertBar(at) {
+  // Where the row is, not what the player says: a video that has been dragged to
+  // a place but never played reports 0 for as long as it stays stopped, and the
+  // answer offered would be the head of the track rather than the bar being
+  // looked at. settledTime is what the strip itself is drawn against.
+  const answer = prompt(
+    `Start time of the new bar ${at + 1} — 43.50 or 0:43.50`,
+    formatTime(settledTime(currentPlaybackTime())),
+  );
+  if (answer === null) return;                 // asked, and thought better of it
+  const t = answer.trim() ? parseTime(answer) : null;
+  if (answer.trim() && t === null) {
+    alert(`"${answer}" is not a time. Write it as 43.50 or 0:43.50.`);
+    return;
+  }
+  insertBar(at, t);
 }
 
 // A bar between two others, at the moment the video is at — which is what
 // someone pressing this is looking at. It arrives holding one empty chord, the
 // way a bar added at the end does, so there is something to write into.
-function insertBar(at) {
+function insertBar(at, start) {
   const bars = chordCache.bars;
   bars.splice(at, 0, {
-    start: roundTo(currentPlaybackTime(), 2), end: null,
+    start: start === null || start === undefined ? null : roundTo(start, 2),
+    end: null,
     chords: [{ name: '', markers: null }],
   });
   chordCache.spans = Chords.resolveSpans(bars);
   writeSheetFromCache();
   renderChordStrip(true);
-  // Into the time it was given: it is a guess — the playhead is where it was,
-  // not where the bar is — so the box opens ready to be corrected.
-  const box = chordStrip.querySelector(
-    `.chord-bar[data-bar="${at}"] .chord-bar-time-box`);
-  if (box) { box.focus({ preventScroll: true }); box.select(); }
+  // Straight into the bar just made: it was asked for in order to write in it.
+  openNotePanel(at, 0);
 }
 
 // The time in a bar head, which is also how a loop is marked out from the
@@ -1575,8 +1561,7 @@ chordViewport.addEventListener('pointerdown', e => {
   if (chordAnchors.length === 0) return;   // a sheet with no times has no timeline
   // A press on a box or a button is aiming at that, not at the strip: the caret
   // has to be placeable and a word has to be selectable by dragging over it.
-  if (e.target.closest
-      && e.target.closest('.chord-bar-time, .chord-bar-time-box, .chord-add')) return;
+  if (e.target.closest && e.target.closest('.chord-bar-time, .chord-add')) return;
   chordDrag = {
     pointerId: e.pointerId,
     fromX: e.clientX,
