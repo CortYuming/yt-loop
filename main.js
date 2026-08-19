@@ -1950,6 +1950,21 @@ function chordMarkersToStop(chord) {
   return 0;
 }
 
+// MIGRATION (temporary): the same turn for a whole sheet at once. Every chord
+// still written as a name and six frets becomes the stop it sounds as, so a
+// sheet worked on before the two notations were folded together comes back
+// written the one way. Hung off the box's own tidy-up, so opening 🎼 and
+// leaving the field is the whole of the migration for a sheet.
+// Delete this, its call in normalizeChordInput, and the `Name:frets` arm of
+// toCompact once no sheet in use is written the old way any more.
+function stopsFromOldChords(bars) {
+  for (const bar of bars) {
+    for (const chord of bar.chords) {
+      if (chord.markers) chordMarkersToStop(chord);
+    }
+  }
+}
+
 function openNotePanel(barIndex, chordIndex) {
   notePanelAt = { bar: barIndex, chord: chordIndex };
   noteSel = null;
@@ -2670,6 +2685,7 @@ chordInput.addEventListener('input', () => {
 function normalizeChordInput() {
   const bars = Chords.parseSheet(chordInput.value);
   if (!bars.length) return;
+  stopsFromOldChords(bars); // MIGRATION (temporary) — see stopsFromOldChords
   const key = Chords.parseKey(chordInput.value);
   const compact = Chords.toCompact(bars, '\n', key ? key.label : '');
   if (compact === chordInput.value) return;
