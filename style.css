@@ -721,6 +721,8 @@ button.pin {
   cursor: pointer;
 }
 .chord-time-pin:hover { border-color: var(--blue); color: var(--blue); }
+/* A bar in before this one. Only of use while editing, so it is hidden with the
+   editor closed. */
 .chord-add {
   display: none;
   flex: none;
@@ -751,6 +753,11 @@ button.pin {
   display: block;
   flex: none;
   margin-top: 4px;
+  /* A bar squeezes an overrunning phrase into its own width, so nothing should
+     leave this box — but an svg cuts off whatever does, and a note cut off is a
+     note that silently vanished. Left visible so anything past the edge shows
+     itself instead. */
+  overflow: visible;
 }
 /* Clef and key signature, at the far left of the row with nothing above them.
    Pushed to the bottom so its five lines meet the bars', which sit under a
@@ -762,7 +769,9 @@ button.pin {
 .chord-staff-head {
   position: absolute;
   left: 0;
-  bottom: 6px;
+  /* Put on the staff by renderChordStrip, which measures where the staff landed:
+     the row's parts have moved about too often for a fixed offset to hold. */
+  top: 0;
   z-index: 4;
   display: flex;
   flex: none;
@@ -771,6 +780,58 @@ button.pin {
   background: var(--bg);
   padding-right: 3px;
 }
+/* This bar's stretch of tab, under the staff. Only drawn where the sheet has
+   single notes in it — see Chords.hasNotes. */
+.chord-tab {
+  display: block;
+  flex: none;
+  margin-top: 2px;
+  overflow: visible;
+}
+/* One note, as somewhere to click. The whole column of it counts — head, fret
+   number, and the space between — since what is being aimed at is the moment
+   rather than either drawing of it. Only live while editing: with the editor
+   closed a chord is a link to the viewer and a click means that instead. */
+/* What is drawn on the staff and the tab is a picture, and a picture that takes
+   the press takes it from the note underneath: clicking a note head landed on
+   the head's own ellipse, whose parent is not the hit box, and selected nothing.
+   So only the hit box is pressable, and it is pressable whatever it is filled
+   with. */
+.chord-staff *, .chord-tab * { pointer-events: none; }
+.chord-staff .staff-hit, .chord-tab .staff-hit { pointer-events: all; }
+/* A chord's name on the staff is the way out to the viewer while editing — the
+   ↗ that used to sit in the cell. Only while editing: with the editor closed the
+   cell under it is that link already. */
+.editing-mode .chord-staff .staff-name { pointer-events: all; cursor: pointer; }
+.editing-mode .chord-staff .staff-name:hover { fill: var(--blue); }
+/* The rest of a stretch's width, pressable only while editing: with the editor
+   closed the cell is a link to the viewer and the press belongs to that. */
+.editing-mode .chord-staff .staff-slot,
+.editing-mode .chord-tab .staff-slot { pointer-events: all; cursor: pointer; }
+/* Where writing starts in a stretch with nothing in it — dashed, like the mark
+   for the place after the last note, since nothing is written there either. */
+.staff-caret { display: none; }
+.editing-mode .staff-caret.on {
+  display: inline;
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+.editing-mode .staff-hit { cursor: pointer; }
+.editing-mode .staff-hit:hover { fill: var(--blue); fill-opacity: 0.12; }
+.editing-mode .staff-hit.on {
+  fill: var(--blue);
+  fill-opacity: 0.32;
+  stroke: var(--blue);
+  stroke-width: 1.5;
+}
+/* Not what is being edited but where the next tap lands — after this one — so it
+   is outlined rather than filled: nothing is written there yet. */
+.editing-mode .staff-hit.after {
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
 /* The room the head would have taken in the row, kept empty so the bars still
    begin where they did. */
 .chord-staff-gap { flex: none; }
@@ -778,110 +839,38 @@ button.pin {
   display: block;
   margin-top: 4px;
 }
+/* Everything in a cell is read at the beat the cell starts on, which is its left
+   edge: the diagrams sit there, the staff and the tab put their names there, and
+   a name centred over four slots read as sitting between two bars rather than at
+   the head of one. */
 .chord {
   display: block;
   flex: none;
-  text-align: center;
+  text-align: left;
   overflow: hidden;
   color: inherit;
   text-decoration: none;
-}
-/* A bar held by a single chord gives it all four slots, and centring in that
-   much room pushed the chord away from the bar line it belongs to — it read as
-   sitting between two bars rather than at the head of one. */
-.chord:only-child {
-  text-align: left;
 }
 /* The diagram keeps one size across the sheet; the cell around it is what grows
    with the beats the chord holds. */
 .chord svg {
   display: block;
-  margin: 3px auto 1px;
+  margin: 3px 0 1px;
   width: calc(var(--slot) - 8px);
   height: auto;
 }
-.chord:only-child svg { margin-left: 0; }
+
 .chord-name {
   display: block;
   color: var(--text);
   font-weight: 600;
   font-size: 16px;
 }
-/* Hovering anywhere in the cell answers, so the diagram reads as part of the
-   link rather than as something sitting next to one. */
-.chord:hover .chord-name { color: var(--blue); text-decoration: underline; }
-.chord:hover svg { opacity: 0.85; }
-/* With the editor open a chord is the two boxes it is written in — name and
-   frets — with the diagram they describe under them, redrawn as they are typed.
-   The buttons hang below whichever cell holds the caret, out of the flow, so
-   the row does not change height as the caret moves along it. */
-.chord-fields {
-  position: relative;
-  overflow: visible;
-  cursor: default;
-}
-.chord-fields:hover svg,
-.chord-fields:focus-within svg { opacity: 1; }
-/* The buttons belong to the boxes above them, not to the diagram, so they sit
-   directly under what they edit rather than hanging off the bottom of the cell,
-   where a row of them read as one row of controls for no chord in particular.
-   Absolutely positioned with no top of its own, which puts the row exactly
-   where the document order already put it — under the boxes — while taking no
-   height, so a cell does not shift as focus moves along the strip. The diagram
-   gives up the space instead, and only while the editor is open. */
-.chord-viewport.editing-mode .chord-fields svg { margin-top: 24px; }
-.chord-ops {
-  position: absolute;
-  left: 0;
-  z-index: 5;
-  display: none;
-  gap: 1px;
-  padding: 2px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--panel);
-}
-.chord-fields:focus-within .chord-ops { display: flex; }
-.chord-op {
-  flex: none;
-  min-width: 20px;
-  padding: 0 3px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  background: none;
-  color: var(--sub);
-  font-size: 11px;
-  line-height: 16px;
-  cursor: pointer;
-}
-.chord-op:hover { border-color: var(--blue); color: var(--blue); }
-.chord-edit-box {
-  display: block;
-  width: 100%;
-  padding: 0 3px;
-  border: 1px solid var(--blue);
-  border-radius: 3px;
-  background: var(--panel);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: inherit;
-  /* The viewport turns selection off so drags scrub instead of highlighting;
-     inside a box, text is text again. */
-  user-select: text;
-  -webkit-user-select: text;
-}
-.chord-edit-box:focus { outline: none; border-color: var(--blue-hover); }
-/* Frets are read as six slots split by dots, which only lines up in mono. */
-.chord-edit-frets {
-  margin-top: 2px;
-  border-color: var(--border);
-  color: var(--sub);
-  font-family: "SF Mono", Menlo, Consolas, monospace;
-  font-size: 10px;
-  font-weight: 400;
-}
+/* The name and the shape are each a link to the viewer, and each answers for
+   itself. The whole cell used to be one link, back when a cell held one shape. */
+.chord-shape-link { display: block; color: inherit; text-decoration: none; }
+.chord-shape-link:hover .chord-name { color: var(--blue); text-decoration: underline; }
+.chord-shape-link:hover svg { opacity: 0.85; }
 /* An estimate, so it stays quiet: something to check a sheet against, not a
    number to read while playing. */
 .chord .chord-time {
@@ -991,3 +980,246 @@ footer {
   margin: 10px 0 0;
 }
 .import-actions .hint { margin-top: 0; }
+
+
+/* ============================================================
+   Single notes (♪)
+   ============================================================
+   The board for writing the notes played over one chord. Under the strip, and
+   only up while the editor is open — see renderNotePanel. */
+.note-panel {
+  margin-top: 10px;
+  padding: 10px 12px 12px;
+  background: var(--panel);
+  border: 1px solid var(--blue);
+  border-radius: 6px;
+}
+.note-panel[hidden] { display: none; }
+.note-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 0 0 9px;
+  font-size: 13px;
+}
+.note-panel-what { font-weight: 600; }
+.note-panel-mode, .note-panel-room { color: var(--sub); font-size: 12px; }
+/* More written than the bar has room for. Allowed — a phrase is often written
+   before its bar's timing is right — but said out loud, since the overrun is
+   drawn past the bar and reads as a fault in the sheet otherwise. */
+.note-panel-room.over { color: var(--red); }
+/* Where the writing is going — which bar, which note, what the next tap does —
+   read while tapping the board below it, so it stays at the top of the screen
+   once the panel is scrolled into rather than riding away with the tools.
+   Bled out to the panel's own edges so the rows pass under it, not beside it.
+   The head carries the way out, so it has to hold the button out at its end
+   whatever the text in front of it does. */
+.note-panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -10px -12px 9px;
+  padding: 10px 38px 6px 12px;
+  background: var(--panel);
+  border-radius: 5px 5px 0 0;
+}
+.note-panel-close {
+  position: absolute;
+  top: 7px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--sub);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.note-panel-close:hover { border-color: var(--border); color: var(--text); }
+/* A row per job — how long, what to write, what to fix — with the job named at
+   the left, so a button says which of the three it belongs to by where it is. */
+.note-rows { display: flex; flex-direction: column; gap: 6px; }
+.note-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.note-row-label {
+  flex: none;
+  width: 46px;
+  color: var(--sub);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+/* The labels sit at the far end of the row they belong to, away from the buttons
+   that write music: they change nothing in the sheet, only how it is read. */
+.note-modes {
+  display: flex;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.note-mode {
+  padding: 4px 8px;
+  border: none;
+  border-left: 1px solid var(--border);
+  background: #1f1f1f;
+  color: var(--sub);
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.note-mode:first-child { border-left: none; }
+.note-mode:hover:not(:disabled) { background: var(--panel-hover); color: var(--text); }
+.note-mode.on { background: var(--blue); color: #fff; }
+.note-mode:disabled { opacity: 0.4; cursor: default; }
+.note-tool:disabled { opacity: 0.4; cursor: default; }
+.note-tool:disabled:hover { background: #1f1f1f; }
+.note-tool {
+  position: relative;
+  background: #1f1f1f;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.note-tool:hover { background: var(--panel-hover); }
+.note-tool.on {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+/* A duration button wears the note itself: the shapes are what the buttons mean,
+   and a word for each of them is a row of words to read instead of glance at. */
+.note-tool.note-dur {
+  width: 46px;
+  height: 52px;
+  padding: 3px 6px 0;
+}
+.note-tool.note-dur svg { display: block; margin: 0 auto; }
+/* The triplet mark, beside the dot rather than among the note values: it bends
+   whichever of them is chosen instead of being one. Sized to the glyph it holds
+   so it sits at the height of the buttons around it. */
+.note-tool.note-trip { padding: 3px 6px 2px; }
+.note-tool.note-trip svg { display: block; }
+.note-key {
+  position: absolute;
+  right: 3px;
+  bottom: 1px;
+  font-size: 9px;
+  color: var(--sub);
+}
+.note-tool.on .note-key { color: #dbe6ff; }
+.note-tool-gap {
+  width: 1px;
+  height: 30px;
+  background: var(--border);
+  margin: 0 4px;
+}
+/* The name of the chord over what is selected. Wider than a cell's box was —
+   the panel has the room the four-slot bar never did — and set in the same face
+   as the sheet, since what goes in it is sheet text. */
+.note-name-box {
+  width: 180px;
+  padding: 5px 8px;
+  background: #161616;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.note-name-box:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+/* The viewport turns selection off so drags scrub instead of highlighting;
+   inside a box, text is text again. */
+.note-name-box { font-family: inherit; user-select: text; -webkit-user-select: text; }
+/* The ? sits where the line of keys used to be — under the tools it explains,
+   above the board — with the list falling out beneath it when it is asked for. */
+.note-help {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 9px;
+}
+.note-help-toggle {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: #1f1f1f;
+  color: var(--sub);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.note-help-toggle:hover { background: var(--panel-hover); color: var(--text); }
+.note-help-toggle.on {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.note-keys {
+  color: var(--sub);
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 0;
+}
+.note-board {
+  margin-top: 8px;
+  padding: 6px 0 2px;
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+.note-board svg { display: block; }
+/* Every fret is a place to write a note. The dot is faint until the pointer is
+   on it — all 132 of them lit at once is a board nobody can read a shape off. */
+.board-cell { cursor: pointer; }
+.board-dot { opacity: 0.13; }
+.board-cell[data-fret="0"] .board-dot { opacity: 0.2; }
+.board-cell:hover .board-dot { opacity: 0.75; }
+.board-cell:hover .board-label { fill: #fff; }
+
+/* A bar that isn't there yet, at the end of the row. Only up while editing. */
+.chord-add-bar {
+  flex: none;
+  align-self: center;
+  margin: 0 10px;
+  padding: 6px 12px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.chord-add-bar:hover {
+  background: var(--panel-hover);
+  border-color: var(--blue);
+}
+/* A stretch of single notes with no fingering: the cell keeps the width its
+   beats are worth and draws nothing. See renderChord. */
+.chord-notes-only { flex: none; }
+/* A stretch of notes puts the shapes in it in the diagram row at the beats they
+   fall on, so they are a row with the gaps between them taken as margin. Each
+   sits at the left of its slot rather than centred in it: the beat is where the
+   note starts, so it is the diagram's left edge that belongs over it. */
+.chord-stops { display: flex; align-items: flex-start; }
+.chord-stop { flex: none; width: var(--slot); }
+.chord-stop svg { margin-left: 0; }

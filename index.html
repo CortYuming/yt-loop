@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=67a3a73d">
+<link rel="stylesheet" href="style.css?v=83db4bf0">
 </head>
 <body>
 <main>
@@ -156,6 +156,7 @@
         <span class="hint">
           Bars split on <code>|</code> or a newline &nbsp;·&nbsp;
           <code>Name:frets</code> — six frets, 1st string first, blank for a muted string &nbsp;·&nbsp;
+          <code>1/1+2/1:0</code> — the same fingering as the strings it strikes, with no length &nbsp;·&nbsp;
           <code>@</code> sets where a bar starts &nbsp;·&nbsp;
           <code>key: Bb</code> on its own line names the song's key &nbsp;·&nbsp;
           Markdown links from Guitar Chord Viewer can be pasted as they are
@@ -167,6 +168,10 @@
       <div class="chord-track" id="chordStrip"></div>
       <div class="chord-playhead"></div>
     </div>
+
+    <!-- The ♪ panel: the whole neck, for writing the notes played over one
+         chord. Under the strip rather than in it, since the strip scrolls. -->
+    <div class="note-panel" id="notePanel" hidden></div>
   </section>
 
   <section class="loops">
@@ -224,7 +229,7 @@
      numbers committed here are placeholders and need no hand editing. Run
      scripts/bump-cache-buster.sh to refresh them locally. A hand-kept counter used to get
      reused across changes, which left the browser on stale files while they were tested. -->
-<script src="chords.js?v=557bbad0"></script>
-<script src="main.js?v=4beae77b"></script>
+<script src="chords.js?v=d379c37f"></script>
+<script src="main.js?v=65bf225d"></script>
 </body>
 </html>
