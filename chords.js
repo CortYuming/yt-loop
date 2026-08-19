@@ -1298,16 +1298,22 @@ const Chords = (() => {
       // A stretch names itself at its head; a note inside it that carries a name
       // names itself where it falls, which is what a chord changing mid-stretch
       // looks like on paper.
-      const marks = [{ x: item.x, name: item.name || '' }];
+      const marks = [{ x: item.x, name: item.name || '', note: null }];
       for (const p of noteBeats(item.notes).items) {
-        if (p.ev.name) marks.push({ x: item.x + p.beat * beat, name: p.ev.name });
+        if (p.ev.name) marks.push({ x: item.x + p.beat * beat, name: p.ev.name, note: p.index });
       }
       for (const mark of marks) {
         if (mark.name === held) continue;
         held = mark.name;
         if (!mark.name) continue;
+        // A name says which chord it is and where it is written, so the strip can
+        // hand a press on it to the viewer — and say which note is carrying it,
+        // for the box that writes it.
         add('text', {
-          x: mark.x + NOTE_INSET - NOTE_RX, y: NAME_BAND,
+          x: mark.x + NOTE_INSET - NOTE_RX, y: NAME_BAND, class: 'staff-name',
+          'data-chord': item.chord === undefined ? '' : String(item.chord),
+          'data-note': mark.note === null ? '' : String(mark.note),
+          'data-name': mark.name,
           fill: '#ddd', 'font-size': NAME_SIZE, 'text-anchor': 'start',
           'font-family': '-apple-system, BlinkMacSystemFont, sans-serif', 'font-weight': 600,
         }, displayName(mark.name));

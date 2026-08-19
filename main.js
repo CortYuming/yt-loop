@@ -1176,31 +1176,23 @@ function drawChordStrip(fromCache) {
     // A bar with a time on it carries the loop controls for that moment; one
     // without is just its number.
     if (spans[i].start !== null) head.appendChild(barTimePins(spans[i].start));
-    // Only of use while editing, so it is hidden with the editor closed — see
-    // .editing-mode in style.css. Chords are otherwise added from the cell that
-    // has the caret; this is how a bar emptied of all of them is started again.
-    const addBtn = document.createElement('button');
-    addBtn.type = 'button';
-    addBtn.className = 'chord-add';
-    addBtn.textContent = '+';
-    addBtn.title = 'Add a chord to this bar';
-    addBtn.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      const bar = chordCache.bars[i];
-      if (bar) insertChord(i, bar.chords.length);
-    });
-    head.appendChild(addBtn);
     barEl.appendChild(head);
 
-    const cells = document.createElement('div');
-    cells.className = 'chord-bar-cells';
-    bar.chords.forEach((chord, j) => {
-      const cell = renderChord(chord, i, j);
-      cell.style.width = `${weights[j] * slot}px`;
-      cells.appendChild(cell);
-    });
-    barEl.appendChild(cells);
+    // The cells are how a sheet is read: a chord's name with its shape drawn
+    // under it. They were how it was written too — a name box and six buttons
+    // per stretch — and that was a second sheet stacked over the first, saying
+    // the same music in boxes. While editing the bar is its staff: the names are
+    // written where they sound, and the notes are tapped out on the board.
+    if (chordEditor.hidden) {
+      const cells = document.createElement('div');
+      cells.className = 'chord-bar-cells';
+      bar.chords.forEach((chord, j) => {
+        const cell = renderChord(chord, i, j);
+        cell.style.width = `${weights[j] * slot}px`;
+        cells.appendChild(cell);
+      });
+      barEl.appendChild(cells);
+    }
 
     // The same bar again, as the notes it sounds. Each chord sits at the beat
     // it starts on — the left edge of its cell — rather than under the middle
@@ -1226,7 +1218,7 @@ function drawChordStrip(fromCache) {
         // nothing at all on screen saying which stretch is being written into.
         const caret = here && !(chord.notes && chord.notes.length);
         return {
-          x: at, name: chord.name, markers: chord.markers, notes: chord.notes,
+          x: at, chord: j, name: chord.name, markers: chord.markers, notes: chord.notes,
           sel, after, caret,
         };
       });
@@ -1571,6 +1563,19 @@ chordViewport.addEventListener('click', e => {
 chordStrip.addEventListener('click', e => {
   if (chordEditor.hidden) return;
   if (!e.target.closest) return;
+  // A chord's name, where it is written on the staff: the way out to the viewer,
+  // which used to be the ↗ in the cell.
+  const named = e.target.closest('.staff-name');
+  if (named) {
+    const barEl = named.closest('.chord-bar');
+    const bar = barEl && chordCache.bars[Number(barEl.dataset.bar)];
+    const chord = bar && bar.chords[Number(named.dataset.chord)];
+    if (chord) {
+      e.preventDefault();
+      openNameInViewer(chord, named.dataset.name);
+      return;
+    }
+  }
   const hit = e.target.closest('.staff-hit');
   if (hit) {
     const barEl = hit.closest('.chord-bar');
@@ -2077,6 +2082,18 @@ function stopsFromOldChords(bars) {
   }
 }
 
+// The viewer, opened on a name written in the strip — what the cell's ↗ was.
+// The shape sent with it is the first one struck under that name, since that is
+// the voicing the name is standing over; a name with nothing under it goes on
+// its own, which is all the viewer needs to draw one.
+function openNameInViewer(chord, name) {
+  const shapes = Chords.stopShapes(chord.notes, chord.name);
+  const under = shapes.find(sh => sh.name === name);
+  const markers = (name === chord.name && chord.markers)
+    || (under && under.markers) || null;
+  window.open(Chords.viewerUrl({ name, markers }), '_blank', 'noopener');
+}
+
 function openNotePanel(barIndex, chordIndex) {
   notePanelAt = { bar: barIndex, chord: chordIndex };
   noteSel = null;
@@ -2414,6 +2431,23 @@ function renderNotePanel() {
     d.className = 'note-tool-gap';
     into.appendChild(d);
   };
+
+  // ---- what chord ----
+  // The name over what is selected. On a note it names that note — a chord
+  // changing there — and with nothing selected it names the stretch, which is
+  // the chord this part of the bar started on. This is the box the cells used to
+  // hold, moved to where the music is being written rather than printed a second
+  // time above it.
+  const nameRow = row('Chord');
+  const nameBox = shapeNameBox(chord,
+    ev ? { name: names[noteSel] || chord.name || '', index: noteSel }
+      : { name: '', index: -1 },
+    ev ? 'note' : 'stretch');
+  nameBox.classList.add('note-name-box');
+  nameBox.title = ev
+    ? 'The chord from this note on — leave it empty to keep the one already sounding'
+    : 'The chord this stretch starts on';
+  nameRow.appendChild(nameBox);
 
   // ---- how long ----
   const lengthRow = row('Length');
