@@ -1104,10 +1104,12 @@ const Chords = (() => {
     // them whether anything is played up there or not. What has to be kept clear
     // above the music is measured from the notes, not from the lines.
     let hiNote = null;
+    let loNote = null;
     const reach = step => {
       top = Math.max(top, step);
       bottom = Math.min(bottom, step);
       hiNote = hiNote === null ? step : Math.max(hiNote, step);
+      loNote = loNote === null ? step : Math.min(loNote, step);
       any = true;
     };
     // How many dots the label row has to stack: the most notes struck at once
@@ -1130,12 +1132,12 @@ const Chords = (() => {
     // higher than any written yet is one tap away. The row of dots has to clear
     // that note, not the highest one written so far, or the first high tap puts
     // a stem through it.
-    if (floor === 'neck') hiNote = top;
+    if (floor === 'neck') { hiNote = top; loNote = bottom; }
     for (const step of signature(key).steps) {
       top = Math.max(top, step);
       bottom = Math.min(bottom, step);
     }
-    return { top, bottom, stack, hiNote };
+    return { top, bottom, stack, hiNote, loNote };
   }
 
   // A blank stretch of staff, its five lines drawn across the whole width, plus
@@ -1150,31 +1152,21 @@ const Chords = (() => {
     // that never leaves the middle of the staff leaves plenty — and only what
     // the air does not cover is added to the row. Reserving the whole of it
     // every time left a hand's width of nothing between the dots and the notes.
-    const slack = range.hiNote === null || range.hiNote === undefined
-      ? 0 : Math.max(0, (range.top - range.hiNote) * HALF);
-    const above = band
-      ? Math.max(STAFF_PAD, band + LABEL_CLEAR - slack - band)
-      : STAFF_PAD;
-    const yBottom = NAME_BAND + band + above + (range.top - BOTTOM_LINE) * HALF;
-    const h = yBottom + (BOTTOM_LINE - range.bottom) * HALF + STAFF_PAD;
+    const slack = range.loNote === null || range.loNote === undefined
+      ? 0 : Math.max(0, (range.loNote - range.bottom) * HALF);
+    const below = band ? Math.max(STAFF_PAD, band + LABEL_CLEAR - slack) : STAFF_PAD;
+    const yBottom = NAME_BAND + STAFF_PAD + (range.top - BOTTOM_LINE) * HALF;
+    const h = yBottom + (BOTTOM_LINE - range.bottom) * HALF + below;
     const y = step => yBottom - (step - BOTTOM_LINE) * HALF;
-    // The dots hug the staff: their row sits just over the top line, and only
-    // rises where the music does — a bar reaching above the staff pushes them up
-    // by what it needs and no more, and a bar of low notes keeps them where they
-    // can be read against the notes rather than a hand's width above them.
-    // `hi` is the y of the highest note in this bar, or null where there is none.
-    // Where the row sits is settled once the bar is drawn, against the highest
-    // ink actually put on it — a head, a ledger line, a stem that went up, the 3
-    // over a triplet. Reserving for the worst case instead left a stripe of
-    // nothing over every bar whose stems happened to point down.
-    // How far the row stands off whatever it is over. Close enough to be read
-    // with the note, far enough not to sit on it.
+    // The dots read under the staff, where the words under a tune go. The row
+    // hugs the bottom line and only drops where the music does: it is settled
+    // once the bar is drawn, against the lowest ink actually put on it — a head,
+    // a ledger line, a stem that went down. `low` is that, in y.
     const LABEL_STANDOFF = SP * 1.6;
-    const labelY = (n, top) => {
-      const rest = y(TOP_LINE) - LABEL_STANDOFF - LABEL_R;
-      const clear = top === Infinity ? rest : Math.min(rest, top - LABEL_STANDOFF - LABEL_R);
-      const ceiling = NAME_BAND + LABEL_R + SP * 0.2;
-      return Math.max(ceiling, clear) - n * (LABEL_R * 2 + LABEL_GAP);
+    const labelY = (n, low) => {
+      const rest = y(BOTTOM_LINE) + LABEL_STANDOFF + LABEL_R;
+      const clear = low === -Infinity ? rest : Math.max(rest, low + LABEL_STANDOFF + LABEL_R);
+      return clear + n * (LABEL_R * 2 + LABEL_GAP);
     };
 
     const { svg, add } = svgCanvas(width, h, { 'aria-hidden': 'true' });
@@ -1445,7 +1437,9 @@ const Chords = (() => {
     const rows = [];
     // The topmost thing drawn on this bar, filled in as it is drawn.
     let inkTop = Infinity;
+    let inkLow = -Infinity;
     const inked = at => { if (at < inkTop) inkTop = at; };
+    const inkedLow = at => { if (at > inkLow) inkLow = at; };
     const drawLabels = (notes, x, chord) => {
       // A shape has its own diagram, which names every note in it in these very
       // dots. Saying it again over the staff is the same thing twice, so the row
@@ -1500,6 +1494,7 @@ const Chords = (() => {
         const degree = colourDegree(n.pc, chord, mode, key);
         const ink = degree === null ? '#dcdcdc' : DEGREE_HUE[degree];
         inked(y(n.step) - NOTE_RY - 2);
+        inkedLow(y(n.step) + NOTE_RY + 2);
         add('ellipse', {
           cx: nx, cy: y(n.step), rx: NOTE_RX, ry: NOTE_RY,
           fill: hollow ? 'none' : ink,
@@ -1625,6 +1620,7 @@ const Chords = (() => {
         // read as one gesture; the stems stretch to meet them.
         const flat = up ? Math.min(...tips.map(t => t.tip)) : Math.max(...tips.map(t => t.tip));
         if (up) inked(flat - (isTripletDur(grp.d) ? 13 : 2));
+        else inkedLow(flat + (beamCount(grp.d) * BEAM_GAP) + (isTripletDur(grp.d) ? 13 : 2));
         for (const t of tips) {
           add('line', {
             x1: t.x, y1: t.tip, x2: t.x, y2: flat, stroke: '#dcdcdc', 'stroke-width': 1.4,
@@ -1667,11 +1663,11 @@ const Chords = (() => {
     for (const r of rows) {
       const fs = labelSize(r.label);
       add('circle', {
-        cx: r.x, cy: labelY(r.at, inkTop), r: LABEL_R,
+        cx: r.x, cy: labelY(r.at, inkLow), r: LABEL_R,
         fill: r.hue === null ? '#5f5f5f' : DEGREE_HUE[r.hue],
       });
       add('text', {
-        x: r.x, y: labelY(r.at, inkTop) + fs * 0.355, fill: DOT_INK, 'font-size': fs,
+        x: r.x, y: labelY(r.at, inkLow) + fs * 0.355, fill: DOT_INK, 'font-size': fs,
         'text-anchor': 'middle', 'font-weight': 600,
         'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
       }, r.label);
@@ -1679,9 +1675,7 @@ const Chords = (() => {
 
     // The names sit over the highest thing in the bar — the dots where there are
     // any, the music where there are not — rather than at the top of the canvas.
-    const dotTop = rows.length
-      ? Math.min(...rows.map(r => labelY(r.at, inkTop))) - LABEL_R : Infinity;
-    const anchor = Math.min(dotTop, inkTop, y(TOP_LINE));
+    const anchor = Math.min(inkTop, y(TOP_LINE));
     const nameY = Math.max(NAME_SIZE, anchor - SP * 1.2);
     for (const n of names) {
       add('text', {

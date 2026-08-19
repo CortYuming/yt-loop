@@ -769,9 +769,9 @@ button.pin {
 .chord-staff-head {
   position: absolute;
   left: 0;
-  /* The tab row sits below the staff, so the clef rises by its height to stay on
-     the same five lines. --tab-h is set on the viewport when there is one. */
-  bottom: calc(6px + var(--tab-h, 0px));
+  /* Put on the staff by renderChordStrip, which measures where the staff landed:
+     the row's parts have moved about too often for a fixed offset to hold. */
+  top: 0;
   z-index: 4;
   display: flex;
   flex: none;

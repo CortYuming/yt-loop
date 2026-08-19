@@ -1272,6 +1272,20 @@ function drawChordStrip(fromCache) {
   // read, and a button in it is a button in the music.
   if (!chordEditor.hidden) chordStrip.appendChild(addBarButton());
 
+  // The clef sits outside the row so it stays put while the row scrolls, which
+  // means nothing in the layout keeps it on the five lines. It used to hang off
+  // the bottom of the viewport, a fixed distance up; the diagrams moved below
+  // the staff and took that distance with them. So it is put where the staff
+  // actually is, measured once the row is built.
+  const firstStaff = chordStrip.querySelector('.chord-staff');
+  const clef = chordViewport.querySelector('.chord-staff-head');
+  if (firstStaff && clef) {
+    const top = firstStaff.getBoundingClientRect().top
+      - chordViewport.getBoundingClientRect().top;
+    clef.style.top = `${Math.round(top)}px`;
+    clef.style.bottom = 'auto';
+  }
+
   // Built in the order they are drawn and clamped as they go, so the list is
   // already ascending — sorting it would only shuffle bars the sheet overlapped.
   updateChordScroll(currentPlaybackTime());
