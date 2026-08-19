@@ -168,7 +168,15 @@ const Chords = (() => {
   // be relative to, so the dots go back to degrees rather than inventing one.
   function dotLabel(stringIdx, fret, chord, mode, key) {
     if (!chord) return '';
-    const semi = (OPEN_STRINGS[stringIdx] + fret) % 12;
+    return pitchLabel((OPEN_STRINGS[stringIdx] + fret) % 12, chord, mode, key);
+  }
+
+  // The same label for a pitch reached any other way — a note on the staff, say,
+  // which knows what it sounds and not which string it was played on. With no
+  // chord to count from there is only its name, which is what the board falls
+  // back to as well.
+  function pitchLabel(semi, chord, mode, key) {
+    if (!chord) return NOTES_SHARP[semi];
     if (mode === 'note') {
       return accidentalFor(chord) === '♭' ? NOTES_FLAT[semi] : NOTES_SHARP[semi];
     }
@@ -940,6 +948,18 @@ const Chords = (() => {
   // so the same chord is the same size wherever the eye lands on it — the staff's
   // own name was two thirds of that and read as a caption.
   const NAME_BAND = SP * 2.1;
+  // A row of labelled dots over the staff, read the way the diagrams are: same
+  // hues, same words, one per note struck. Stacked upwards where a chord is
+  // struck, so the row is as tall as the thickest chord in the sheet.
+  const LABEL_R = SP * 0.82;
+  const LABEL_GAP = SP * 0.22;
+  const LABEL_SIZE = SP * 0.95;
+  // What has to fit between the dots and the highest note: a stem at full
+  // stretch, and the 3 a triplet wears above its beam.
+  const LABEL_CLEAR = SP * 4.4;
+  const labelBandHeight = stack => (stack
+    ? stack * LABEL_R * 2 + (stack - 1) * LABEL_GAP + SP * 0.5
+    : 0);
   const NAME_SIZE = SP * 1.6;
   // Accidentals are the small print of a staff and were the first thing to go
   // unreadable, so they are sized against the staff rather than left at
@@ -1081,11 +1101,18 @@ const Chords = (() => {
       bottom = Math.min(bottom, step);
       any = true;
     };
+    // How many dots the label row has to stack: the most notes struck at once
+    // anywhere in the sheet. Measured over the whole sheet rather than per bar,
+    // since every bar's staff is drawn to one height or they do not line up.
+    let stack = 0;
     for (const bar of bars) {
       for (const chord of bar.chords) {
         for (const n of staffChord(chord.name, chord.markers, key).notes) reach(n.step);
         for (const ev of chord.notes || []) {
           for (const st of ev.stops) reach(stopNote(st, chord.name, key).step);
+          if (!ev.rest && !ev.tie && ev.stops.length) {
+            stack = Math.max(stack, ev.stops.length);
+          }
         }
       }
     }
@@ -1094,7 +1121,7 @@ const Chords = (() => {
       top = Math.max(top, step);
       bottom = Math.min(bottom, step);
     }
-    return { top, bottom };
+    return { top, bottom, stack };
   }
 
   // A blank stretch of staff, its five lines drawn across the whole width, plus
@@ -1102,9 +1129,18 @@ const Chords = (() => {
   // the height of a given place. Every stretch is measured from the same reach,
   // which is what makes them line up when they are butted together.
   function staffCanvas(width, range) {
-    const yBottom = NAME_BAND + STAFF_PAD + (range.top - BOTTOM_LINE) * HALF;
+    const band = labelBandHeight(range.stack || 0);
+    // The gap under the dots is what keeps them off the music: a stem reaching up
+    // from the highest note, and the mark a triplet wears above its beam, both
+    // land inside it rather than in the row of dots.
+    const above = band ? Math.max(STAFF_PAD, LABEL_CLEAR) : STAFF_PAD;
+    const yBottom = NAME_BAND + band + above + (range.top - BOTTOM_LINE) * HALF;
     const h = yBottom + (BOTTOM_LINE - range.bottom) * HALF + STAFF_PAD;
     const y = step => yBottom - (step - BOTTOM_LINE) * HALF;
+    // The nth dot of one chord, counted from the bottom of the row — one note
+    // alone sits at the bottom, nearest the staff, wherever it is in the sheet.
+    const labelY = n => NAME_BAND + band - SP * 0.25 - LABEL_R
+      - n * (LABEL_R * 2 + LABEL_GAP);
 
     const { svg, add } = svgCanvas(width, h, { 'aria-hidden': 'true' });
     for (let s = BOTTOM_LINE; s <= TOP_LINE; s += 2) {
@@ -1112,7 +1148,7 @@ const Chords = (() => {
         x1: 0, y1: y(s), x2: width, y2: y(s), stroke: '#4d4d4d', 'stroke-width': 1,
       });
     }
-    return { svg, add, y };
+    return { svg, add, y, labelY, hasLabels: band > 0 };
   }
 
   // ---------- the head of the staff ----------
@@ -1307,7 +1343,7 @@ const Chords = (() => {
       empty.setAttribute('height', '0');
       return empty;
     }
-    const { svg, add, y } = staffCanvas(width, range);
+    const { svg, add, y, labelY, hasLabels } = staffCanvas(width, range);
     const paced = beatWidth || width / BEATS_PER_BAR;
     const beat = paced * beatFit(items, width, paced);
 
@@ -1358,6 +1394,33 @@ const Chords = (() => {
         x1: x - NOTE_RX - 6, y1: y(s), x2: x + NOTE_RX + 6, y2: y(s),
         stroke: '#8a8a8a', 'stroke-width': 1.4,
       });
+    };
+
+    // The dots over the staff: what the diagrams say about a chord, said about
+    // the notes played over it. One per note struck, stacked upward where more
+    // than one is, in the hue and the wording the board uses — so a phrase can be
+    // read as degrees, names or solfège without leaving the staff.
+    // An octave of a note already in the chord says nothing the first one did
+    // not, so it is not printed twice.
+    const drawLabels = (notes, x, chord, named) => {
+      if (!hasLabels) return;
+      const seen = new Set();
+      let i = 0;
+      for (const n of notes) {
+        if (seen.has(n.pc)) continue;
+        seen.add(n.pc);
+        const degree = colourDegree(n.pc, named ? chord : null, mode, key);
+        add('circle', {
+          cx: x, cy: labelY(i), r: LABEL_R,
+          fill: degree === null ? '#5f5f5f' : DEGREE_HUE[degree],
+        });
+        add('text', {
+          x, y: labelY(i), fill: DOT_INK, 'font-size': LABEL_SIZE,
+          'text-anchor': 'middle', 'dominant-baseline': 'central',
+          'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+        }, pitchLabel(n.pc, named ? chord : null, mode, key));
+        i++;
+      }
     };
 
     // Heads of one event, spread the way engraving spreads a second, with the
@@ -1464,6 +1527,11 @@ const Chords = (() => {
           // A tie with nothing in front of it — the first thing in a sheet, or
           // after the note it meant to hold was deleted — has nothing to say.
           if (!h.notes.length) continue;
+          // A tie is the note before it still sounding, so it is not labelled
+          // again: the row says what was struck, and nothing was.
+          if (!h.p.ev.tie) {
+            drawLabels(h.notes, h.x, chordAt(h.p.index), !!(ruling[h.p.index] || item.name));
+          }
           // No duration written, so nothing to draw one with: heads alone, which
           // is how the chord this stands for has always been drawn.
           if (h.p.ev.free) {
