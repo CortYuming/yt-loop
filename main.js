@@ -2380,6 +2380,17 @@ function renderNotePanel() {
   head.appendChild(close);
   notePanel.appendChild(head);
 
+  // Degrees are read against a chord. With no chord over these notes there is
+  // nothing to read them against — every label would be counted from C, which
+  // is a number that means nothing here — so the board falls back to note names.
+  // Which name that is depends on where the caret is: a note carrying its own name
+  // starts a chord there, and the notes from it on are read against that.
+  // Worked out here rather than at the board, because the switch that labels the
+  // board has to say the same thing it does.
+  const names = Chords.rulingNames(chord);
+  const ruling = (noteSel !== null && names[noteSel]) || chord.name;
+  const boardMode = ruling ? effectiveChordMode() : 'note';
+
   // The tools, grouped by what they do to the music: how long a thing is, what
   // to write, and what to fix. One row of fifteen buttons said nothing about
   // which of them belonged together, and it only ever grew.
@@ -2474,7 +2485,7 @@ function renderNotePanel() {
   // What the dots are labelled with, where they are being read. The same switch
   // as the one over the strip and the same stored choice — a board labelled one
   // way while the diagrams above it said another was two pictures of one thing.
-  fixRow.appendChild(noteModeSwitch());
+  fixRow.appendChild(noteModeSwitch(boardMode, !!ruling));
   notePanel.appendChild(rows);
 
   // The keys behind a ?, rather than a line of them under the tools. Every one of
@@ -2502,14 +2513,6 @@ function renderNotePanel() {
 
   const boardWrap = document.createElement('div');
   boardWrap.className = 'note-board';
-  // Degrees are read against a chord. With no chord over these notes there is
-  // nothing to read them against — every label would be counted from C, which
-  // is a number that means nothing here — so the board falls back to note names.
-  // Which name that is depends on where the caret is: a note carrying its own name
-  // starts a chord there, and the notes from it on are read against that.
-  const names = Chords.rulingNames(chord);
-  const ruling = (noteSel !== null && names[noteSel]) || chord.name;
-  const boardMode = ruling ? effectiveChordMode() : 'note';
   boardWrap.appendChild(Chords.board(ruling, boardMode, currentChordKey()));
   // One listener for the whole neck: every cell says which string and fret it is.
   boardWrap.addEventListener('mousedown', e => e.preventDefault());
@@ -2523,10 +2526,10 @@ function renderNotePanel() {
 
 // Interval / Note / Solfège, small, at the end of the Fix row. It sets the same
 // stored choice the pill above the strip does, so the two can never disagree.
-function noteModeSwitch() {
+function noteModeSwitch(shown, hasChord) {
   const wrap = document.createElement('span');
   wrap.className = 'note-modes';
-  const active = effectiveChordMode();
+  const active = shown;
   const hasKey = !!currentChordKey();
   const items = [
     ['number', 'Int', 'Label the dots with degrees'],
@@ -2539,9 +2542,14 @@ function noteModeSwitch() {
     b.className = 'note-mode' + (value === active ? ' on' : '');
     b.textContent = text;
     // Solfège is read from the key and from nothing else, so until a sheet names
-    // one there is nothing to switch to.
-    b.disabled = value === 'solfa' && !hasKey;
-    b.title = b.disabled ? 'Set the key first — solfège reads do from it' : title;
+    // one there is nothing to switch to. Degrees and solfège are both read
+    // against a chord, so with none over these notes neither is on offer — the
+    // board is showing names and the switch says so.
+    const noSolfa = value === 'solfa' && !hasKey;
+    b.disabled = noSolfa || (value !== 'note' && !hasChord);
+    b.title = noSolfa ? 'Set the key first — solfège reads do from it'
+      : b.disabled ? 'Name this bar\'s chord first — the labels are read against it'
+        : title;
     b.addEventListener('mousedown', e => e.preventDefault());
     b.addEventListener('click', e => {
       e.preventDefault();
