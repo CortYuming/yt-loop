@@ -951,9 +951,12 @@ const Chords = (() => {
   // A row of labelled dots over the staff, read the way the diagrams are: same
   // hues, same words, one per note struck. Stacked upwards where a chord is
   // struck, so the row is as tall as the thickest chord in the sheet.
-  const LABEL_R = SP * 0.82;
+  // The dot the diagrams draw, drawn here: same radius, same ink, and the same
+  // rule for how large the word inside it is set — anything smaller reads as a
+  // different kind of thing and has to be squinted at.
+  const LABEL_R = DOT_R;
   const LABEL_GAP = SP * 0.22;
-  const LABEL_SIZE = SP * 0.95;
+  const labelSize = label => (label.length > 2 ? 10 : label.length > 1 ? 12 : 13);
   // What has to fit between the dots and the highest note: a stem at full
   // stretch, and the 3 a triplet wears above its beam.
   const LABEL_CLEAR = SP * 4.4;
@@ -1410,15 +1413,17 @@ const Chords = (() => {
         if (seen.has(n.pc)) continue;
         seen.add(n.pc);
         const degree = colourDegree(n.pc, named ? chord : null, mode, key);
+        const label = pitchLabel(n.pc, named ? chord : null, mode, key);
+        const fs = labelSize(label);
         add('circle', {
           cx: x, cy: labelY(i), r: LABEL_R,
           fill: degree === null ? '#5f5f5f' : DEGREE_HUE[degree],
         });
         add('text', {
-          x, y: labelY(i), fill: DOT_INK, 'font-size': LABEL_SIZE,
-          'text-anchor': 'middle', 'dominant-baseline': 'central',
+          x, y: labelY(i) + fs * 0.355, fill: DOT_INK, 'font-size': fs,
+          'text-anchor': 'middle', 'font-weight': 600,
           'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
-        }, pitchLabel(n.pc, named ? chord : null, mode, key));
+        }, label);
         i++;
       }
     };
