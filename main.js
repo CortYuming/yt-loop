@@ -1913,6 +1913,9 @@ function holdStaffReach(reach) {
 
 let noteDur = 0.5;
 let noteDotted = false;
+// Three in the time of two. It sits with the dot rather than with the durations:
+// both of them bend whatever value is chosen rather than being one.
+let noteTriplet = false;
 // While on, a tap piles onto the last note instead of following it, which is how
 // a double stop gets written.
 let noteStack = false;
@@ -1932,7 +1935,7 @@ const NOTE_DURATIONS = [
 // the next thing does, which is what a chord is. It is how a fingering is
 // tapped out, so it sits with the durations rather than off on its own.
 const NO_DUR = 0;
-const noteValue = () => noteDur * (noteDotted ? 1.5 : 1);
+const noteValue = () => noteDur * (noteDotted ? 1.5 : 1) * (noteTriplet ? 2 / 3 : 1);
 // A rest and a tie have to last something, so they fall back to a quarter when
 // the board is set to write chords.
 const restValue = () => noteValue() || 1;
@@ -2171,7 +2174,11 @@ function setNoteDur(d) {
   // markFreeNotes.
   if (ev) {
     if (d === NO_DUR) ev.free = true;
-    else { ev.d = Chords.isDottedDur(ev.d) ? d * 1.5 : d; delete ev.free; }
+    else {
+      ev.d = Chords.isDottedDur(ev.d) ? d * 1.5
+        : Chords.isTripletDur(ev.d) ? d * (2 / 3) : d;
+      delete ev.free;
+    }
     commitNotes();
     return;
   }
@@ -2182,12 +2189,30 @@ function setNoteDur(d) {
 function toggleNoteDot() {
   const ev = editingNote();
   if (ev) {
-    ev.d = Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d * 1.5;
+    const base = Chords.tripletBase(ev.d) || ev.d;
+    ev.d = Chords.isDottedDur(ev.d) ? ev.d / 1.5 : base * 1.5;
     delete ev.free;
     commitNotes();
     return;
   }
   noteDotted = !noteDotted;
+  if (noteDotted) noteTriplet = false;
+  renderNotePanel();
+}
+
+// Three of these in the time of two. A note already dotted gives the dot up:
+// one note is bent one way, and a dotted triplet is not something written here.
+function toggleNoteTriplet() {
+  const ev = editingNote();
+  if (ev) {
+    const base = Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d;
+    ev.d = Chords.isTripletDur(ev.d) ? Chords.tripletBase(ev.d) : base * (2 / 3);
+    delete ev.free;
+    commitNotes();
+    return;
+  }
+  noteTriplet = !noteTriplet;
+  if (noteTriplet) noteDotted = false;
   renderNotePanel();
 }
 
@@ -2295,8 +2320,12 @@ function renderNotePanel() {
   // out loud, since the overrun is drawn past the bar and reads as a mistake in
   // the sheet otherwise.
   room.className = 'note-panel-room' + (used > beats + 1e-6 ? ' over' : '');
-  room.textContent = `${notes.length} note${notes.length === 1 ? '' : 's'}, ${used} beat`
-    + `${used === 1 ? '' : 's'} written`;
+  // Thirds of a beat do not add up to whole numbers in binary — three triplet
+  // eighths come to 0.9999999999999999 — so what is printed is the sum rounded
+  // to where the ear stops caring rather than where the arithmetic does.
+  const beatsText = n => String(Math.round(n * 1000) / 1000);
+  room.textContent = `${notes.length} note${notes.length === 1 ? '' : 's'}, `
+    + `${beatsText(used)} beat${used === 1 ? '' : 's'} written`;
   head.append(what, mode, room);
   // The way out of the panel is not one of the tools: it sits where a window's
   // close sits, rather than at the end of a row of things that write music.
@@ -2365,13 +2394,15 @@ function renderNotePanel() {
   // ---- how long ----
   const lengthRow = row('Length');
   const shown = ev
-    ? (ev.free ? NO_DUR : (Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d))
+    ? (ev.free ? NO_DUR
+      : (Chords.isDottedDur(ev.d) ? ev.d / 1.5 : Chords.tripletBase(ev.d) || ev.d))
     : noteDur;
   const shownDot = ev ? (!ev.free && Chords.isDottedDur(ev.d)) : noteDotted;
+  const shownTriplet = ev ? (!ev.free && Chords.isTripletDur(ev.d)) : noteTriplet;
   NOTE_DURATIONS.forEach(([d, name], i) => {
     const b = button(
       lengthRow,
-      Chords.noteGlyph(d, false, 0.8),
+      Chords.noteGlyph(d, false, 0.8, !ev && noteTriplet),
       `${ev ? `Re-time this note as a ${name.toLowerCase()}` : name} (key ${i + 1})`,
       () => setNoteDur(d), shown === d, 'note-dur',
     );
@@ -2387,6 +2418,8 @@ function renderNotePanel() {
     + 'the way a chord is (key 0)',
     () => setNoteDur(NO_DUR), shown === NO_DUR, 'note-dur note-none');
   button(lengthRow, 'Dot', 'Half again as long (key .)', toggleNoteDot, shownDot);
+  button(lengthRow, '3', 'Triplet — three of these in the time of two (key ,)',
+    toggleNoteTriplet, shownTriplet);
 
   // ---- what to write ----
   const writeRow = row('Write');
@@ -2452,8 +2485,8 @@ function renderNotePanel() {
     const keys = document.createElement('p');
     keys.className = 'note-keys';
     keys.textContent = '← → select · 1–5 duration (whole, half, quarter, eighth, sixteenth) · '
-      + '0 no length · . dot · R rest · T tie · S stack · Enter close this chord · '
-      + 'Backspace delete · Esc back to the end, then close';
+      + '0 no length · . dot · , triplet · R rest · T tie · S stack · '
+      + 'Enter close this chord · Backspace delete · Esc back to the end, then close';
     help.appendChild(keys);
   }
   notePanel.appendChild(help);
@@ -2559,6 +2592,7 @@ document.addEventListener('keydown', e => {
   else if (e.key === '0') setNoteDur(NO_DUR);
   else if (n >= 1 && n <= NOTE_DURATIONS.length) setNoteDur(NOTE_DURATIONS[n - 1][0]);
   else if (e.key === '.') toggleNoteDot();
+  else if (e.key === ',') toggleNoteTriplet();
   else if (e.key === 'r' || e.key === 'R') addNoteRest();
   else if (e.key === 't' || e.key === 'T') addNoteTie();
   else if (e.key === 's' || e.key === 'S') { noteStack = !noteStack; renderNotePanel(); }

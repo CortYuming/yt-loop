@@ -335,25 +335,44 @@ const Chords = (() => {
   // A note, the name of the chord it starts if it starts one, and how long it is:
   // `1/5+2/6+3/9(Eb9):4`. The name belongs to the stop rather than to a stretch of
   // the bar, so a chord can begin wherever a note does.
-  const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*)|r|_)(?:\(([^)]*)\))?(?::(\d{1,2}\.?))?$/;
+  const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*)|r|_)(?:\(([^)]*)\))?(?::(\d{1,2}[.t]?))?$/;
   // Long enough to be the whole of a bar, short enough to still be a note.
   const DEFAULT_DUR = 0.5;
 
+  // `t` is three in the time of two: `8t` is a triplet eighth, a third of a beat.
+  // A dot and a t are the two ways a written value is bent, and a note carries at
+  // most one of them — nobody writes `8.t`.
+  const TRIPLET = 2 / 3;
   function parseDur(text) {
-    const m = /^(\d{1,2})(\.?)$/.exec(String(text || ''));
+    const m = /^(\d{1,2})([.t]?)$/.exec(String(text || ''));
     if (!m) return null;
     const base = DUR_BY_TEXT[Number(m[1])];
     if (!base) return null;
-    return m[2] ? base * 1.5 : base;
+    if (m[2] === '.') return base * 1.5;
+    if (m[2] === 't') return base * TRIPLET;
+    return base;
   }
 
+  // A third of a beat has no exact double, so durations are compared as near
+  // enough rather than equal from here on.
+  const sameDur = (a, b) => Math.abs(a - b) < 1e-9;
   function durText(d) {
     for (const k of Object.keys(DUR_BY_TEXT)) {
-      if (DUR_BY_TEXT[k] === d) return k;
-      if (DUR_BY_TEXT[k] * 1.5 === d) return `${k}.`;
+      if (sameDur(DUR_BY_TEXT[k], d)) return k;
+      if (sameDur(DUR_BY_TEXT[k] * 1.5, d)) return `${k}.`;
+      if (sameDur(DUR_BY_TEXT[k] * TRIPLET, d)) return `${k}t`;
     }
     return null;
   }
+
+  // The written value a duration is a triplet of, or 0 if it is not one.
+  function tripletBase(d) {
+    for (const k of Object.keys(DUR_BY_TEXT)) {
+      if (sameDur(DUR_BY_TEXT[k] * TRIPLET, d)) return DUR_BY_TEXT[k];
+    }
+    return 0;
+  }
+  const isTripletDur = d => tripletBase(d) !== 0;
 
   // `r` is a rest and `_` holds the note before it on — which is also how a
   // note carries over a bar line, since the tie is simply the first thing in
@@ -1160,7 +1179,7 @@ const Chords = (() => {
   // How many beams or flags a duration carries. A dotted note carries what the
   // note it is a dot on carries.
   function beamCount(d) {
-    const plain = d / (isDottedDur(d) ? 1.5 : 1);
+    const plain = tripletBase(d) || d / (isDottedDur(d) ? 1.5 : 1);
     if (plain >= 1) return 0;
     if (plain >= 0.5) return 1;
     if (plain >= 0.25) return 2;
@@ -1519,6 +1538,16 @@ const Chords = (() => {
             });
           }
         }
+        // Three in the time of two, said the way printed music says it: one 3
+        // over the group, on the far side of the beam from the heads.
+        if (isTripletDur(grp.d)) {
+          add('text', {
+            x: (tips[0].x + tips[tips.length - 1].x) / 2,
+            y: flat + (up ? -4 : (beams ? beams * BEAM_GAP : 0) + 11),
+            fill: '#dcdcdc', 'font-size': 9, 'text-anchor': 'middle', 'font-style': 'italic',
+            'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+          }, '3');
+        }
       }
     }
 
@@ -1618,7 +1647,7 @@ const Chords = (() => {
   // panel. Written out rather than set in a music font for the same reason the
   // staff is: those code points come out blank on most systems, and a button
   // showing a blank box is a button nobody can read.
-  function noteGlyph(d, dotted, scale) {
+  function noteGlyph(d, dotted, scale, triplet) {
     const k = scale || 1, w = 30 * k, h = 44 * k;
     const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
     const cx = 11 * k, cy = 32 * k, rx = 7 * k, ry = 5.2 * k;
@@ -1639,6 +1668,15 @@ const Chords = (() => {
       }
     }
     if (dotted) add('circle', { cx: cx + rx + 5 * k, cy, r: 2.2 * k, fill: 'currentColor' });
+    // The 3 that says three of these fill the time of two, over the stem the way
+    // it sits over a beamed group on a staff.
+    if (triplet || isTripletDur(d)) {
+      add('text', {
+        x: cx + 3 * k, y: 9 * k, fill: 'currentColor', 'font-size': 11 * k,
+        'text-anchor': 'middle', 'font-style': 'italic',
+        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+      }, '3');
+    }
     return svg;
   }
 
@@ -1767,6 +1805,7 @@ const Chords = (() => {
     // single notes
     parseNoteToken, parseDur, durText, notesToText, noteBeats, isDottedDur,
     tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, chordAddGlyph, beatWeights,
+    isTripletDur, tripletBase,
     BEATS_PER_BAR,
     stopsToMarkers, stopShapes, rulingNames,
   };
