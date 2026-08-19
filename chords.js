@@ -1113,9 +1113,9 @@ const Chords = (() => {
         for (const n of staffChord(chord.name, chord.markers, key).notes) reach(n.step);
         for (const ev of chord.notes || []) {
           for (const st of ev.stops) reach(stopNote(st, chord.name, key).step);
-          if (!ev.rest && !ev.tie && ev.stops.length) {
-            stack = Math.max(stack, ev.stops.length);
-          }
+          // Only single notes are counted: a stop of two or more is a voicing,
+          // and the diagram above it already says every one of its notes.
+          if (!ev.rest && !ev.tie && ev.stops.length === 1) stack = 1;
         }
       }
     }
@@ -1406,7 +1406,10 @@ const Chords = (() => {
     // An octave of a note already in the chord says nothing the first one did
     // not, so it is not printed twice.
     const drawLabels = (notes, x, chord, named) => {
-      if (!hasLabels) return;
+      // A shape has its own diagram, which names every note in it in these very
+      // dots. Saying it again over the staff is the same thing twice, so the row
+      // is for single notes — which is what it was added for.
+      if (!hasLabels || notes.length !== 1) return;
       const seen = new Set();
       let i = 0;
       for (const n of notes) {
