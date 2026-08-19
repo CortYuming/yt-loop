@@ -1280,12 +1280,9 @@ function addBar() {
   chordCache.spans = Chords.resolveSpans(bars);
   writeSheetFromCache();
   renderChordStrip(true);
-  // Straight into the name box of the bar just made: the button was pressed to
-  // write something, and the caret is where writing starts.
-  const cells = chordStrip.querySelectorAll('.chord-fields');
-  const cell = cells[cells.length - 1];
-  const box = cell && cell.querySelector('.chord-edit-box');
-  if (box) box.focus({ preventScroll: true });
+  // Straight into the bar just made: the button was pressed to write something,
+  // and the board is where writing happens.
+  openNotePanel(chordCache.bars.length - 1, 0);
 }
 
 function addBarButton() {
@@ -1507,8 +1504,7 @@ chordViewport.addEventListener('pointerdown', e => {
   if (chordAnchors.length === 0) return;   // a sheet with no times has no timeline
   // A press on a box or a button is aiming at that, not at the strip: the caret
   // has to be placeable and a word has to be selectable by dragging over it.
-  if (e.target.closest
-      && e.target.closest('.chord-edit-box, .chord-ops, .chord-add, .chord-bar-time')) return;
+  if (e.target.closest && e.target.closest('.chord-bar-time')) return;
   chordDrag = {
     pointerId: e.pointerId,
     fromX: e.clientX,
@@ -1596,19 +1592,11 @@ chordStrip.addEventListener('click', e => {
       return;
     }
   }
-  // A shape in the strip is the other way in — the one a fingering is written
-  // by, now that there is no box to type six frets into.
-  const shape = e.target.closest('.chord-stop[data-shape]');
-  const cell = shape && shape.closest('.chord-fields');
-  if (!cell) return;
-  e.preventDefault();
-  openChordShape(Number(cell.dataset.bar), Number(cell.dataset.chord),
-    Number(shape.dataset.shape));
 });
 
 window.addEventListener('resize', () => {
   // The redraw throws the boxes away, so what is in the open one is kept first.
-  commitFocusedChordCell();
+  commitFocusedNameBox();
   renderChordStrip();
 });
 
@@ -1620,9 +1608,7 @@ window.addEventListener('resize', () => {
 // chord was four times the number for a quarter of the confidence, since a
 // chord's own moment is only its bar divided evenly.
 function renderChord(chord, barIndex, chordIndex) {
-  const windowFrom = (chordWindows[barIndex] || [])[chordIndex];
-  if (!chordEditor.hidden) return renderChordFields(chord, barIndex, chordIndex, windowFrom);
-  return renderChordCell(chord, windowFrom);
+  return renderChordCell(chord, (chordWindows[barIndex] || [])[chordIndex]);
 }
 
 // Every diagram a stretch shows, in one lane in time order: the fingering picked
@@ -1638,7 +1624,7 @@ function renderChord(chord, barIndex, chordIndex) {
 // A shape arriving less than a slot after the one before it has no room of its
 // own and is left to the staff and the tab, which is where a run that fast is
 // read anyway.
-function diagramLane(chord, markers, windowFrom, editable) {
+function diagramLane(chord, markers, windowFrom) {
   const picked = markers && markers.some(f => f !== null);
   const shapes = picked
     ? [{ markers, beat: 0, name: chord.name || '', ofChord: true }] : [];
@@ -1668,10 +1654,7 @@ function diagramLane(chord, markers, windowFrom, editable) {
     // its own is that name; anything else is the name in force, which is the
     // stretch's, and typing on it renames the stretch rather than inventing a
     // second name for the same moment.
-    const ev = chord.notes && chord.notes[shape.index];
-    const target = first && !(!shape.ofChord && ev && ev.name) ? 'stretch' : 'event';
-    if (editable) wrap.appendChild(shapeNameBox(chord, shape, target));
-    else if (shape.name && shape.name !== shown) {
+    if (shape.name && shape.name !== shown) {
       wrap.appendChild(viewerLink(shapeName(shape.name), shape));
     }
     first = false;
@@ -1683,16 +1666,9 @@ function diagramLane(chord, markers, windowFrom, editable) {
       shape.markers, shape.name || 'C', effectiveChordMode(), currentChordKey(), windowFrom,
     );
     // The shape is the way out to the fretboard viewer — this shape, not whatever
-    // the stretch is called — and the name above it is the way into renaming it.
-    // The whole cell used to be the link, which left no way to click a name.
-    // While editing it is the way in instead: tapping it opens the board on this
-    // shape. A chord still written as a name and six frets has no note to point
-    // at, so it says -1 and is made into the stop it sounds as when it is tapped.
-    if (editable) {
-      wrap.dataset.shape = String(shape.ofChord ? -1 : shape.index);
-      wrap.title = 'Edit this shape on the board';
-    }
-    wrap.appendChild(editable || !shape.name ? dia : viewerLink(dia, shape));
+    // the stretch is called. The whole cell used to be the link, which left no
+    // way to click a name.
+    wrap.appendChild(shape.name ? viewerLink(dia, shape) : dia);
     row.appendChild(wrap);
     placed = x + slot;
   }
@@ -1735,15 +1711,14 @@ function shapeNameBox(chord, shape, target) {
     ? chord.name
     : (chord.notes[shape.index] && chord.notes[shape.index].name)) || '';
   const box = document.createElement('input');
-  box.className = 'chord-edit-box chord-stop-name';
-  if (stretch) box.dataset.role = 'name';
+  box.className = 'note-name-box';
   box.value = held();
   box.spellcheck = false;
   // Empty means the chord already in force here, so that is what the box says
   // when it is empty: what is typed into it is an override, not a first name.
   box.placeholder = shape.name || 'Chord';
   box.setAttribute('aria-label', stretch ? 'Chord' : 'Chord starting on this stop');
-  const commit = quiet => {
+  const commit = () => {
     // A viewer link pasted here is unpacked, the same as in the frets box.
     const typed = Chords.readChord(box.value);
     const name = typed ? typed.name : '';
@@ -1758,20 +1733,14 @@ function shapeNameBox(chord, shape, target) {
       else delete ev.name;
     }
     writeSheetFromCache(stretch ? 'text' : 'notes');
-    // Redrawing while the caret is on its way to the next box in this cell would
-    // take that box away before it arrives, so the row is left for the visit to
-    // the cell to end.
-    if (!quiet) renderChordStrip(true);
+    renderChordStrip(true);
   };
   box.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); box.blur(); }
     else if (e.key === 'Escape') { e.preventDefault(); box.value = held(); box.blur(); }
     e.stopPropagation();
   });
-  box.addEventListener('blur', e => {
-    const cell = box.closest('.chord-fields');
-    commit(!!(e.relatedTarget && cell && cell.contains(e.relatedTarget)));
-  });
+  box.addEventListener('blur', () => commit());
   return box;
 }
 
@@ -1783,7 +1752,7 @@ function shapeNameBox(chord, shape, target) {
 // staff already carries. So the cell keeps its width — the bar is still four
 // slots — and says nothing.
 function renderChordCell(chord, windowFrom) {
-  const lane = diagramLane(chord, chord.markers, windowFrom, false);
+  const lane = diagramLane(chord, chord.markers, windowFrom);
   const written = !!(chord.notes && chord.notes.length);
   const named = !!chord.name && (!!lane || !written);
   const box = document.createElement('div');
@@ -1795,40 +1764,6 @@ function renderChordCell(chord, windowFrom) {
     box.appendChild(viewerLink(shapeName(chord.name), chord));
   }
   if (lane) box.appendChild(lane);
-  return box;
-}
-
-// ---------- editing, in place ----------
-// With the editor open a chord is its name, written in the box over the shape it
-// names, and the shape itself, tapped out on the board under the strip. Nothing
-// has to be clicked first: the mode is the invitation. The controls for adding
-// and removing chords belong to whichever cell holds the caret, since four
-// buttons under every chord in the sheet would be unreadable.
-// A fingering used to be typed here too, as six dot-separated frets in a box of
-// its own. That was the second way of writing one — the board wrote stops, the
-// box wrote chords — and the two kinds drifted apart at every change. There is
-// one way now, and it is the board.
-function renderChordFields(chord, barIndex, chordIndex, windowFrom) {
-  const box = document.createElement('div');
-  box.className = 'chord chord-fields';
-  box.dataset.bar = String(barIndex);
-  box.dataset.chord = String(chordIndex);
-
-  // The buttons sit above the shapes rather than under them: under the diagram
-  // they read as belonging to the picture, and which chord a row of them acted
-  // on was a guess.
-  const ops = chordOps(barIndex, chordIndex, chord);
-  box.appendChild(ops);
-  // The same lane the closed strip draws, so a fingering is seen where it will
-  // sit while it is being written — and the name of this chord is the box over
-  // the first shape in it, since that is where the name is read. Tapping a shape
-  // opens the board on it: see openChordShape.
-  const lane = diagramLane(chord, chord.markers, windowFrom, true);
-  // Nothing to put a name over yet — no fingering, no shape — so the cell holds
-  // the box itself, and ♪ is the way to the board.
-  if (lane) { lane.dataset.role = 'lane'; box.appendChild(lane); }
-  else box.insertBefore(shapeNameBox(chord, { name: chord.name, index: -1 }, 'stretch'), ops);
-
   return box;
 }
 
@@ -1853,70 +1788,12 @@ function toolButton(cls, content, title, run, stop) {
   return b;
 }
 
-// Add before, add after, remove, and a way out to the viewer — the last of
-// which the cell used to be, before it became something you type in.
-function chordOps(barIndex, chordIndex, chord) {
-  const ops = document.createElement('div');
-  ops.className = 'chord-ops';
-  const button = (text, title, run) =>
-    ops.appendChild(toolButton('chord-op', text, title, run, true));
-  // Laid out as the sheet reads: the arrows point at the gaps they fill, and
-  // remove sits between them where the chord itself is. A run of the same chord
-  // is the common shape of a bar — one voicing held while the tune moves — so
-  // beside each empty insert there is one that carries this chord with it.
-  button('+←', 'Add a chord before this one', () => insertChord(barIndex, chordIndex));
-  button('⧉←', 'Copy this chord to the left', () => copyChord(barIndex, chordIndex, chordIndex));
-  button('🗑', 'Remove this chord', () => removeChord(barIndex, chordIndex));
-  button('⧉→', 'Copy this chord to the right', () => copyChord(barIndex, chordIndex, chordIndex + 1));
-  button('+→', 'Add a chord after this one', () => insertChord(barIndex, chordIndex + 1));
-  // There was a ♪ here, the way in to the notes played over this chord. The
-  // staff is that way in now — a note in it opens the panel on that note, and the
-  // empty width beside it opens the panel where writing goes — so a button that
-  // said the same thing was a second door onto one room.
-  button('↗', 'Open in Guitar Chord Viewer', () => {
-    // Whichever way this stretch's fingering is written — a chord's own markers
-    // or the first shape struck in it — that is the shape the viewer is sent.
-    const shapes = Chords.stopShapes(chord.notes, chord.name);
-    const markers = chord.markers || (shapes[0] && shapes[0].markers) || null;
-    window.open(Chords.viewerUrl({ name: chord.name, markers }), '_blank', 'noopener');
-  });
-  return ops;
-}
-
-// The boxes read back into the parsed sheet, and the sheet rewritten from it.
-// Nothing is redrawn: the cell already shows what it says, and rebuilding the
-// strip would take the caret with it.
-function commitChordCell(box) {
-  if (!box || chordCache.vid !== currentVideoId) return;
-  // A restore throws these boxes away while one of them still holds the caret.
-  // The blur that follows would write the old text straight back over what was
-  // just restored, so during a restore a cell has nothing to say.
-  if (restoringSheet) return;
-  const bar = chordCache.bars[Number(box.dataset.bar)];
-  const chord = bar && bar.chords[Number(box.dataset.chord)];
-  if (!chord) return;
-  // The name box is over the first shape while there is one, and in the cell when
-  // there is not; either way it is the one marked as the name. It is all the cell
-  // holds now — the shape is tapped on the board, and the board writes it there
-  // and then.
-  const nameBox = box.querySelector('.chord-edit-box[data-role="name"]');
-  if (!nameBox) return;
-  const typed = Chords.readChord(nameBox.value);
-  const name = typed ? typed.name : '';
-  // A viewer link pasted into the name box arrives with its fingering, which is
-  // how a shape comes back from the viewer without being tapped out again.
-  const markers = typed && typed.markers ? typed.markers : chord.markers;
-  const same = name === chord.name
-    && Chords.markersToText(markers || []) === Chords.markersToText(chord.markers || []);
-  if (same) return;
-  chord.name = name;
-  chord.markers = markers;
-  writeSheetFromCache();
-}
-
-function commitFocusedChordCell() {
+// A name half-typed when the strip is about to be redrawn. The box writes what
+// it holds on the way out, so letting go of it is the whole of saving it — and
+// the redraw would otherwise take the box, and what was typed into it, away.
+function commitFocusedNameBox() {
   const el = document.activeElement;
-  commitChordCell(el && el.closest ? el.closest('.chord-fields') : null);
+  if (el && el.classList && el.classList.contains('note-name-box')) el.blur();
 }
 
 // An unnamed chord is one still being written, not one to keep: it stays in the
@@ -2026,29 +1903,6 @@ function noteEntries() {
 function editingNote() {
   const notes = noteEntries();
   return noteSel !== null ? notes[noteSel] || null : null;
-}
-
-// Tapping a shape in the strip opens the board on it, with stacking on: the
-// next tap adds a string to the shape rather than starting a note after it,
-// which is what writing a fingering is. This is the one way a fingering is
-// written — the box it used to be typed into is gone.
-function openChordShape(barIndex, chordIndex, shapeIndex) {
-  const bar = chordCache.bars[barIndex];
-  const chord = bar && bar.chords[chordIndex];
-  if (!chord) return;
-  const old = shapeIndex < 0;
-  const at = old ? chordMarkersToStop(chord) : shapeIndex;
-  if (at < 0) return;
-  notePanelAt = { bar: barIndex, chord: chordIndex };
-  noteSel = at;
-  noteStack = true;
-  noteBreak = false;
-  // A chord written the old way has just become a stop, so the sheet is written
-  // back; one already written as a stop has not changed and only needs drawing.
-  if (old) commitNotes();
-  else renderChordStrip(true);
-  markNoteSelection();
-  focusNotePanel();
 }
 
 // `Bb9:1.1.1.0..` → `Bb9 1/1+2/1+3/1+4/0:0`: the same six frets, written as the
@@ -2443,7 +2297,6 @@ function renderNotePanel() {
     ev ? { name: names[noteSel] || chord.name || '', index: noteSel }
       : { name: '', index: -1 },
     ev ? 'note' : 'stretch');
-  nameBox.classList.add('note-name-box');
   nameBox.title = ev
     ? 'The chord from this note on — leave it empty to keep the one already sounding'
     : 'The chord this stretch starts on';
@@ -2806,57 +2659,6 @@ function revisionTime(ts) {
   return sameDay ? clock : `${d.getMonth() + 1}/${d.getDate()} ${clock}`;
 }
 
-// Added to the parsed sheet and drawn from it, without going through the text:
-// a chord with no name has nothing to write yet. The strip is rebuilt from the
-// cache so the bar's four slots are shared out afresh and the indexes after the
-// new one shift up.
-function insertChord(barIndex, at) {
-  commitFocusedChordCell();
-  const bar = chordCache.bars[barIndex];
-  if (!bar) return;
-  bar.chords.splice(at, 0, { name: '', markers: null });
-  renderChordStrip(true);
-  focusChordCell(barIndex, at);
-}
-
-// The same chord again, next to itself. Unlike an empty insert this one has
-// something to say the moment it exists, so the sheet is written straight away.
-function copyChord(barIndex, chordIndex, at) {
-  commitFocusedChordCell();
-  const bar = chordCache.bars[barIndex];
-  const source = bar && bar.chords[chordIndex];
-  if (!source) return;
-  bar.chords.splice(at, 0, {
-    name: source.name,
-    markers: source.markers ? source.markers.slice() : null,
-  });
-  writeSheetFromCache();
-  renderChordStrip(true);
-  focusChordCell(barIndex, at);
-}
-
-function removeChord(barIndex, chordIndex) {
-  commitFocusedChordCell();
-  const bar = chordCache.bars[barIndex];
-  if (!bar) return;
-  bar.chords.splice(chordIndex, 1);
-  writeSheetFromCache();
-  renderChordStrip(true);
-  // The caret lands on the neighbour that took its place, or on the one before
-  // it when the last chord in the bar went.
-  focusChordCell(barIndex, Math.min(chordIndex, bar.chords.length - 1));
-}
-
-function focusChordCell(barIndex, chordIndex) {
-  const cell = chordStrip.querySelector(
-    `.chord-fields[data-bar="${barIndex}"][data-chord="${chordIndex}"]`,
-  );
-  const input = cell && cell.querySelector('.chord-edit-box');
-  if (!input) return;
-  input.focus({ preventScroll: true });
-  input.select();
-}
-
 // `focusInput` is false when the editor was opened by the keyboard: the caret
 // would land in the sheet box, and the key that opened it would then type
 // itself into the sheet instead of closing it again.
@@ -2889,7 +2691,7 @@ function toggleChordEditor(focusInput) {
   if (chordEditor.hidden) { openChordEditor(focusInput); return; }
   // Closing puts the chords back to being links, so whatever is in the open box
   // is banked before the strip is rebuilt without it.
-  commitFocusedChordCell();
+  commitFocusedNameBox();
   chordEditor.hidden = true;
   closeNotePanel();
   syncChordEditMode();

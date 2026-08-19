@@ -721,20 +721,6 @@ button.pin {
   cursor: pointer;
 }
 .chord-time-pin:hover { border-color: var(--blue); color: var(--blue); }
-.chord-add {
-  display: none;
-  flex: none;
-  padding: 0 5px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--panel);
-  color: var(--sub);
-  font-size: 11px;
-  line-height: 15px;
-  cursor: pointer;
-}
-.editing-mode .chord-add { display: block; }
-.chord-add:hover { border-color: var(--blue); color: var(--blue); }
 /* Four to a line, wrapping inside the bar's own width: five to eight chords
    take two lines, nine and up take three. */
 .chord-bar-cells {
@@ -869,72 +855,6 @@ button.pin {
 .chord-shape-link { display: block; color: inherit; text-decoration: none; }
 .chord-shape-link:hover .chord-name { color: var(--blue); text-decoration: underline; }
 .chord-shape-link:hover svg { opacity: 0.85; }
-/* With the editor open a chord is the two boxes it is written in — name and
-   frets — with the diagram they describe under them, redrawn as they are typed.
-   The buttons hang below whichever cell holds the caret, out of the flow, so
-   the row does not change height as the caret moves along it. */
-.chord-fields {
-  position: relative;
-  overflow: visible;
-  cursor: default;
-}
-.chord-fields:hover svg,
-.chord-fields:focus-within svg { opacity: 1; }
-/* The buttons belong to the boxes above them, not to the diagram, so they sit
-   directly under what they edit rather than hanging off the bottom of the cell,
-   where a row of them read as one row of controls for no chord in particular.
-   Absolutely positioned with no top of its own, which puts the row exactly
-   where the document order already put it — under the boxes — while taking no
-   height, so a cell does not shift as focus moves along the strip. The diagram
-   gives up the space instead, and only while the editor is open. */
-/* The gap is above the whole row of shapes, not above the diagrams inside it:
-   the names sit at the top of that row, and a gap under them let the buttons
-   land on top of the names. */
-.chord-viewport.editing-mode .chord-fields [data-role="lane"] { margin-top: 24px; }
-.chord-viewport.editing-mode .chord-fields > svg { margin-top: 24px; }
-.chord-ops {
-  position: absolute;
-  left: 0;
-  z-index: 5;
-  display: none;
-  gap: 1px;
-  padding: 2px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--panel);
-}
-.chord-fields:focus-within .chord-ops { display: flex; }
-.chord-op {
-  flex: none;
-  min-width: 20px;
-  padding: 0 3px;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  background: none;
-  color: var(--sub);
-  font-size: 11px;
-  line-height: 16px;
-  cursor: pointer;
-}
-.chord-op:hover { border-color: var(--blue); color: var(--blue); }
-.chord-edit-box {
-  display: block;
-  width: 100%;
-  padding: 0 3px;
-  border: 1px solid var(--blue);
-  border-radius: 3px;
-  background: var(--panel);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: inherit;
-  /* The viewport turns selection off so drags scrub instead of highlighting;
-     inside a box, text is text again. */
-  user-select: text;
-  -webkit-user-select: text;
-}
-.chord-edit-box:focus { outline: none; border-color: var(--blue-hover); }
 /* An estimate, so it stays quiet: something to check a sheet against, not a
    number to read while playing. */
 .chord .chord-time {
@@ -1202,6 +1122,9 @@ footer {
   outline: none;
   border-color: var(--blue);
 }
+/* The viewport turns selection off so drags scrub instead of highlighting;
+   inside a box, text is text again. */
+.note-name-box { font-family: inherit; user-select: text; -webkit-user-select: text; }
 /* The ? sits where the line of keys used to be — under the tools it explains,
    above the board — with the list falling out beneath it when it is asked for. */
 .note-help {
@@ -1278,14 +1201,4 @@ footer {
    note starts, so it is the diagram's left edge that belongs over it. */
 .chord-stops { display: flex; align-items: flex-start; }
 .chord-stop { flex: none; width: var(--slot); }
-/* While editing, a shape is the way in to the board it is tapped out on. */
-.chord-stop[data-shape] svg { cursor: pointer; }
-.chord-stop[data-shape]:hover svg { opacity: 1; }
 .chord-stop svg { margin-left: 0; }
-/* The name of a shape, written over it — as a box while the editor is open. Kept
-   to the slot it belongs to so the shapes stay on their beats. */
-.chord-stop-name {
-  display: block;
-  width: calc(var(--slot) - 8px);
-  margin: 0 0 2px;
-}
