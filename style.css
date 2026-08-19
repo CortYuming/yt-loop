@@ -721,6 +721,40 @@ button.pin {
   cursor: pointer;
 }
 .chord-time-pin:hover { border-color: var(--blue); color: var(--blue); }
+/* Where the bar starts, as a box while the editor is open. Sized to the time it
+   holds — 0:43.50 — so the head stays the height of one line. */
+.chord-bar-time-box {
+  flex: none;
+  width: 62px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--amber);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 15px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.chord-bar-time-box:focus { outline: none; border-color: var(--blue); }
+.chord-bar-time-box::placeholder { color: var(--sub); }
+/* A bar in before this one. Only of use while editing, so it is hidden with the
+   editor closed. */
+.chord-add {
+  display: none;
+  flex: none;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel);
+  color: var(--sub);
+  font-size: 11px;
+  line-height: 15px;
+  cursor: pointer;
+}
+.editing-mode .chord-add { display: block; }
+.chord-add:hover { border-color: var(--blue); color: var(--blue); }
 /* Four to a line, wrapping inside the bar's own width: five to eight chords
    take two lines, nine and up take three. */
 .chord-bar-cells {

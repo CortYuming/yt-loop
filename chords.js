@@ -507,6 +507,9 @@ const Chords = (() => {
       if (chord) bar.chords.push(chord);
     }
     markFreeNotes(bar);
+    // A bar of its own time and nothing else: one put between two others and not
+    // written into yet. It keeps an empty stretch so there is somewhere to write.
+    if (!bar.chords.length && bar.start !== null) bar.chords.push({ name: '', markers: null });
     return bar.chords.length ? bar : null;
   }
 
@@ -677,7 +680,7 @@ const Chords = (() => {
           return head ? `${head} ${played}` : played;
         })
         .join(' ');
-      return head + chords;
+      return (head + chords).trim();
     }).join(sep);
     // First, so the sheet reads as what it is before it reads as where it goes.
     return key ? (body ? `key: ${key}${sep}${body}` : `key: ${key}`) : body;
