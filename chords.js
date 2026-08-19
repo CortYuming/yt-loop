@@ -1382,6 +1382,10 @@ const Chords = (() => {
     const paced = beatWidth || width / BEATS_PER_BAR;
     const beat = paced * beatFit(items, width, paced);
 
+    // The names and the dots are both written above the music, so both wait for
+    // the music to be drawn: see the end of this function.
+    const names = [];
+
     // The names, over the beats they start on. A chord held across two beats is
     // written once and read as still sounding — repeating it says it was struck
     // again, which is a different bar. The run is only followed within the bar:
@@ -1399,17 +1403,16 @@ const Chords = (() => {
         if (mark.name === held) continue;
         held = mark.name;
         if (!mark.name) continue;
-        // A name says which chord it is and where it is written, so the strip can
-        // hand a press on it to the viewer — and say which note is carrying it,
-        // for the box that writes it.
-        add('text', {
-          x: mark.x + NOTE_INSET - NOTE_RX, y: NAME_BAND, class: 'staff-name',
-          'data-chord': item.chord === undefined ? '' : String(item.chord),
-          'data-note': mark.note === null ? '' : String(mark.note),
-          'data-name': mark.name,
-          fill: '#ddd', 'font-size': NAME_SIZE, 'text-anchor': 'start',
-          'font-family': '-apple-system, BlinkMacSystemFont, sans-serif', 'font-weight': 600,
-        }, displayName(mark.name));
+        // Kept until the bar is drawn, like the dots: a name printed at the top
+        // of whatever height the staff happens to need floats away from the
+        // music it names — a sheet reaching high once leaves every name in it a
+        // hand's width above its own bar.
+        names.push({
+          x: mark.x + NOTE_INSET - NOTE_RX,
+          chord: item.chord === undefined ? '' : String(item.chord),
+          note: mark.note === null ? '' : String(mark.note),
+          name: mark.name,
+        });
       }
     }
 
@@ -1672,6 +1675,21 @@ const Chords = (() => {
         'text-anchor': 'middle', 'font-weight': 600,
         'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
       }, r.label);
+    }
+
+    // The names sit over the highest thing in the bar — the dots where there are
+    // any, the music where there are not — rather than at the top of the canvas.
+    const dotTop = rows.length
+      ? Math.min(...rows.map(r => labelY(r.at, inkTop))) - LABEL_R : Infinity;
+    const anchor = Math.min(dotTop, inkTop, y(TOP_LINE));
+    const nameY = Math.max(NAME_SIZE, anchor - SP * 1.2);
+    for (const n of names) {
+      add('text', {
+        x: n.x, y: nameY, class: 'staff-name',
+        'data-chord': n.chord, 'data-note': n.note, 'data-name': n.name,
+        fill: '#ddd', 'font-size': NAME_SIZE, 'text-anchor': 'start',
+        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif', 'font-weight': 600,
+      }, displayName(n.name));
     }
 
     addSlots(add, items, width, Number(svg.getAttribute('height')) || 0);
