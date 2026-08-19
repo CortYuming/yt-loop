@@ -1196,22 +1196,6 @@ function drawChordStrip(fromCache) {
     if (spans[i].start !== null) head.appendChild(barTimePins(spans[i].start));
     barEl.appendChild(head);
 
-    // The cells are how a sheet is read: a chord's name with its shape drawn
-    // under it. They were how it was written too — a name box and six buttons
-    // per stretch — and that was a second sheet stacked over the first, saying
-    // the same music in boxes. While editing the bar is its staff: the names are
-    // written where they sound, and the notes are tapped out on the board.
-    if (chordEditor.hidden) {
-      const cells = document.createElement('div');
-      cells.className = 'chord-bar-cells';
-      bar.chords.forEach((chord, j) => {
-        const cell = renderChord(chord, i, j);
-        cell.style.width = `${weights[j] * slot}px`;
-        cells.appendChild(cell);
-      });
-      barEl.appendChild(cells);
-    }
-
     // The same bar again, as the notes it sounds. Each chord sits at the beat
     // it starts on — the left edge of its cell — rather than under the middle
     // of its diagram, since what the staff is showing is when as much as what.
@@ -1250,6 +1234,22 @@ function drawChordStrip(fromCache) {
         tab.setAttribute('class', 'chord-tab');
         barEl.appendChild(tab);
       }
+    }
+
+    // The cells are how a sheet is read: a chord's name with its shape drawn
+    // under it. They were how it was written too — a name box and six buttons
+    // per stretch — and that was a second sheet stacked over the first, saying
+    // the same music in boxes. While editing the bar is its staff: the names are
+    // written where they sound, and the notes are tapped out on the board.
+    if (chordEditor.hidden) {
+      const cells = document.createElement('div');
+      cells.className = 'chord-bar-cells';
+      bar.chords.forEach((chord, j) => {
+        const cell = renderChord(chord, i, j);
+        cell.style.width = `${weights[j] * slot}px`;
+        cells.appendChild(cell);
+      });
+      barEl.appendChild(cells);
     }
 
     chordStrip.appendChild(barEl);
