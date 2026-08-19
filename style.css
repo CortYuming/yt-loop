@@ -1068,13 +1068,25 @@ footer {
    before its bar's timing is right — but said out loud, since the overrun is
    drawn past the bar and reads as a fault in the sheet otherwise. */
 .note-panel-room.over { color: var(--red); }
-/* The head carries the way out, so it has to hold the button out at its end
+/* Where the writing is going — which bar, which note, what the next tap does —
+   read while tapping the board below it, so it stays at the top of the screen
+   once the panel is scrolled into rather than riding away with the tools.
+   Bled out to the panel's own edges so the rows pass under it, not beside it.
+   The head carries the way out, so it has to hold the button out at its end
    whatever the text in front of it does. */
-.note-panel-head { position: relative; padding-right: 26px; }
+.note-panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -10px -12px 9px;
+  padding: 10px 38px 6px 12px;
+  background: var(--panel);
+  border-radius: 5px 5px 0 0;
+}
 .note-panel-close {
   position: absolute;
-  top: -3px;
-  right: 0;
+  top: 7px;
+  right: 10px;
   width: 22px;
   height: 22px;
   padding: 0;
@@ -1168,11 +1180,38 @@ footer {
   background: var(--border);
   margin: 0 4px;
 }
-.note-keys, .note-hint {
+/* The ? sits where the line of keys used to be — under the tools it explains,
+   above the board — with the list falling out beneath it when it is asked for. */
+.note-help {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 9px;
+}
+.note-help-toggle {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: #1f1f1f;
+  color: var(--sub);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.note-help-toggle:hover { background: var(--panel-hover); color: var(--text); }
+.note-help-toggle.on {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.note-keys {
   color: var(--sub);
   font-size: 11px;
   line-height: 1.7;
-  margin: 9px 0 0;
+  margin: 0;
 }
 .note-board {
   margin-top: 8px;

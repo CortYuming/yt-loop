@@ -1864,11 +1864,10 @@ function chordOps(barIndex, chordIndex, chord) {
   button('🗑', 'Remove this chord', () => removeChord(barIndex, chordIndex));
   button('⧉→', 'Copy this chord to the right', () => copyChord(barIndex, chordIndex, chordIndex + 1));
   button('+→', 'Add a chord after this one', () => insertChord(barIndex, chordIndex + 1));
-  // The way in to the notes played over this chord. A stretch of single notes is
-  // a different kind of thing from a voicing — a row of moments rather than one
-  // — so it is written on a board of its own rather than in a third box here.
-  button('♪', 'Write the single notes played over this chord',
-    () => openNotePanel(barIndex, chordIndex));
+  // There was a ♪ here, the way in to the notes played over this chord. The
+  // staff is that way in now — a note in it opens the panel on that note, and the
+  // empty width beside it opens the panel where writing goes — so a button that
+  // said the same thing was a second door onto one room.
   button('↗', 'Open in Guitar Chord Viewer', () => {
     // Whichever way this stretch's fingering is written — a chord's own markers
     // or the first shape struck in it — that is the shape the viewer is sent.
@@ -1979,6 +1978,10 @@ let noteStack = false;
 // one chord is closed and the next begun — a sheet is written chord after chord,
 // and letting go of stacking between each of them is a toggle per chord.
 let noteBreak = false;
+// Whether the list of keys is open. Remembered rather than reset per note: the
+// list is asked for by someone learning the board, and that lasts longer than
+// one tap.
+let noteKeysOpen = false;
 
 const NOTE_DURATIONS = [
   [4, 'Whole'], [2, 'Half'], [1, 'Quarter'], [0.5, 'Eighth'], [0.25, 'Sixteenth'],
@@ -2474,12 +2477,28 @@ function renderNotePanel() {
   fixRow.appendChild(noteModeSwitch());
   notePanel.appendChild(rows);
 
-  const keys = document.createElement('p');
-  keys.className = 'note-keys';
-  keys.textContent = '← → select · 1–5 duration (whole, half, quarter, eighth, sixteenth) · '
-    + '0 no length · . dot · R rest · T tie · S stack · Enter close this chord · '
-    + 'Backspace delete · Esc back to the end, then close';
-  notePanel.appendChild(keys);
+  // The keys behind a ?, rather than a line of them under the tools. Every one of
+  // them is already written on the button it works, so the list is a reminder to
+  // ask for — and printed always, it was three lines of grey between the tools
+  // and the board they act on.
+  const help = document.createElement('div');
+  help.className = 'note-help';
+  const helpBtn = toolButton('note-help-toggle' + (noteKeysOpen ? ' on' : ''), '?',
+    'The keys, for the tools above', () => {
+      noteKeysOpen = !noteKeysOpen;
+      renderNotePanel();
+    });
+  helpBtn.setAttribute('aria-expanded', noteKeysOpen ? 'true' : 'false');
+  help.appendChild(helpBtn);
+  if (noteKeysOpen) {
+    const keys = document.createElement('p');
+    keys.className = 'note-keys';
+    keys.textContent = '← → select · 1–5 duration (whole, half, quarter, eighth, sixteenth) · '
+      + '0 no length · . dot · R rest · T tie · S stack · Enter close this chord · '
+      + 'Backspace delete · Esc back to the end, then close';
+    help.appendChild(keys);
+  }
+  notePanel.appendChild(help);
 
   const boardWrap = document.createElement('div');
   boardWrap.className = 'note-board';
@@ -2500,15 +2519,6 @@ function renderNotePanel() {
     pressStop(Number(cell.dataset.string), Number(cell.dataset.fret));
   });
   notePanel.appendChild(boardWrap);
-
-  const hint = document.createElement('p');
-  hint.className = 'note-hint';
-  hint.textContent = (ruling
-    ? 'The dots are labelled by the switch at the end of the Fix row'
-    : 'The dots show note names until this stretch has a chord over it')
-    + ', and the notes themselves are read off the staff and tab in the strip — '
-    + 'click one there to edit it.';
-  notePanel.appendChild(hint);
 }
 
 // Interval / Note / Solfège, small, at the end of the Fix row. It sets the same
