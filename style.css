@@ -751,6 +751,11 @@ button.pin {
   display: block;
   flex: none;
   margin-top: 4px;
+  /* A bar squeezes an overrunning phrase into its own width, so nothing should
+     leave this box — but an svg cuts off whatever does, and a note cut off is a
+     note that silently vanished. Left visible so anything past the edge shows
+     itself instead. */
+  overflow: visible;
 }
 /* Clef and key signature, at the far left of the row with nothing above them.
    Pushed to the bottom so its five lines meet the bars', which sit under a
@@ -779,14 +784,47 @@ button.pin {
   display: block;
   flex: none;
   margin-top: 2px;
+  overflow: visible;
 }
 /* One note, as somewhere to click. The whole column of it counts — head, fret
    number, and the space between — since what is being aimed at is the moment
    rather than either drawing of it. Only live while editing: with the editor
    closed a chord is a link to the viewer and a click means that instead. */
+/* What is drawn on the staff and the tab is a picture, and a picture that takes
+   the press takes it from the note underneath: clicking a note head landed on
+   the head's own ellipse, whose parent is not the hit box, and selected nothing.
+   So only the hit box is pressable, and it is pressable whatever it is filled
+   with. */
+.chord-staff *, .chord-tab * { pointer-events: none; }
+.chord-staff .staff-hit, .chord-tab .staff-hit { pointer-events: all; }
+/* The rest of a stretch's width, pressable only while editing: with the editor
+   closed the cell is a link to the viewer and the press belongs to that. */
+.editing-mode .chord-staff .staff-slot,
+.editing-mode .chord-tab .staff-slot { pointer-events: all; cursor: pointer; }
+/* Where writing starts in a stretch with nothing in it — dashed, like the mark
+   for the place after the last note, since nothing is written there either. */
+.staff-caret { display: none; }
+.editing-mode .staff-caret.on {
+  display: inline;
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
 .editing-mode .staff-hit { cursor: pointer; }
 .editing-mode .staff-hit:hover { fill: var(--blue); fill-opacity: 0.12; }
-.editing-mode .staff-hit.on { fill: var(--blue); fill-opacity: 0.18; }
+.editing-mode .staff-hit.on {
+  fill: var(--blue);
+  fill-opacity: 0.32;
+  stroke: var(--blue);
+  stroke-width: 1.5;
+}
+/* Not what is being edited but where the next tap lands — after this one — so it
+   is outlined rather than filled: nothing is written there yet. */
+.editing-mode .staff-hit.after {
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
 /* The room the head would have taken in the row, kept empty so the bars still
    begin where they did. */
 .chord-staff-gap { flex: none; }

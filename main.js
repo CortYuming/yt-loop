@@ -39,6 +39,12 @@ let liveEntryId = null;
 // this PLAYING transition came from us (not a user click on the iframe or
 // YT's own Space shortcut) and shouldn't be intercepted for the 1s delay.
 let intentionalPlay = false;
+// A seek made while the video is not playing. YT plays a video that has not
+// started yet when it is seeked — dragging the row on a freshly opened page
+// started playback, which the state handler then read as someone reaching for
+// the iframe and warmed up into playing for real. So the play that a seek
+// provokes is claimed here and put straight back to paused.
+let seekWhilePaused = false;
 
 function setLoopActive(active) {
   activeLoop = active;
@@ -490,6 +496,12 @@ function onPlayerStateChange(e) {
   if (state !== -1) runPendingLoad();
 
   if (state === (window.YT && YT.PlayerState.PLAYING)) {
+    if (seekWhilePaused) {
+      seekWhilePaused = false;
+      player.pauseVideo();
+      updatePlayButton();
+      return;
+    }
     if (intentionalPlay) {
       intentionalPlay = false;
     } else {
@@ -559,6 +571,8 @@ function scheduleDelayedPlay() {
     playDelayTimeout = null;
     if (player && player.playVideo) {
       intentionalPlay = true;
+      // Playing now, on purpose: whatever a seek left armed no longer applies.
+      seekWhilePaused = false;
       player.playVideo();
       // Recorded here, at the moment playback actually begins, rather than when
       // it was requested: a warmup the user cancels never happened, and every
@@ -649,7 +663,10 @@ function startTimeLoop() {
     if (player && typeof player.getCurrentTime === 'function') {
       let t;
       try { t = player.getCurrentTime(); } catch (e) { t = 0; }
-      currentTimeEl.textContent = formatTime(t);
+      // The clock reads the player, except while a seek it has not caught up with
+      // is being held — the row is drawn where the hand left it, and a time
+      // reading somewhere else next to it says one of the two is wrong.
+      currentTimeEl.textContent = formatTime(pendingSeek ? pendingSeek.time : t);
       updateChordScroll(t);
       if (!loopWorker) enforceLoopEnd();
     }
@@ -1007,7 +1024,22 @@ function chordSlotWidth() {
 // re-reading the text. Editing works on that copy, and it can hold a chord with
 // no name yet — which the text deliberately does not — so adding and removing
 // must not go back to the text for the shape of what they have just changed.
+// The row is drawn again from the ground up on every edit, and replacing a
+// subtree that size makes the browser re-reckon where the page was: it re-anchors
+// its scroll and the page jumps, which under a hand tapping notes reads as the
+// board running away. So where the page was is put back, whatever the redraw did
+// to it. Only for a page the reader scrolled, not one the row is scrolling: the
+// row moves sideways by transform and never touches this.
 function renderChordStrip(fromCache) {
+  const scrollWas = window.scrollY;
+  try {
+    drawChordStrip(fromCache);
+  } finally {
+    if (window.scrollY !== scrollWas) window.scrollTo({ top: scrollWas, behavior: 'instant' });
+  }
+}
+
+function drawChordStrip(fromCache) {
   if (!currentVideoId) {
     chordSection.hidden = true;
     return;
@@ -1057,10 +1089,17 @@ function renderChordStrip(fromCache) {
   // row. Null when nothing in the sheet has a fingering — there is no music to
   // put on a staff then, and an empty one is height taken for nothing.
   const key = chordCache.key;
-  const staffReach = Chords.staffRange(bars, key);
+  // While editing the five lines are drawn whatever the sheet says, and held to
+  // the widest reach the board has needed: a row that grows as notes are tapped
+  // slides the board out from under the hand, which is the one thing it must not
+  // do while someone is writing on it.
+  const staffReach = holdStaffReach(Chords.staffRange(
+    bars, key, notePanelAt ? 'neck' : !chordEditor.hidden));
   // A tab row only where there are single notes to put on it: an empty one is
-  // height taken for nothing, and most sheets are chords alone.
-  const showTab = Chords.hasNotes(bars);
+  // height taken for nothing, and most sheets are chords alone. Editing keeps
+  // the room whatever the sheet holds — the row is where notes are about to be
+  // written, and one appearing under the first of them moves everything below.
+  const showTab = Chords.hasNotes(bars) || !chordEditor.hidden;
   // The clef is pinned to the foot of a bar, so it has to know how much of that
   // foot the tab row is taking. 2px is .chord-tab's own margin.
   chordViewport.style.setProperty('--tab-h', showTab ? `${Chords.tabHeight() + 2}px` : '0px');
@@ -1175,9 +1214,21 @@ function renderChordStrip(fromCache) {
         const at = wide ? (j * width) / bar.chords.length : cellX;
         cellX += weights[j] * slot;
         // Which of this stretch's notes is being edited, so the strip can mark it.
-        const sel = notePanelAt && notePanelAt.bar === i && notePanelAt.chord === j
-          ? noteSel : null;
-        return { x: at, name: chord.name, markers: chord.markers, notes: chord.notes, sel };
+        const here = notePanelAt && notePanelAt.bar === i && notePanelAt.chord === j;
+        const sel = here ? noteSel : null;
+        // Writing at the end marks nothing, and then nothing on screen says where
+        // the next tap goes. So the note it will follow is marked too, in its own
+        // way: what is written there yet is not this note but the one after it.
+        const after = here && noteSel === null && chord.notes && chord.notes.length
+          ? chord.notes.length - 1 : null;
+        // Nothing written here yet, and the board open on it: the first beat is
+        // where the next tap lands, and with no note to mark there would be
+        // nothing at all on screen saying which stretch is being written into.
+        const caret = here && !(chord.notes && chord.notes.length);
+        return {
+          x: at, name: chord.name, markers: chord.markers, notes: chord.notes,
+          sel, after, caret,
+        };
       });
       // A bar is four slots wide, so one slot is one beat — which is what the
       // notes inside a chord's stretch are placed by.
@@ -1242,7 +1293,7 @@ function addBar() {
   const cells = chordStrip.querySelectorAll('.chord-fields');
   const cell = cells[cells.length - 1];
   const box = cell && cell.querySelector('.chord-edit-box');
-  if (box) box.focus();
+  if (box) box.focus({ preventScroll: true });
 }
 
 function addBarButton() {
@@ -1393,7 +1444,17 @@ let chordDrag = null;     // { pointerId, fromX, baseX, moved }
 
 function settledTime(t) {
   if (!pendingSeek) return t;
-  if (performance.now() > pendingSeek.until || Math.abs(t - pendingSeek.time) < 0.3) {
+  // The player has arrived where it was sent.
+  if (Math.abs(t - pendingSeek.time) < 0.3) {
+    pendingSeek = null;
+    return t;
+  }
+  // The deadline is for a player that is running. One that has not been played
+  // yet reports 0 for as long as it stays stopped, and giving up on the seek then
+  // snaps the row back to the head of the track — the drag looks undone, until
+  // the video is played once and the clock starts telling the truth.
+  if (safeState() === (window.YT && YT.PlayerState.PLAYING)
+      && performance.now() > pendingSeek.until) {
     pendingSeek = null;
     return t;
   }
@@ -1438,8 +1499,14 @@ function seekFromStrip(x) {
   // seekTo while PLAYING bounces the player through BUFFERING back to PLAYING;
   // claim that as ours so the state handler doesn't read it as someone else
   // starting playback and pause it for the warm-up delay.
-  if (safeState() === (window.YT && YT.PlayerState.PLAYING)) intentionalPlay = true;
+  const playing = safeState() === (window.YT && YT.PlayerState.PLAYING);
+  if (playing) intentionalPlay = true;
+  else seekWhilePaused = true;
   player.seekTo(time, true);
+  // Paused before the seek means paused after it. Said twice — now and again on
+  // the PLAYING that may still arrive — since which of the two lands first is
+  // the player's business.
+  if (!playing && typeof player.pauseVideo === 'function') player.pauseVideo();
   pendingSeek = { time, until: performance.now() + SEEK_SETTLE_MS };
 }
 
@@ -1511,6 +1578,18 @@ chordStrip.addEventListener('click', e => {
     e.preventDefault();
     selectNote(Number(barEl.dataset.bar), Number(hit.dataset.chord), Number(hit.dataset.note));
     return;
+  }
+  // Anywhere else in a stretch's own width opens the board on it, at the place
+  // writing goes. It is the only way into a stretch with nothing in it: there is
+  // no note there to press.
+  const slot = e.target.closest('.staff-slot');
+  if (slot) {
+    const barEl = slot.closest('.chord-bar');
+    if (barEl) {
+      e.preventDefault();
+      openNotePanel(Number(barEl.dataset.bar), Number(slot.dataset.slot));
+      return;
+    }
   }
   // A shape in the strip is the other way in — the one a fingering is written
   // by, now that there is no box to type six frets into.
@@ -1873,6 +1952,24 @@ let notePanelAt = null;
 // The note being edited, or null while writing at the end. Clicking a note in
 // the strip is what puts one here.
 let noteSel = null;
+// The reach the staff is drawn to while the board is open, only ever widening.
+// A note higher than any before it grows the row once, on the tap that writes it,
+// rather than every tap re-measuring the sheet and moving the board.
+let staffHold = null;
+
+function holdStaffReach(reach) {
+  if (!notePanelAt) { staffHold = null; return reach; }
+  if (!reach) return staffHold;
+  if (staffHold) {
+    reach = {
+      top: Math.max(reach.top, staffHold.top),
+      bottom: Math.min(reach.bottom, staffHold.bottom),
+    };
+  }
+  staffHold = reach;
+  return reach;
+}
+
 let noteDur = 0.5;
 let noteDotted = false;
 // While on, a tap piles onto the last note instead of following it, which is how
@@ -1941,8 +2038,9 @@ function openChordShape(barIndex, chordIndex, shapeIndex) {
   // A chord written the old way has just become a stop, so the sheet is written
   // back; one already written as a stop has not changed and only needs drawing.
   if (old) commitNotes();
-  else renderNotePanel();
-  notePanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  else renderChordStrip(true);
+  markNoteSelection();
+  focusNotePanel();
 }
 
 // `Bb9:1.1.1.0..` → `Bb9 1/1+2/1+3/1+4/0:0`: the same six frets, written as the
@@ -1980,8 +2078,49 @@ function openNotePanel(barIndex, chordIndex) {
   notePanelAt = { bar: barIndex, chord: chordIndex };
   noteSel = null;
   noteBreak = false;
-  renderNotePanel();
-  notePanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // Through the strip rather than the panel alone: what is being written into is
+  // marked in the strip, and a panel drawn without it says the caret is nowhere.
+  renderChordStrip(true);
+  markNoteSelection();
+  focusNotePanel();
+}
+
+// The board takes the keyboard when it opens. The sheet box holds focus from the
+// moment the editor does, and every button here stops itself taking it away — so
+// ← → and the duration keys were being typed into the text instead of moving the
+// caret on the board. Focused without scrolling: the row is not to move under a
+// hand that is writing on it.
+// Moving the caret marks a different note and nothing else, so the mark is moved
+// where it is drawn instead of the row being drawn again. Rebuilding the row for
+// a caret step took the page with it: the browser re-anchors its scroll when a
+// subtree that size is replaced, and the page jumped every ← →.
+function markNoteSelection() {
+  const notes = noteEntries();
+  const after = noteSel === null && notes.length ? notes.length - 1 : null;
+  for (const hit of chordStrip.querySelectorAll('.staff-hit')) {
+    const barEl = hit.closest('.chord-bar');
+    const here = !!notePanelAt && !!barEl
+      && Number(barEl.dataset.bar) === notePanelAt.bar
+      && Number(hit.dataset.chord) === notePanelAt.chord;
+    const index = Number(hit.dataset.note);
+    hit.classList.toggle('on', here && index === noteSel);
+    hit.classList.toggle('after', here && index === after);
+  }
+  // And the mark for a stretch with nothing in it, which is where writing starts
+  // when there is no note to write after.
+  for (const caret of chordStrip.querySelectorAll('.staff-caret')) {
+    const barEl = caret.closest('.chord-bar');
+    const on = !notes.length && !!notePanelAt && !!barEl
+      && Number(barEl.dataset.bar) === notePanelAt.bar
+      && Number(caret.dataset.caret) === notePanelAt.chord;
+    caret.classList.toggle('on', on);
+  }
+}
+
+function focusNotePanel() {
+  if (!notePanel || notePanel.hidden) return;
+  notePanel.setAttribute('tabindex', '-1');
+  notePanel.focus({ preventScroll: true });
 }
 
 function closeNotePanel() {
@@ -2069,6 +2208,7 @@ function breakChord() {
   noteSel = null;
   noteBreak = true;
   renderNotePanel();
+  markNoteSelection();
 }
 
 // Rest and tie do the same double duty as the board: they turn the selected note
@@ -2128,13 +2268,48 @@ function deleteNote() {
 
 // Walking the selection. Off either end lands back on writing at the end, which
 // is the state the panel opens in.
-function stepNote(by) {
+// Every stretch in the sheet in playing order, as the pair of indexes the panel
+// holds. What ← → walk along once they reach the end of the one they are in: a
+// phrase is written across bars, and a caret that stops at the bar line leaves
+// the next bar reachable only by going back to the mouse.
+function noteStretchList() {
+  const out = [];
+  (chordCache.bars || []).forEach((bar, bi) => {
+    bar.chords.forEach((chord, ci) => out.push({ bar: bi, chord: ci }));
+  });
+  return out;
+}
+
+// Along to the next stretch, or back to the one before, landing at whichever end
+// of it the caret arrived from: going right, its first note — or its own writing
+// place, if nothing is written in it yet — and going left, the place after its
+// last note.
+function moveNoteStretch(by) {
+  if (!notePanelAt) return false;
+  const list = noteStretchList();
+  const from = list.findIndex(s => s.bar === notePanelAt.bar && s.chord === notePanelAt.chord);
+  const to = from < 0 ? null : list[from + (by > 0 ? 1 : -1)];
+  if (!to) return false;
+  notePanelAt = { bar: to.bar, chord: to.chord };
   const notes = noteEntries();
-  if (!notes.length) return;
+  noteSel = by > 0 && notes.length ? 0 : null;
+  return true;
+}
+
+// A stretch holds a place per note, plus the place after the last one where
+// writing goes — which is what null is, and what an empty stretch has instead of
+// notes. Stepping off either end of that walks into the next stretch.
+function stepNote(by) {
+  if (!notePanelAt) return;
   noteBreak = false;
-  const at = noteSel !== null ? noteSel + by : (by > 0 ? 0 : notes.length - 1);
-  noteSel = at < 0 || at >= notes.length ? null : at;
+  const notes = noteEntries();
+  const at = noteSel === null ? notes.length : noteSel;
+  const next = at + by;
+  if (next >= 0 && next < notes.length) noteSel = next;
+  else if (next === notes.length) noteSel = null;
+  else if (!moveNoteStretch(by)) return;
   renderNotePanel();
+  markNoteSelection();
 }
 
 // Clicking a note in the strip selects it — see the staff's own click handler.
@@ -2144,6 +2319,7 @@ function selectNote(barIndex, chordIndex, index) {
   notePanelAt = { bar: barIndex, chord: chordIndex };
   noteSel = same && noteSel === index ? null : index;
   renderNotePanel();
+  markNoteSelection();
 }
 
 function renderNotePanel() {
@@ -2276,7 +2452,7 @@ function renderNotePanel() {
   button(fixRow, '◀', 'Select the note before (←)', () => stepNote(-1));
   button(fixRow, '▶', 'Select the note after (→)', () => stepNote(1));
   button(fixRow, '▷▷|', 'Stop editing that note and write at the end (Esc)',
-    () => { noteSel = null; renderNotePanel(); }, !ev);
+    () => { noteSel = null; renderNotePanel(); markNoteSelection(); }, !ev);
   gap(fixRow);
   // The same again, whatever it is. A bar of one chord held while the tune moves
   // is the ordinary shape of a sheet, and tapping out its six strings a second
@@ -2423,7 +2599,7 @@ document.addEventListener('keydown', e => {
   else if (e.key === 's' || e.key === 'S') { noteStack = !noteStack; renderNotePanel(); }
   else if (e.key === 'Backspace' || e.key === 'Delete') deleteNote();
   else if (e.key === 'Escape') {
-    if (noteSel !== null) { noteSel = null; renderNotePanel(); }
+    if (noteSel !== null) { noteSel = null; renderNotePanel(); markNoteSelection(); }
     else closeNotePanel();
   } else return;
   e.preventDefault();
@@ -2625,7 +2801,7 @@ function focusChordCell(barIndex, chordIndex) {
   );
   const input = cell && cell.querySelector('.chord-edit-box');
   if (!input) return;
-  input.focus();
+  input.focus({ preventScroll: true });
   input.select();
 }
 
@@ -2647,8 +2823,7 @@ function openChordEditor(focusInput) {
   renderChordStrip();
   chordInput.value = getSheet(currentVideoId);
   renderChordRevisions();
-  if (focusInput !== false) chordInput.focus();
-  chordSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  if (focusInput !== false) chordInput.focus({ preventScroll: true });
 }
 
 // With the editor open the strip is a form: every chord is the pair of boxes it

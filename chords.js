@@ -1024,8 +1024,36 @@ const Chords = (() => {
   // the same reach, so the five lines meet across the sheet rather than
   // stepping up and down with whatever each bar happens to hold. The signature
   // counts too: a sharp sits above the top line and would be cropped otherwise.
-  function staffRange(bars, key) {
-    let top = TOP_LINE, bottom = BOTTOM_LINE, any = false;
+  // How far the staff has to reach to hold anything the neck can play. What the
+  // board reserves while notes are being tapped: measured from the sheet, the
+  // staff grows the first time a note goes higher than any before it, and the
+  // row growing slides the board out from under the hand writing on it.
+  let neckReach = null;
+  function neckRange(key) {
+    const name = key ? key.name || '' : '';
+    if (neckReach && neckReach.for === name) return neckReach;
+    let top = TOP_LINE, bottom = BOTTOM_LINE;
+    for (let string = 1; string <= 6; string++) {
+      for (let fret = 0; fret <= BOARD_FRETS; fret++) {
+        const { step } = stopNote({ string, fret }, '', key);
+        top = Math.max(top, step);
+        bottom = Math.min(bottom, step);
+      }
+    }
+    neckReach = { for: name, top, bottom };
+    return neckReach;
+  }
+
+  // `floor` draws the bare five lines whatever the sheet holds, for editing: a
+  // staff appearing the moment the first note lands moves everything under it.
+  // `'neck'` reserves the whole neck's reach, so tapping notes never moves it.
+  function staffRange(bars, key, floor) {
+    let top = TOP_LINE, bottom = BOTTOM_LINE, any = !!floor;
+    if (floor === 'neck') {
+      const neck = neckRange(key);
+      top = neck.top;
+      bottom = neck.bottom;
+    }
     const reach = step => {
       top = Math.max(top, step);
       bottom = Math.min(bottom, step);
@@ -1191,12 +1219,63 @@ const Chords = (() => {
   function addNoteHits(add, hits, height) {
     for (const hit of hits) {
       const box = add('rect', {
-        class: 'staff-hit' + (hit.on ? ' on' : ''), x: hit.x - 13, y: 0,
+        class: 'staff-hit' + (hit.on ? ' on' : '') + (hit.after ? ' after' : ''),
+        x: hit.x - 13, y: 0,
         width: 26, height, rx: 4, fill: 'transparent',
       });
       box.dataset.chord = String(hit.chord);
       box.dataset.note = String(hit.note);
     }
+  }
+
+  // More written than the bar has room for: the spacing is squeezed until the
+  // last note lands inside the bar rather than past its end, where the next bar
+  // is already drawn. Measured per stretch — each starts at its own place in the
+  // bar — and the tightest of them sets the pace for the whole bar, so the staff
+  // and the tab under it stay note for note above one another.
+  function beatFit(items, width, beat) {
+    let scale = 1;
+    for (const item of items) {
+      if (!item.notes || !item.notes.length) continue;
+      const { length } = noteBeats(item.notes);
+      if (length <= 0) continue;
+      const room = width - (item.x + NOTE_INSET) - NOTE_RX * 2;
+      if (room <= 0) continue;
+      scale = Math.min(scale, room / (length * beat));
+    }
+    // Never wider than the beat it was given: a bar with room to spare keeps the
+    // even pace it shares with every other bar in the row.
+    return Math.max(Math.min(scale, 1), 0.05);
+  }
+
+  // Somewhere to press in a stretch, under everything drawn in it: the width it
+  // holds in the bar. Pressing an empty stretch is how the board is opened on
+  // one — it has no note to press and no shape either, and the ♪ in the cell
+  // above is a long way from the staff being read.
+  function addSlots(add, items, width, height) {
+    items.forEach((item, index) => {
+      const next = items[index + 1];
+      const to = next ? next.x : width;
+      const box = add('rect', {
+        class: 'staff-slot', x: item.x, y: 0,
+        width: Math.max(0, to - item.x), height, fill: 'transparent',
+      });
+      box.dataset.slot = String(index);
+    });
+  }
+
+  // Where writing starts in a stretch with nothing written in it. One is drawn
+  // for every stretch and lit for the one the board is open on, so the mark can
+  // be moved by turning a class on and off instead of drawing the row again.
+  function addCarets(add, items, height) {
+    items.forEach((item, index) => {
+      const box = add('rect', {
+        class: 'staff-caret' + (item.caret ? ' on' : ''),
+        x: item.x + NOTE_INSET - 13, y: 0, width: 26, height, rx: 4,
+        fill: 'none', 'pointer-events': 'none',
+      });
+      box.dataset.caret = String(index);
+    });
   }
 
   function staffBar(items, width, range, key, mode, beatWidth) {
@@ -1207,7 +1286,8 @@ const Chords = (() => {
       return empty;
     }
     const { svg, add, y } = staffCanvas(width, range);
-    const beat = beatWidth || width / BEATS_PER_BAR;
+    const paced = beatWidth || width / BEATS_PER_BAR;
+    const beat = paced * beatFit(items, width, paced);
 
     // The names, over the beats they start on. A chord held across two beats is
     // written once and read as still sounding — repeating it says it was struck
@@ -1351,7 +1431,7 @@ const Chords = (() => {
         const tips = [];
 
         for (const h of heads) {
-          hits.push({ x: h.x, chord: itemIndex, note: h.p.index, on: item.sel === h.p.index });
+          hits.push({ x: h.x, chord: itemIndex, note: h.p.index, on: item.sel === h.p.index , after: item.after === (h.p.index) });
           if (h.p.ev.rest) { drawRest(add, h.x, y(MID_LINE), h.p.ev.d); continue; }
           // A tie with nothing in front of it — the first thing in a sheet, or
           // after the note it meant to hold was deleted — has nothing to say.
@@ -1433,6 +1513,8 @@ const Chords = (() => {
       }
     }
 
+    addSlots(add, items, width, Number(svg.getAttribute('height')) || 0);
+    addCarets(add, items, Number(svg.getAttribute('height')) || 0);
     addNoteHits(add, hits, Number(svg.getAttribute('height')) || 0);
 
     // Ties last, so an arc is never drawn under a head it has to clear. It
@@ -1469,7 +1551,8 @@ const Chords = (() => {
     for (let s = 1; s <= 6; s++) {
       add('line', { x1: 0, y1: y(s), x2: width, y2: y(s), stroke: '#4d4d4d', 'stroke-width': 1 });
     }
-    const beat = beatWidth || width / BEATS_PER_BAR;
+    const paced = beatWidth || width / BEATS_PER_BAR;
+    const beat = paced * beatFit(items, width, paced);
     let carried = null;
     const hits = [];
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
@@ -1480,7 +1563,7 @@ const Chords = (() => {
         const name = ruling[p.index] || 'C';
         const chord = parseChord(name);
         const x = item.x + NOTE_INSET + p.beat * beat;
-        hits.push({ x, chord: itemIndex, note: p.index, on: item.sel === p.index });
+        hits.push({ x, chord: itemIndex, note: p.index, on: item.sel === p.index , after: item.after === (p.index) });
         if (p.ev.rest) continue;
         const stops = p.ev.tie ? carried || [] : p.ev.stops;
         if (!stops.length) continue;
@@ -1509,6 +1592,8 @@ const Chords = (() => {
         carried = stops;
       }
     }
+    addSlots(add, items, width, h);
+    addCarets(add, items, h);
     addNoteHits(add, hits, h);
     return svg;
   }
