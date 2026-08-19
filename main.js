@@ -2200,20 +2200,46 @@ function toggleNoteDot() {
   renderNotePanel();
 }
 
-// Three of these in the time of two. A note already dotted gives the dot up:
-// one note is bent one way, and a dotted triplet is not something written here.
+// Three of these in the time of two. Three notes make a triplet, not one — a
+// lone third of a beat is nothing anyone plays — so this works on the selected
+// note and the two after it, the way it is done on paper: mark three, and they
+// now fill the time two of them used to. The rest of the bar moves up by the one
+// note's worth of time that buys, which is the point of writing it.
+// Pressing it again on any of the three undoes that group and nothing else.
+// A note already dotted gives the dot up: one note is bent one way, and a dotted
+// triplet is not something written here.
 function toggleNoteTriplet() {
   const ev = editingNote();
-  if (ev) {
-    const base = Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d;
-    ev.d = Chords.isTripletDur(ev.d) ? Chords.tripletBase(ev.d) : base * (2 / 3);
-    delete ev.free;
-    commitNotes();
+  if (!ev) {
+    noteTriplet = !noteTriplet;
+    if (noteTriplet) noteDotted = false;
+    renderNotePanel();
     return;
   }
-  noteTriplet = !noteTriplet;
-  if (noteTriplet) noteDotted = false;
-  renderNotePanel();
+  const notes = noteEntries();
+  const group = tripletGroup(notes, noteSel);
+  if (Chords.isTripletDur(ev.d)) {
+    for (const n of group) { n.d = Chords.tripletBase(n.d); delete n.free; }
+  } else {
+    const base = Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d;
+    for (const n of group) { n.d = base * (2 / 3); delete n.free; }
+  }
+  commitNotes();
+}
+
+// The three notes a triplet is made of. Going in, that is the selected note and
+// the two after it — and if the phrase ends before that, whatever there is, so
+// the last note of a bar can still be marked. Coming out, it is the three of the
+// run the selected note belongs to, counted from where that run starts: a run of
+// six is two triplets, and undoing one of them leaves the other alone.
+function tripletGroup(notes, at) {
+  const ev = notes[at];
+  if (!ev) return [];
+  if (!Chords.isTripletDur(ev.d)) return notes.slice(at, at + 3);
+  let from = at;
+  while (from > 0 && Chords.isTripletDur(notes[from - 1].d)) from--;
+  const start = from + Math.floor((at - from) / 3) * 3;
+  return notes.slice(start, start + 3);
 }
 
 function deleteNote() {
