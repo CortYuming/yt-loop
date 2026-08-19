@@ -715,6 +715,28 @@ const Chords = (() => {
   // information here beyond where the fingers go, so they give up their width
   // first and the labels inside the dots keep their size.
   const NS = 'http://www.w3.org/2000/svg';
+
+  // Every drawing here is the same two things: a box of a given size, and a way
+  // to put shapes in it. `parent` is for the odd group that holds a few of them
+  // together — everything else lands in the box itself.
+  function svgAdder(svg) {
+    return (tag, attrs, text, parent) => {
+      const el = document.createElementNS(NS, tag);
+      for (const k in attrs) el.setAttribute(k, String(attrs[k]));
+      if (text !== undefined) el.textContent = text;
+      (parent || svg).appendChild(el);
+      return el;
+    };
+  }
+
+  function svgCanvas(w, h, attrs) {
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', String(w));
+    svg.setAttribute('height', String(h));
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    for (const k in (attrs || {})) svg.setAttribute(k, String(attrs[k]));
+    return { svg, add: svgAdder(svg) };
+  }
   const BOARD_W = 110, CELL_H = 20, PAD_L = 20, PAD_T = 14, DOT_R = 8.8;
   // Open and muted strings live in the gutter left of the nut; the marks there
   // have to clear the left edge, so the dot's own radius sets the offset.
@@ -770,12 +792,12 @@ const Chords = (() => {
   // suggestion only: a shape that will not sit in that window keeps the tight
   // one it has always had rather than being drawn off the edge of its board.
   function diagram(markers, chordName, mode, key, windowFrom) {
-    const svg = document.createElementNS(NS, 'svg');
     const picked = markers ? markers.filter(f => f !== null) : [];
     if (!picked.length) {
-      svg.setAttribute('width', '0');
-      svg.setAttribute('height', '0');
-      return svg;
+      const empty = document.createElementNS(NS, 'svg');
+      empty.setAttribute('width', '0');
+      empty.setAttribute('height', '0');
+      return empty;
     }
     const chord = parseChord(chordName);
     const fretted = picked.filter(f => f > 0);
@@ -788,19 +810,8 @@ const Chords = (() => {
     const CELL_W = BOARD_W / cols;
     const w = PAD_L + BOARD_W + 4;
     const h = PAD_T + 6 * CELL_H + 2;
-    svg.setAttribute('width', String(w));
-    svg.setAttribute('height', String(h));
-    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', `${chordName} fingering`);
-
-    const add = (tag, attrs, text) => {
-      const el = document.createElementNS(NS, tag);
-      for (const k in attrs) el.setAttribute(k, String(attrs[k]));
-      if (text !== undefined) el.textContent = text;
-      svg.appendChild(el);
-      return el;
-    };
+    const { svg, add } = svgCanvas(w, h,
+      { role: 'img', 'aria-label': `${chordName} fingering` });
 
     // Where on the neck this is. The number used to sit over the window's left
     // edge, which is an address the neck itself does not mark — finding it means
@@ -1041,22 +1052,11 @@ const Chords = (() => {
   // the height of a given place. Every stretch is measured from the same reach,
   // which is what makes them line up when they are butted together.
   function staffCanvas(width, range) {
-    const svg = document.createElementNS(NS, 'svg');
     const yBottom = NAME_BAND + STAFF_PAD + (range.top - BOTTOM_LINE) * HALF;
     const h = yBottom + (BOTTOM_LINE - range.bottom) * HALF + STAFF_PAD;
     const y = step => yBottom - (step - BOTTOM_LINE) * HALF;
 
-    svg.setAttribute('width', String(width));
-    svg.setAttribute('height', String(h));
-    svg.setAttribute('viewBox', `0 0 ${width} ${h}`);
-    svg.setAttribute('aria-hidden', 'true');
-    const add = (tag, attrs, text) => {
-      const el = document.createElementNS(NS, tag);
-      for (const k in attrs) el.setAttribute(k, String(attrs[k]));
-      if (text !== undefined) el.textContent = text;
-      svg.appendChild(el);
-      return el;
-    };
+    const { svg, add } = svgCanvas(width, h, { 'aria-hidden': 'true' });
     for (let s = BOTTOM_LINE; s <= TOP_LINE; s += 2) {
       add('line', {
         x1: 0, y1: y(s), x2: width, y2: y(s), stroke: '#4d4d4d', 'stroke-width': 1,
@@ -1183,6 +1183,22 @@ const Chords = (() => {
   // Every altered note carries its own sign even though the signature says so
   // too: the row scrolls, and a signature that has slid off the left is no help
   // reading what is under the playhead now.
+  // The notes are clickable, which is how one is picked out for editing. The
+  // whole column counts, not just the head: at this size a note head is a 12px
+  // target and the fret number under it is another, while what the eye is
+  // aiming at is the moment they share. The staff and the tab beneath it are
+  // two views of the same moments, so they are covered the same way.
+  function addNoteHits(add, hits, height) {
+    for (const hit of hits) {
+      const box = add('rect', {
+        class: 'staff-hit' + (hit.on ? ' on' : ''), x: hit.x - 13, y: 0,
+        width: 26, height, rx: 4, fill: 'transparent',
+      });
+      box.dataset.chord = String(hit.chord);
+      box.dataset.note = String(hit.note);
+    }
+  }
+
   function staffBar(items, width, range, key, mode, beatWidth) {
     if (!range || width <= 0) {
       const empty = document.createElementNS(NS, 'svg');
@@ -1417,19 +1433,7 @@ const Chords = (() => {
       }
     }
 
-    // The notes are clickable, which is how one is picked out for editing. The
-    // whole column counts, not just the head: at this size a note head is a
-    // 12px target and the fret number under it is another, while what the eye
-    // is aiming at is the moment they share.
-    const fullHeight = Number(svg.getAttribute('height')) || 0;
-    for (const hit of hits) {
-      const box = add('rect', {
-        class: 'staff-hit' + (hit.on ? ' on' : ''), x: hit.x - 13, y: 0,
-        width: 26, height: fullHeight, rx: 4, fill: 'transparent',
-      });
-      box.dataset.chord = String(hit.chord);
-      box.dataset.note = String(hit.note);
-    }
+    addNoteHits(add, hits, Number(svg.getAttribute('height')) || 0);
 
     // Ties last, so an arc is never drawn under a head it has to clear. It
     // curves away from the stems, which is the side engraving puts it on.
@@ -1458,20 +1462,9 @@ const Chords = (() => {
   }
 
   function tabBar(items, width, key, mode, beatWidth) {
-    const svg = document.createElementNS(NS, 'svg');
     const h = tabHeight();
-    svg.setAttribute('width', String(Math.max(0, width)));
-    svg.setAttribute('height', String(h));
-    svg.setAttribute('viewBox', `0 0 ${Math.max(0, width)} ${h}`);
-    svg.setAttribute('aria-hidden', 'true');
+    const { svg, add } = svgCanvas(Math.max(0, width), h, { 'aria-hidden': 'true' });
     if (width <= 0) return svg;
-    const add = (tag, attrs, text) => {
-      const el = document.createElementNS(NS, tag);
-      for (const k in attrs) el.setAttribute(k, String(attrs[k]));
-      if (text !== undefined) el.textContent = text;
-      svg.appendChild(el);
-      return el;
-    };
     const y = string => TAB_PAD + (string - 1) * TAB_SP;   // the 1st string on top
     for (let s = 1; s <= 6; s++) {
       add('line', { x1: 0, y1: y(s), x2: width, y2: y(s), stroke: '#4d4d4d', 'stroke-width': 1 });
@@ -1516,14 +1509,7 @@ const Chords = (() => {
         carried = stops;
       }
     }
-    for (const hit of hits) {
-      const box = add('rect', {
-        class: 'staff-hit' + (hit.on ? ' on' : ''), x: hit.x - 13, y: 0,
-        width: 26, height: h, rx: 4, fill: 'transparent',
-      });
-      box.dataset.chord = String(hit.chord);
-      box.dataset.note = String(hit.note);
-    }
+    addNoteHits(add, hits, h);
     return svg;
   }
 
@@ -1540,17 +1526,7 @@ const Chords = (() => {
   // showing a blank box is a button nobody can read.
   function noteGlyph(d, dotted, scale) {
     const k = scale || 1, w = 30 * k, h = 44 * k;
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('width', String(w));
-    svg.setAttribute('height', String(h));
-    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    svg.setAttribute('aria-hidden', 'true');
-    const add = (tag, attrs) => {
-      const el = document.createElementNS(NS, tag);
-      for (const key in attrs) el.setAttribute(key, String(attrs[key]));
-      svg.appendChild(el);
-      return el;
-    };
+    const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
     const cx = 11 * k, cy = 32 * k, rx = 7 * k, ry = 5.2 * k;
     const hollow = d >= 2;
     add('ellipse', {
@@ -1577,17 +1553,7 @@ const Chords = (() => {
   // of buttons keeps one baseline.
   function chordGlyph(scale) {
     const k = scale || 1, w = 30 * k, h = 44 * k;
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('width', String(w));
-    svg.setAttribute('height', String(h));
-    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    svg.setAttribute('aria-hidden', 'true');
-    const add = (tag, attrs) => {
-      const el = document.createElementNS(NS, tag);
-      for (const key in attrs) el.setAttribute(key, String(attrs[key]));
-      svg.appendChild(el);
-      return el;
-    };
+    const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
     const cx = 10 * k, rx = 5.2 * k, ry = 3.4 * k;
     // Further apart than the thirds a staff would stack them in, and drawn
     // smaller: at this size touching heads read as one blob, not three notes.
@@ -1614,12 +1580,7 @@ const Chords = (() => {
     const k = scale || 1;
     const svg = chordGlyph(k);
     const w = Number(svg.getAttribute('width'));
-    const add = (tag, attrs) => {
-      const el = document.createElementNS(NS, tag);
-      for (const key in attrs) el.setAttribute(key, String(attrs[key]));
-      svg.appendChild(el);
-      return el;
-    };
+    const add = svgAdder(svg);
     const x = w - 5 * k, y = 13 * k, r = 4 * k;
     add('line', { x1: x - r, y1: y, x2: x + r, y2: y,
       stroke: 'currentColor', 'stroke-width': 2 * k, 'stroke-linecap': 'round' });
@@ -1630,28 +1591,11 @@ const Chords = (() => {
 
   function restGlyph(d, scale) {
     const k = scale || 1, w = 26 * k, h = 44 * k;
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('width', String(w));
-    svg.setAttribute('height', String(h));
-    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    svg.setAttribute('aria-hidden', 'true');
-    const add = (tag, attrs) => {
-      const el = document.createElementNS(NS, tag);
-      for (const key in attrs) el.setAttribute(key, String(attrs[key]));
-      svg.appendChild(el);
-      return el;
-    };
+    const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
     // drawRest works in staff spaces, so the glyph is drawn at the middle of a
     // box that size and scaled to the button.
-    const g = document.createElementNS(NS, 'g');
-    g.setAttribute('transform', `translate(${13 * k} ${22 * k}) scale(${1.15 * k})`);
-    svg.appendChild(g);
-    const addIn = (tag, attrs) => {
-      const el = document.createElementNS(NS, tag);
-      for (const key in attrs) el.setAttribute(key, String(attrs[key]));
-      g.appendChild(el);
-      return el;
-    };
+    const g = add('g', { transform: `translate(${13 * k} ${22 * k}) scale(${1.15 * k})` });
+    const addIn = (tag, attrs) => add(tag, attrs, undefined, g);
     drawRest(addIn, 0, 0, d, 'currentColor');
     return svg;
   }
@@ -1668,17 +1612,7 @@ const Chords = (() => {
     const chord = parseChord(chordName || 'C');
     const w = BOARD_PAD_L + (BOARD_FRETS + 1) * BOARD_FW + 8;
     const h = BOARD_PAD_T + 6 * BOARD_FH + 6;
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('width', String(w));
-    svg.setAttribute('height', String(h));
-    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    const add = (tag, attrs, text, parent) => {
-      const el = document.createElementNS(NS, tag);
-      for (const k in attrs) el.setAttribute(k, String(attrs[k]));
-      if (text !== undefined) el.textContent = text;
-      (parent || svg).appendChild(el);
-      return el;
-    };
+    const { svg, add } = svgCanvas(w, h);
     const cx = f => BOARD_PAD_L + (f === 0 ? BOARD_FW * 0.5 : BOARD_FW * (f + 0.5));
     const cy = s => BOARD_PAD_T + (s - 1) * BOARD_FH + BOARD_FH / 2;
 

@@ -1748,23 +1748,34 @@ function renderChordFields(chord, barIndex, chordIndex, windowFrom) {
   return box;
 }
 
+// A button that acts on the sheet rather than takes you somewhere. It never
+// takes focus: that would blur an open chord box, which writes the sheet back
+// and can redraw the strip out from under the click still in flight. `content`
+// is a string or a drawing — several of these wear what they write. `stop`
+// keeps the click off the cell underneath, which has a mind of its own.
+function toolButton(cls, content, title, run, stop) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = cls;
+  b.title = title;
+  if (typeof content === 'string') b.textContent = content;
+  else b.appendChild(content);
+  b.addEventListener('mousedown', e => e.preventDefault());
+  b.addEventListener('click', e => {
+    e.preventDefault();
+    if (stop) e.stopPropagation();
+    run();
+  });
+  return b;
+}
+
 // Add before, add after, remove, and a way out to the viewer — the last of
 // which the cell used to be, before it became something you type in.
 function chordOps(barIndex, chordIndex, chord) {
   const ops = document.createElement('div');
   ops.className = 'chord-ops';
-  const button = (text, title, run) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'chord-op';
-    b.textContent = text;
-    b.title = title;
-    // Taking focus would blur the box, which writes the sheet back and can
-    // redraw the strip out from under the click that is still in flight.
-    b.addEventListener('mousedown', e => e.preventDefault());
-    b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); run(); });
-    ops.appendChild(b);
-  };
+  const button = (text, title, run) =>
+    ops.appendChild(toolButton('chord-op', text, title, run, true));
   // Laid out as the sheet reads: the arrows point at the gaps they fill, and
   // remove sits between them where the chord itself is. A run of the same chord
   // is the common shape of a bar — one voicing held while the tune moves — so
@@ -2205,20 +2216,9 @@ function renderNotePanel() {
     rows.appendChild(r);
     return r;
   };
-  const button = (into, content, title, run, on, cls) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'note-tool' + (cls ? ` ${cls}` : '') + (on ? ' on' : '');
-    b.title = title;
-    if (typeof content === 'string') b.textContent = content;
-    else b.appendChild(content);
-    // Taking focus would blur an open chord box, which writes the sheet back and
-    // redraws the strip out from under the click that is still in flight.
-    b.addEventListener('mousedown', e => e.preventDefault());
-    b.addEventListener('click', e => { e.preventDefault(); run(); });
-    into.appendChild(b);
-    return b;
-  };
+  const button = (into, content, title, run, on, cls) => into.appendChild(
+    toolButton('note-tool' + (cls ? ` ${cls}` : '') + (on ? ' on' : ''),
+      content, title, run));
   const gap = into => {
     const d = document.createElement('span');
     d.className = 'note-tool-gap';
