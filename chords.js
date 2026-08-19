@@ -332,7 +332,10 @@ const Chords = (() => {
   // stacked up from the start of the chord's stretch. Typing both is typing the
   // same thing twice, and the two disagree the moment a duration is changed.
   const DUR_BY_TEXT = { 1: 4, 2: 2, 4: 1, 8: 0.5, 16: 0.25, 32: 0.125 };
-  const NOTE_TOKEN = /^(?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*|r|_)(?::\d{1,2}\.?)?$/;
+  // A note, the name of the chord it starts if it starts one, and how long it is:
+  // `1/5+2/6+3/9(Eb9):4`. The name belongs to the stop rather than to a stretch of
+  // the bar, so a chord can begin wherever a note does.
+  const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*)|r|_)(?:\(([^)]*)\))?(?::(\d{1,2}\.?))?$/;
   // Long enough to be the whole of a bar, short enough to still be a note.
   const DEFAULT_DUR = 0.5;
 
@@ -356,11 +359,17 @@ const Chords = (() => {
   // note carries over a bar line, since the tie is simply the first thing in
   // the next bar and the pitch is not written again.
   function parseNoteToken(token, lastDur) {
-    if (!NOTE_TOKEN.test(token)) return null;
-    const colon = token.indexOf(':');
-    const body = colon === -1 ? token : token.slice(0, colon);
-    const d = colon === -1 ? null : parseDur(token.slice(colon + 1));
-    if (colon !== -1 && d === null) return null;
+    const m = NOTE_TOKEN.exec(String(token));
+    if (!m) return null;
+    const [, body, named, durText] = m;
+    // `:0` is no length at all: the note sounds until the next one, the way a
+    // chord does. It says out loud what a bare stop can only say when it is
+    // alone in its stretch — see markFreeNotes — so a fingering keeps its
+    // meaning with a phrase written after it.
+    const free = durText === '0';
+    const written = durText !== undefined && !free;
+    const d = written ? parseDur(durText) : null;
+    if (written && d === null) return null;
     const dur = d !== null ? d : (lastDur !== null ? lastDur : DEFAULT_DUR);
     if (body === 'r') return { d: dur, rest: true, stops: [] };
     if (body === '_') return { d: dur, tie: true, stops: [] };
@@ -370,21 +379,73 @@ const Chords = (() => {
     });
     // A fret past the end of the neck is a typo, not a note.
     if (stops.some(st => st.fret > 22)) return null;
-    return { d: dur, stops };
+    // Whether the duration was written matters later — see markFreeNotes.
+    const ev = { d: dur, stops, noDur: !written && !free };
+    if (free) ev.free = true;
+    // A name on a rest or a tie has nothing to hold it, so only a struck note
+    // carries one.
+    const name = (named || '').trim();
+    if (name) ev.name = name;
+    return ev;
+  }
+
+  // The name in force at each note of a stretch. A name written on a note is a
+  // chord change there — the harmony from that note on — so what follows is read
+  // against it, and the stretch's own name rules only up to it.
+  function rulingNames(item) {
+    let ruling = (item && item.name) || '';
+    return ((item && item.notes) || []).map(ev => {
+      if (ev.name) ruling = ev.name;
+      return ruling;
+    });
   }
 
   // The notes of one chord's stretch as text, leaving out every duration that
   // repeats the one before it.
   function notesToText(notes) {
     let last = null;
+    // A stop left bare reads back as having no length only where it is the whole
+    // of the stretch — see markFreeNotes. Anywhere else a bare stop takes the
+    // duration of the run around it, so there the lack of one is written out.
+    const alone = (notes || []).length === 1;
     return (notes || []).map(ev => {
+      const body = (ev.tie ? '_'
+        : ev.rest ? 'r'
+        : ev.stops.map(st => `${st.string}/${st.fret}`).join('+'))
+        + (ev.name ? `(${ev.name})` : '');
+      // A note with no duration of its own goes back the way it came, and leaves
+      // the run's duration where it was for whatever follows.
+      if (ev.free) return alone ? body : `${body}:0`;
       const d = ev.d === last ? '' : `:${durText(ev.d) || '4'}`;
       last = ev.d;
-      const body = ev.tie ? '_'
-        : ev.rest ? 'r'
-        : ev.stops.map(st => `${st.string}/${st.fret}`).join('+');
       return body + d;
     }).join(' ');
+  }
+
+  // A stop with more than one string in it is a shape — the same thing a chord
+  // is, arrived at from the other side — so it is drawn the way a chord is, off
+  // markers built from the strings it names. Strings it does not name are not
+  // played and carry nothing.
+  function stopsToMarkers(stops) {
+    const markers = [null, null, null, null, null, null];
+    for (const st of stops || []) {
+      if (st.string >= 1 && st.string <= 6) markers[st.string - 1] = st.fret;
+    }
+    return markers;
+  }
+
+  // The shapes in a stretch, each with the beat it falls on: every event that
+  // strikes more than one string at once.
+  function stopShapes(notes, stretchName) {
+    const ruling = rulingNames({ name: stretchName, notes });
+    return noteBeats(notes).items
+      .filter(it => it.ev.stops && it.ev.stops.length > 1)
+      .map(it => ({
+        markers: stopsToMarkers(it.ev.stops), beat: it.beat, index: it.index,
+        // The name this shape is read against, and whether it is the shape that
+        // names it — a diagram writes its name only where the name changes.
+        name: ruling[it.index] || '', names: !!it.ev.name,
+      }));
   }
 
   // Where each note of a stretch begins, in beats from the start of it, and how
@@ -393,10 +454,27 @@ const Chords = (() => {
     let at = 0;
     const out = (notes || []).map((ev, index) => {
       const b = at;
-      at += ev.d;
+      at += ev.free ? 0 : ev.d;
       return { ev, beat: b, index };
     });
     return { items: out, length: at };
+  }
+
+  // A stretch holding one struck note with no duration written on it is read the
+  // way a chord is: sounding until the next one, with no note value of its own.
+  // That is what a fingering written as a stop means — `Bb9 1/1+2/1+3/1+4/0` is
+  // the chord, not a quarter of it — and it is drawn as a chord's notes are, as
+  // heads with no stem. Write a duration on it and it is a note again.
+  // Only when it is alone in the stretch: a stop in a run of eighths leaves its
+  // duration off in order to inherit the run's, which is the other and much more
+  // common reason one goes unwritten.
+  function markFreeNotes(bar) {
+    for (const chord of bar.chords) {
+      const notes = chord.notes;
+      if (notes && notes.length === 1 && notes[0].noDur && notes[0].stops.length) {
+        notes[0].free = true;
+      }
+    }
   }
 
   function parseBar(barText) {
@@ -417,7 +495,9 @@ const Chords = (() => {
       // ordinary thing to write down.
       const note = parseNoteToken(token, lastDur);
       if (note) {
-        lastDur = note.d;
+        // A note with no length of its own is not what the run is measured by:
+        // the eighths on either side of a chord are one run.
+        if (!note.free) lastDur = note.d;
         let target = bar.chords[bar.chords.length - 1];
         if (!target) { target = { name: '', markers: null }; bar.chords.push(target); }
         (target.notes = target.notes || []).push(note);
@@ -426,6 +506,7 @@ const Chords = (() => {
       const chord = parseChordToken(token);
       if (chord) bar.chords.push(chord);
     }
+    markFreeNotes(bar);
     return bar.chords.length ? bar : null;
   }
 
@@ -663,7 +744,13 @@ const Chords = (() => {
     const runs = [];
     let run = null;
     (bars || []).forEach((bar, b) => (bar.chords || []).forEach((chord, c) => {
-      const fretted = (chord.markers || []).filter(f => f !== null && f > 0);
+      // Shapes written as notes are drawn in the same row as the chords and read
+      // across it the same way, so they belong to the run whose window is being
+      // settled — leaving them out let a diagram beside one of them jump.
+      const fretted = [
+        ...(chord.markers || []),
+        ...stopShapes(chord.notes).flatMap(sh => sh.markers),
+      ].filter(f => f !== null && f > 0);
       if (!fretted.length) return;
       const lo = Math.min(...fretted), hi = Math.max(...fretted);
       if (!run || Math.max(run.hi, hi) - Math.min(run.lo, lo) + 1 > span) {
@@ -754,13 +841,12 @@ const Chords = (() => {
 
     markers.forEach((f, s) => {
       const y = PAD_T + s * CELL_H + CELL_H / 2;
-      if (f === null) {
-        add('text', {
-          x: GUTTER_X, y: y + 3, fill: '#666', 'font-size': 9,
-          'text-anchor': 'middle', 'font-family': 'sans-serif',
-        }, '×');
-        return;
-      }
+      // A string with no dot on it is a string not played, which is all the ×
+      // ever said. Saying it twice matters less than saying it the same way
+      // everywhere: a shape written as notes names the strings it strikes and
+      // nothing else, so marking the rest would put a × on the four idle strings
+      // of a double stop and call them muted, which is not what they are.
+      if (f === null) return;
       const label = dotLabel(s, f, chord, mode, key);
       const degree = colourDegree((OPEN_STRINGS[s] + f) % 12, chord, mode, key);
       const hue = degree === null ? '#4a7fff' : DEGREE_HUE[degree];
@@ -817,8 +903,11 @@ const Chords = (() => {
   // does not already say which chord it is drawing — the diagrams above carry
   // their own names, but by the time the eye is on the notes those are a row
   // away.
-  const NAME_BAND = SP * 1.6;
-  const NAME_SIZE = SP * 1.2;
+  // The band and the name in it are sized to the names in the diagram row above,
+  // so the same chord is the same size wherever the eye lands on it — the staff's
+  // own name was two thirds of that and read as a caption.
+  const NAME_BAND = SP * 2.1;
+  const NAME_SIZE = SP * 1.6;
   // Accidentals are the small print of a staff and were the first thing to go
   // unreadable, so they are sized against the staff rather than left at
   // whatever a note-sized glyph happens to be.
@@ -1110,14 +1199,23 @@ const Chords = (() => {
     // a new bar restates what it is playing, as printed music does.
     let held = null;
     for (const item of items) {
-      if (item.name === held) continue;
-      held = item.name;
-      if (!item.name) continue;
-      add('text', {
-        x: item.x + NOTE_INSET - NOTE_RX, y: NAME_BAND,
-        fill: '#ddd', 'font-size': NAME_SIZE, 'text-anchor': 'start',
-        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif', 'font-weight': 600,
-      }, displayName(item.name));
+      // A stretch names itself at its head; a note inside it that carries a name
+      // names itself where it falls, which is what a chord changing mid-stretch
+      // looks like on paper.
+      const marks = [{ x: item.x, name: item.name || '' }];
+      for (const p of noteBeats(item.notes).items) {
+        if (p.ev.name) marks.push({ x: item.x + p.beat * beat, name: p.ev.name });
+      }
+      for (const mark of marks) {
+        if (mark.name === held) continue;
+        held = mark.name;
+        if (!mark.name) continue;
+        add('text', {
+          x: mark.x + NOTE_INSET - NOTE_RX, y: NAME_BAND,
+          fill: '#ddd', 'font-size': NAME_SIZE, 'text-anchor': 'start',
+          'font-family': '-apple-system, BlinkMacSystemFont, sans-serif', 'font-weight': 600,
+        }, displayName(mark.name));
+      }
     }
 
     // Ledger lines are shared: two notes on the same line at the same place get
@@ -1189,6 +1287,9 @@ const Chords = (() => {
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
       const item = items[itemIndex];
       const chord = parseChord(item.name || 'C');
+      const ruling = rulingNames(item);
+      // Which chord a note is read against: the one in force where it falls.
+      const chordAt = index => parseChord(ruling[index] || 'C');
       if (!item.notes || !item.notes.length) {
         const { notes } = staffChord(item.name, item.markers, key);
         if (notes.length) {
@@ -1210,7 +1311,8 @@ const Chords = (() => {
         const sameBeat = last
           && Math.floor(from + last.items[last.items.length - 1].beat + 1e-6)
              === Math.floor(from + p.beat + 1e-6);
-        if (!p.ev.rest && p.ev.d < 1 && last && !last.rest && last.d === p.ev.d && sameBeat) {
+        if (!p.ev.rest && !p.ev.free && p.ev.d < 1
+            && last && !last.rest && last.d === p.ev.d && sameBeat) {
           last.items.push(p);
         } else {
           groups.push({ d: p.ev.d, rest: !!p.ev.rest, items: [p] });
@@ -1224,7 +1326,7 @@ const Chords = (() => {
         const heads = [];
         for (const p of grp.items) {
           const stops = p.ev.tie ? (carried && carried.stops) || [] : p.ev.stops;
-          const notes = stops.map(st => stopNote(st, item.name, key))
+          const notes = stops.map(st => stopNote(st, ruling[p.index] || item.name, key))
             .sort((a, b) => a.step - b.step);
           for (const n of notes) { sum += n.step; count++; }
           heads.push({ p, notes, x: item.x + NOTE_INSET + p.beat * beat });
@@ -1238,10 +1340,17 @@ const Chords = (() => {
           // A tie with nothing in front of it — the first thing in a sheet, or
           // after the note it meant to hold was deleted — has nothing to say.
           if (!h.notes.length) continue;
+          // No duration written, so nothing to draw one with: heads alone, which
+          // is how the chord this stands for has always been drawn.
+          if (h.p.ev.free) {
+            drawHeads(h.notes, h.x, chordAt(h.p.index), false, true);
+            carried = { x: h.x, stops: h.p.ev.stops };
+            continue;
+          }
           const hollow = h.p.ev.d >= 2;
           // A tied note is not struck again, so it carries no accidental of its
           // own: the sign in front of the note it continues still stands.
-          drawHeads(h.notes, h.x, chord, hollow, !h.p.ev.tie);
+          drawHeads(h.notes, h.x, chordAt(h.p.index), hollow, !h.p.ev.tie);
           if (h.p.ev.tie) {
             ties.push({
               from: carried ? carried.x : 0, to: h.x, step: h.notes[0].step, up,
@@ -1258,10 +1367,19 @@ const Chords = (() => {
             if (beamCount(h.p.ev.d)) tips.push({ x: sx, tip });
           }
           if (isDottedDur(h.p.ev.d)) {
-            add('circle', {
-              cx: h.x + NOTE_RX + 5, cy: y(hi) + (hi % 2 === 0 ? -HALF : 0), r: 1.9,
-              fill: '#dcdcdc',
-            });
+            // Every head in a chord takes a dot, the way printed music writes
+            // one: a single dot beside the top note said that note was dotted
+            // and left the rest of the chord looking as if it were not.
+            const taken = new Set();
+            for (const n of h.notes) {
+              // A dot sits in a space, so a head on a line puts its dot in the
+              // space above it.
+              let cy = y(n.step) + (n.step % 2 === 0 ? -HALF : 0);
+              // Two heads a second apart would otherwise both want that space.
+              while (taken.has(cy)) cy -= HALF * 2;
+              taken.add(cy);
+              add('circle', { cx: h.x + NOTE_RX + 5, cy, r: 1.9, fill: '#dcdcdc' });
+            }
           }
           carried = { x: h.x, stops: h.p.ev.tie ? (carried && carried.stops) || [] : h.p.ev.stops };
         }
@@ -1364,15 +1482,17 @@ const Chords = (() => {
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
       const item = items[itemIndex];
       if (!item.notes || !item.notes.length) continue;
-      const chord = parseChord(item.name || 'C');
+      const ruling = rulingNames(item);
       for (const p of noteBeats(item.notes).items) {
+        const name = ruling[p.index] || 'C';
+        const chord = parseChord(name);
         const x = item.x + NOTE_INSET + p.beat * beat;
         hits.push({ x, chord: itemIndex, note: p.index, on: item.sel === p.index });
         if (p.ev.rest) continue;
         const stops = p.ev.tie ? carried || [] : p.ev.stops;
         if (!stops.length) continue;
         for (const st of stops) {
-          const note = stopNote(st, item.name, key);
+          const note = stopNote(st, name, key);
           const degree = colourDegree(note.pc, chord, mode, key);
           const ink = degree === null ? '#dcdcdc' : DEGREE_HUE[degree];
           // A tied note is not struck again, so its number is not repeated: a
@@ -1449,6 +1569,62 @@ const Chords = (() => {
       }
     }
     if (dotted) add('circle', { cx: cx + rx + 5 * k, cy, r: 2.2 * k, fill: 'currentColor' });
+    return svg;
+  }
+
+  // Three notes struck at once on one stem — what stacking writes, and what a
+  // chord looks like on a staff. Drawn to the same box as noteGlyph so the row
+  // of buttons keeps one baseline.
+  function chordGlyph(scale) {
+    const k = scale || 1, w = 30 * k, h = 44 * k;
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', String(w));
+    svg.setAttribute('height', String(h));
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    svg.setAttribute('aria-hidden', 'true');
+    const add = (tag, attrs) => {
+      const el = document.createElementNS(NS, tag);
+      for (const key in attrs) el.setAttribute(key, String(attrs[key]));
+      svg.appendChild(el);
+      return el;
+    };
+    const cx = 10 * k, rx = 5.2 * k, ry = 3.4 * k;
+    // Further apart than the thirds a staff would stack them in, and drawn
+    // smaller: at this size touching heads read as one blob, not three notes.
+    const heads = [35, 24.5, 14].map(v => v * k);
+    for (const cy of heads) {
+      add('ellipse', {
+        cx, cy, rx, ry, transform: `rotate(-20 ${cx} ${cy})`,
+        fill: 'currentColor', stroke: 'currentColor', 'stroke-width': 1 * k,
+      });
+    }
+    // One stem for the lot of them: they are one event, not three in a row.
+    const sx = cx + rx * 0.92;
+    add('line', {
+      x1: sx, y1: heads[0], x2: sx, y2: 7 * k,
+      stroke: 'currentColor', 'stroke-width': 1.8 * k,
+    });
+    return svg;
+  }
+
+  // The same three notes with a plus beside them: the chord being tapped out is
+  // finished, and the next tap begins another. Built on chordGlyph so the pair
+  // read as one thing said twice — what stacking is, and what ends it.
+  function chordAddGlyph(scale) {
+    const k = scale || 1;
+    const svg = chordGlyph(k);
+    const w = Number(svg.getAttribute('width'));
+    const add = (tag, attrs) => {
+      const el = document.createElementNS(NS, tag);
+      for (const key in attrs) el.setAttribute(key, String(attrs[key]));
+      svg.appendChild(el);
+      return el;
+    };
+    const x = w - 5 * k, y = 13 * k, r = 4 * k;
+    add('line', { x1: x - r, y1: y, x2: x + r, y2: y,
+      stroke: 'currentColor', 'stroke-width': 2 * k, 'stroke-linecap': 'round' });
+    add('line', { x1: x, y1: y - r, x2: x, y2: y + r,
+      stroke: 'currentColor', 'stroke-width': 2 * k, 'stroke-linecap': 'round' });
     return svg;
   }
 
@@ -1562,6 +1738,8 @@ const Chords = (() => {
     staffRange, staffBar, staffHead, staffHeadWidth,
     // single notes
     parseNoteToken, parseDur, durText, notesToText, noteBeats, isDottedDur,
-    tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, beatWeights, BEATS_PER_BAR,
+    tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, chordAddGlyph, beatWeights,
+    BEATS_PER_BAR,
+    stopsToMarkers, stopShapes, rulingNames,
   };
 })();
