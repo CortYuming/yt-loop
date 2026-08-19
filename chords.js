@@ -1680,6 +1680,40 @@ const Chords = (() => {
     return svg;
   }
 
+  // The mark a triplet wears on a staff, drawn on its own: three stems under the
+  // beam their value carries, with the 3 over it. A value with no beam of its own
+  // — a quarter and up — is bracketed instead, which is how it is printed.
+  // What is drawn follows the value chosen, so the button says which triplet it
+  // is about to write rather than saying three.
+  function tripletGlyph(d, scale) {
+    const k = scale || 1, w = 30 * k, h = 26 * k;
+    const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
+    const left = 5 * k, right = 25 * k, top = 10 * k, foot = 23 * k;
+    const beams = beamCount(d);
+    for (const x of [left, (left + right) / 2, right]) {
+      add('line', { x1: x, y1: top, x2: x, y2: foot,
+        stroke: 'currentColor', 'stroke-width': 1.5 * k });
+    }
+    if (beams) {
+      for (let i = 0; i < beams; i++) {
+        add('line', { x1: left, y1: top + i * 5.5 * k, x2: right, y2: top + i * 5.5 * k,
+          stroke: 'currentColor', 'stroke-width': 2.2 * k });
+      }
+    } else {
+      // A bracket: the line the 3 sits on, hooked down at both ends.
+      add('path', {
+        d: `M${left} ${top + 6 * k} V${top} H${right} V${top + 6 * k}`,
+        fill: 'none', stroke: 'currentColor', 'stroke-width': 1.4 * k,
+      });
+    }
+    add('text', {
+      x: (left + right) / 2, y: 8 * k, fill: 'currentColor', 'font-size': 11 * k,
+      'text-anchor': 'middle', 'font-style': 'italic',
+      'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+    }, '3');
+    return svg;
+  }
+
   // Three notes struck at once on one stem — what stacking writes, and what a
   // chord looks like on a staff. Drawn to the same box as noteGlyph so the row
   // of buttons keeps one baseline.
@@ -1805,7 +1839,7 @@ const Chords = (() => {
     // single notes
     parseNoteToken, parseDur, durText, notesToText, noteBeats, isDottedDur,
     tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, chordAddGlyph, beatWeights,
-    isTripletDur, tripletBase,
+    isTripletDur, tripletBase, tripletGlyph,
     BEATS_PER_BAR,
     stopsToMarkers, stopShapes, rulingNames,
   };

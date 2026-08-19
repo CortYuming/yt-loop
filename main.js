@@ -2444,8 +2444,11 @@ function renderNotePanel() {
     + 'the way a chord is (key 0)',
     () => setNoteDur(NO_DUR), shown === NO_DUR, 'note-dur note-none');
   button(lengthRow, 'Dot', 'Half again as long (key .)', toggleNoteDot, shownDot);
-  button(lengthRow, '3', 'Triplet — three of these in the time of two (key ,)',
-    toggleNoteTriplet, shownTriplet);
+  // The mark itself rather than the number: three stems under the beam the chosen
+  // value carries, so the button changes with the value it is about to bend.
+  button(lengthRow, Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
+    'Triplet — three of these in the time of two (key ,)',
+    toggleNoteTriplet, shownTriplet, 'note-trip');
 
   // ---- what to write ----
   const writeRow = row('Write');

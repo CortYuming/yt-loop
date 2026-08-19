@@ -1107,6 +1107,11 @@ footer {
   padding: 3px 6px 0;
 }
 .note-tool.note-dur svg { display: block; margin: 0 auto; }
+/* The triplet mark, beside the dot rather than among the note values: it bends
+   whichever of them is chosen instead of being one. Sized to the glyph it holds
+   so it sits at the height of the buttons around it. */
+.note-tool.note-trip { padding: 3px 6px 2px; }
+.note-tool.note-trip svg { display: block; }
 .note-key {
   position: absolute;
   right: 3px;
