@@ -1646,8 +1646,16 @@ chordStrip.addEventListener('click', e => {
     const bar = Number(barEl.dataset.bar);
     const chord = Number(shut.dataset.chord);
     const note = Number(shut.dataset.note);
+    // Opening the editor puts the box and the versions list above the strip, and
+    // everything under them moves down by their height — the note just pressed
+    // included, which walks out from under the finger that pressed it. So the
+    // page is scrolled by however far the strip actually moved, leaving what was
+    // pressed where it was pressed.
+    const wasAt = chordViewport.getBoundingClientRect().top;
     openChordEditor(false);
     selectNote(bar, chord, note);
+    const moved = chordViewport.getBoundingClientRect().top - wasAt;
+    if (moved) window.scrollBy({ top: moved, behavior: 'instant' });
     focusNotePanel();
     return;
   }
