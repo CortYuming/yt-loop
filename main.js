@@ -2536,7 +2536,18 @@ function renderNotePanel() {
 
   const boardWrap = document.createElement('div');
   boardWrap.className = 'note-board';
-  boardWrap.appendChild(Chords.board(ruling, boardMode, currentChordKey()));
+  const boardSvg = Chords.board(ruling, boardMode, currentChordKey());
+  boardWrap.appendChild(boardSvg);
+  // Where the selected note is already stopped, marked on the neck. Reading the
+  // note back off the board is how you check what you wrote without playing it,
+  // and a stack shows every stop at once. Only what is selected is marked: with
+  // the caret at the end nothing is being edited, and marking the last note
+  // there would say a tap replaces it when a tap follows it.
+  for (const st of (ev && ev.stops) || []) {
+    const cell = boardSvg.querySelector(
+      `.board-cell[data-string="${st.string}"][data-fret="${st.fret}"]`);
+    if (cell) cell.classList.add('sel');
+  }
   // One listener for the whole neck: every cell says which string and fret it is.
   boardWrap.addEventListener('mousedown', e => e.preventDefault());
   boardWrap.addEventListener('click', e => {

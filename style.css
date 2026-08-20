@@ -1188,13 +1188,22 @@ footer {
   overflow-x: auto;
 }
 .note-board svg { display: block; }
-/* Every fret is a place to write a note. The dot is faint until the pointer is
-   on it — all 132 of them lit at once is a board nobody can read a shape off. */
+/* Every fret is a place to write a note. The dots are held back from full
+   strength so the pointer and the selection still have somewhere brighter to
+   go, but not so far back that the colours stop being readable at a glance. */
 .board-cell { cursor: pointer; }
-.board-dot { opacity: 0.13; }
-.board-cell[data-fret="0"] .board-dot { opacity: 0.2; }
+.board-dot { opacity: 0.5; }
+.board-cell[data-fret="0"] .board-dot { opacity: 0.5; }
+.board-label { fill: #e8e8e8; }
 .board-cell:hover .board-dot { opacity: 0.75; }
 .board-cell:hover .board-label { fill: #fff; }
+/* Where the note being edited is stopped, drawn on the neck. A white ring
+   around the dot rather than a brighter dot: the whole board is lit now, so
+   "one shade up" would read as a hover, and the ring leaves the degree colour
+   underneath it readable. After the hover rules, which it has to beat while
+   the pointer is on it. */
+.board-cell.sel .board-dot { opacity: 1; stroke: #fff; stroke-width: 2; }
+.board-cell.sel .board-label { fill: #fff; font-weight: 700; }
 
 /* A bar that isn't there yet, at the end of the row. Only up while editing. */
 .chord-add-bar {
