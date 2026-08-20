@@ -2604,7 +2604,10 @@ function renderNotePanel() {
     `${ev ? 'Give this note no length of its own' : 'No length'} — held until the next, `
     + 'the way a chord is (key 0)',
     () => setNoteDur(NO_DUR), shown === NO_DUR, 'note-dur note-none');
-  button(lengthRow, 'Dot', 'Half again as long (key .)', toggleNoteDot, shownDot);
+  // The mark rather than the word, as the rest of the row is: the dot beside a
+  // head, which is where it sits on a staff.
+  button(lengthRow, Chords.dotGlyph(0.8), 'Half again as long (key .)',
+    toggleNoteDot, shownDot, 'note-dur');
   // The mark itself rather than the number: three stems under the beam the chosen
   // value carries, so the button changes with the value it is about to bend.
   button(lengthRow, Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
@@ -2625,10 +2628,11 @@ function renderNotePanel() {
   button(writeRow, Chords.restGlyph(ev && !ev.free ? ev.d : restValue(), 0.8),
     `${ev ? 'Turn this note into a rest' : 'Rest, of the selected duration'} (key R)`,
     addNoteRest, false, 'note-dur');
-  button(writeRow, 'Tie',
+  // Two heads under one curve, which is what a tie is drawn as.
+  button(writeRow, Chords.tieGlyph(0.8),
     `${ev ? 'Turn this into a tie, holding the note before it on'
       : 'Hold the last note on for the selected duration'} (key T)`,
-    addNoteTie);
+    addNoteTie, false, 'note-dur');
   // Beside the rest and the tie, since all three are marks on a note rather than
   // lengths: what is written here is how the note is played, not how long it is.
   const graceBtn = button(writeRow, Chords.graceGlyph(1),

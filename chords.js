@@ -1981,6 +1981,31 @@ const Chords = (() => {
     return svg;
   }
 
+  // The mark on its own, without the note it is about: the button is pressed to
+  // add the dot, and drawing a head beside it says the head is what is being
+  // written. The row's heads are all in the duration buttons, where the choice
+  // between them is the point.
+  function dotGlyph(scale) {
+    const k = scale || 1, w = 30 * k, h = 44 * k;
+    const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
+    add('circle', { cx: w / 2, cy: h * 0.62, r: 3 * k, fill: 'currentColor' });
+    return svg;
+  }
+
+  // The curve on its own — what a tie is, drawn without the two notes it holds
+  // together, for the same reason the dot is drawn without its note.
+  function tieGlyph(scale) {
+    const k = scale || 1, w = 30 * k, h = 44 * k;
+    const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
+    const left = 5 * k, right = 25 * k, y = h * 0.66;
+    add('path', {
+      d: `M${left} ${y} q ${(right - left) / 2} ${-13 * k} ${right - left} 0`,
+      fill: 'none', stroke: 'currentColor', 'stroke-width': 2.2 * k,
+      'stroke-linecap': 'round',
+    });
+    return svg;
+  }
+
   // The mark a triplet wears on a staff, drawn on its own: three stems under the
   // beam their value carries, with the 3 over it. A value with no beam of its own
   // — a quarter and up — is bracketed instead, which is how it is printed.
@@ -2173,6 +2198,7 @@ const Chords = (() => {
     parseNoteToken, parseDur, durText, notesToText, noteBeats, isDottedDur,
     tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, beatWeights,
     isTripletDur, tripletBase, tripletGlyph, beamGlyph, graceGlyph,
+    dotGlyph, tieGlyph,
     BEATS_PER_BAR,
     stopsToMarkers, stopShapes, rulingNames,
   };
