@@ -894,6 +894,7 @@ const Chords = (() => {
       const open = f === 0;
       const cx = open ? GUTTER_X : PAD_L + (f - from) * CELL_W + CELL_W / 2;
       add('circle', {
+        class: 'diagram-dot',
         cx, cy: y, r: DOT_R,
         fill: open ? 'none' : hue,
         stroke: open ? hue : 'none', 'stroke-width': 1.5,
@@ -1663,6 +1664,7 @@ const Chords = (() => {
     for (const r of rows) {
       const fs = labelSize(r.label);
       add('circle', {
+        class: 'staff-label-dot',
         cx: r.x, cy: labelY(r.at, inkLow), r: LABEL_R,
         fill: r.hue === null ? '#5f5f5f' : DEGREE_HUE[r.hue],
       });

@@ -1197,6 +1197,14 @@ footer {
 .board-label { fill: #e8e8e8; }
 .board-cell:hover .board-dot { opacity: 0.75; }
 .board-cell:hover .board-label { fill: #fff; }
+/* The coloured dots elsewhere — the fingerings in the strip and the label row
+   over the single notes — are eased off a little: at full strength a row of
+   them is the loudest thing on the page, and what is being read there is the
+   music, not the colours. Held further back than that and the hues stop being
+   told apart, which is the whole of what they are for. The labels on them are
+   white and sit on top, so they stay legible either way. */
+.diagram-dot, .staff-label-dot { opacity: 0.8; }
+
 /* Where the note being edited is stopped, drawn on the neck. A white ring
    around the dot rather than a brighter dot: the whole board is lit now, so
    "one shade up" would read as a hover, and the ring leaves the degree colour
