@@ -348,7 +348,10 @@ const Chords = (() => {
   // run inside one beat is beamed, and a run across two is not — so the mark is
   // only ever there where the music is grouped against the beat, which is what
   // it is for.
-  const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*)|r|_)(?:\(([^)]*)\))?(?::(\d{1,2}[.t]?))?(-)?$/;
+  // A `*` after the stop is a grace note: struck just before the note it leans
+  // on and taking no time of its own from the bar, which is why it is written as
+  // a mark on the note rather than as a length.
+  const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*)|r|_)(?:\(([^)]*)\))?(\*)?(?::(\d{1,2}[.t]?))?(-)?$/;
   // Long enough to be the whole of a bar, short enough to still be a note.
   const DEFAULT_DUR = 0.5;
 
@@ -393,7 +396,7 @@ const Chords = (() => {
   function parseNoteToken(token, lastDur) {
     const m = NOTE_TOKEN.exec(String(token));
     if (!m) return null;
-    const [, body, named, durText, joined] = m;
+    const [, body, named, grace, durText, joined] = m;
     // `:0` is no length at all: the note sounds until the next one, the way a
     // chord does. It says out loud what a bare stop can only say when it is
     // alone in its stretch — see markFreeNotes — so a fingering keeps its
@@ -414,6 +417,9 @@ const Chords = (() => {
     // Whether the duration was written matters later — see markFreeNotes.
     const ev = { d: dur, stops, noDur: !written && !free };
     if (free) ev.free = true;
+    // A grace note leans on the note after it, so it is struck and has a value
+    // to be drawn with — never the lengthless state a fingering is written in.
+    if (grace && body !== 'r' && body !== '_') { ev.grace = true; delete ev.free; }
     // Beamed to the next note. Only a struck note carries it: a rest ends a beam
     // wherever it falls, and a tie is drawn as the note it holds on.
     if (joined) ev.beam = true;
@@ -453,6 +459,9 @@ const Chords = (() => {
       const join = ev.beam && !ev.rest && !ev.tie ? '-' : '';
       if (ev.free) return (alone ? body : `${body}:0`) + join;
       const d = ev.d === last ? '' : `:${durText(ev.d) || '4'}`;
+      // A grace note is not what the run around it is measured by, so it neither
+      // takes the run's duration nor leaves its own behind for the next note.
+      if (ev.grace) return `${body}*:${durText(ev.d) || '8'}`;
       last = ev.d;
       return body + d + join;
     }).join(' ');
@@ -490,9 +499,20 @@ const Chords = (() => {
     let at = 0;
     const out = (notes || []).map((ev, index) => {
       const b = at;
-      at += ev.free ? 0 : ev.d;
-      return { ev, beat: b, index };
+      // A grace note takes no time from the bar: it stands on the beat of the
+      // note it leans on, and is only drawn ahead of it — see `back`.
+      if (!ev.grace) at += ev.free ? 0 : ev.d;
+      return { ev, beat: b, index, back: 0 };
     });
+    // How far ahead of that beat each one is drawn, counted in grace steps: a
+    // run of them leans in order, the last of the run nearest the note.
+    for (let i = 0; i < out.length; i++) {
+      if (!out[i].ev.grace) continue;
+      let n = 1;
+      while (i + n < out.length && out[i + n].ev.grace) n++;
+      for (let k = 0; k < n; k++) out[i + k].back = n - k;
+      i += n - 1;
+    }
     return { items: out, length: at };
   }
 
@@ -533,7 +553,7 @@ const Chords = (() => {
       if (note) {
         // A note with no length of its own is not what the run is measured by:
         // the eighths on either side of a chord are one run.
-        if (!note.free) lastDur = note.d;
+        if (!note.free && !note.grace) lastDur = note.d;
         let target = bar.chords[bar.chords.length - 1];
         if (!target) { target = { name: '', markers: null }; bar.chords.push(target); }
         (target.notes = target.notes || []).push(note);
@@ -1247,6 +1267,11 @@ const Chords = (() => {
   // between two of them: thicker and a pair of sixteenth beams closes into one
   // block, which is exactly the eighth it has to be told apart from.
   const BEAM_W = SP * 0.34;
+  // A grace note is drawn small, which is how a note that takes no time from the
+  // bar is told apart from one that does, and it stands ahead of the note it
+  // leans on rather than on that note's own place.
+  const GRACE_K = 0.9;
+  const GRACE_STEP = SP * 2.1;
   const BEAM_GAP = SP * 0.72;
 
   // How many beams or flags a duration carries. A dotted note carries what the
@@ -1421,7 +1446,7 @@ const Chords = (() => {
     // Ledger lines are shared: two notes on the same line at the same place get
     // one line between them, not two on top of each other.
     const ledgers = new Set();
-    const ledger = (s, x) => {
+    const ledger = (s, x, k) => {
       const at = `${s}@${x}`;
       if (ledgers.has(at)) return;
       ledgers.add(at);
@@ -1430,8 +1455,9 @@ const Chords = (() => {
       // this size, one grey thread the width of the note head simply vanished
       // under it. Reaching well past the head on both sides is also what says
       // it is a line the note is on rather than a mark the note carries.
+      const rx = NOTE_RX * (k || 1);
       add('line', {
-        x1: x - NOTE_RX - 6, y1: y(s), x2: x + NOTE_RX + 6, y2: y(s),
+        x1: x - rx - 6 * (k || 1), y1: y(s), x2: x + rx + 6 * (k || 1), y2: y(s),
         stroke: '#8a8a8a', 'stroke-width': 1.4,
       });
     };
@@ -1474,26 +1500,30 @@ const Chords = (() => {
 
     // Heads of one event, spread the way engraving spreads a second, with the
     // accidentals in front of them.
-    const drawHeads = (notes, x, chord, hollow, signs) => {
+    // `k` is how big: 1 for the music, less for a grace note, which is drawn the
+    // same way in miniature.
+    const drawHeads = (notes, x, chord, hollow, signs, k) => {
+      const size = k || 1;
+      const rx = NOTE_RX * size, ry = NOTE_RY * size, sign = SIGN_SIZE * size;
       let prevStep = null, side = 0, lastSign = null;
       const placed = notes.map(n => {
         side = prevStep !== null && n.step - prevStep === 1 ? 1 - side : 0;
         prevStep = n.step;
-        return { n, x: x + side * NOTE_RX * 2 };
+        return { n, x: x + side * rx * 2 };
       });
       for (const { n, x: nx } of placed) {
-        for (let s = TOP_LINE + 2; s <= n.step; s += 2) ledger(s, nx);
-        for (let s = BOTTOM_LINE - 2; s >= n.step; s -= 2) ledger(s, nx);
+        for (let s = TOP_LINE + 2; s <= n.step; s += 2) ledger(s, nx, size);
+        for (let s = BOTTOM_LINE - 2; s >= n.step; s -= 2) ledger(s, nx, size);
         if (n.sign && signs) {
           // Two signs a step or two apart would collide, so the second of them
           // hangs further out.
           const near = lastSign !== null && n.step - lastSign <= 2;
           // A flat marks its pitch with the bowl at the bottom of the glyph, not
           // with its middle, so centring it on the note puts it a touch low.
-          const dy = n.sign === '♭' ? -SIGN_SIZE * 0.17 : 0;
+          const dy = n.sign === '♭' ? -sign * 0.17 : 0;
           add('text', {
-            x: nx - NOTE_RX - 4 - (near ? SIGN_SIZE * 0.62 : 0), y: y(n.step) + dy,
-            fill: '#9a9a9a', 'font-size': SIGN_SIZE, 'text-anchor': 'end',
+            x: nx - rx - 4 * size - (near ? sign * 0.62 : 0), y: y(n.step) + dy,
+            fill: '#9a9a9a', 'font-size': sign, 'text-anchor': 'end',
             'dominant-baseline': 'central',
             'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
           }, n.sign);
@@ -1503,12 +1533,12 @@ const Chords = (() => {
         // the two readings of one chord are tied together by colour.
         const degree = colourDegree(n.pc, chord, mode, key);
         const ink = degree === null ? '#dcdcdc' : DEGREE_HUE[degree];
-        inked(y(n.step) - NOTE_RY - 2);
-        inkedLow(y(n.step) + NOTE_RY + 2);
+        inked(y(n.step) - ry - 2);
+        inkedLow(y(n.step) + ry + 2);
         add('ellipse', {
-          cx: nx, cy: y(n.step), rx: NOTE_RX, ry: NOTE_RY,
+          cx: nx, cy: y(n.step), rx, ry,
           fill: hollow ? 'none' : ink,
-          stroke: hollow ? ink : 'none', 'stroke-width': 1.8,
+          stroke: hollow ? ink : 'none', 'stroke-width': 1.8 * size,
         });
       }
       return placed;
@@ -1530,6 +1560,33 @@ const Chords = (() => {
     // Which chord a note is read against: the one in force where it falls, kept
     // on the note, since a group can hold notes from either side of a cell edge.
     const chordAt = p => parseChord(p.ruling || 'C');
+    // A grace note: the same drawing in miniature, standing ahead of the note it
+    // leans on. The stem goes up whatever the pitch, as printed music writes it,
+    // and the stroke across the stem is what says the note is crushed against
+    // the one after it rather than played as a beat of its own.
+    const drawGrace = p => {
+      const notes = p.ev.stops.map(st => stopNote(st, p.ruling, key))
+        .sort((a, b) => a.step - b.step);
+      if (!notes.length) return;
+      drawHeads(notes, p.x, chordAt(p), false, true, GRACE_K);
+      const hi = notes[notes.length - 1].step, lo = notes[0].step;
+      const sx = p.x + NOTE_RX * GRACE_K;
+      const tip = y(hi) - STEM_LEN * GRACE_K;
+      add('line', {
+        x1: sx, y1: y(lo), x2: sx, y2: tip, stroke: '#dcdcdc', 'stroke-width': 1.4,
+      });
+      add('path', {
+        d: `M${sx} ${tip} q ${SP * 0.6} ${SP * 0.35} ${SP * 0.48} ${SP * 1.05}`,
+        fill: 'none', stroke: '#dcdcdc', 'stroke-width': BEAM_W * 0.7,
+      });
+      // The stroke is what the eye picks the note out by at this size, so it is
+      // drawn as heavily as the stem and reaches well past it on both sides.
+      add('line', {
+        x1: sx - SP * 0.7, y1: tip + SP * 1.15, x2: sx + SP * 0.7, y2: tip + SP * 0.05,
+        stroke: '#dcdcdc', 'stroke-width': 1.6,
+      });
+      inked(tip - 2);
+    };
 
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
       const item = items[itemIndex];
@@ -1551,6 +1608,9 @@ const Chords = (() => {
       const { items: placed } = noteBeats(item.notes);
       const from = beat > 0 ? item.x / beat : 0;
       const groups = [];
+      // Grace notes are drawn on their own, after the beams: they take no time
+      // from the bar, so there is no beat for a beam to be read off.
+      const graces = [];
       // Where a note belongs, written on the note itself: a group crossing a cell
       // edge holds notes from two stretches, and each is drawn at its own place,
       // read against its own chord, and clicked back into its own cell.
@@ -1559,10 +1619,11 @@ const Chords = (() => {
         p.owner = item;
         p.ruling = ruling[p.index] || item.name;
         p.beatAt = from + p.beat;
-        p.x = item.x + NOTE_INSET + p.beat * beat;
+        p.x = item.x + NOTE_INSET + p.beat * beat - p.back * GRACE_STEP;
       }
       if (pending) { groups.push(pending); pending = null; }
       for (const p of placed) {
+        if (p.ev.grace) { graces.push(p); continue; }
         const last = groups[groups.length - 1];
         const prev = last && last.items[last.items.length - 1];
         const sameBeat = last
@@ -1724,6 +1785,12 @@ const Chords = (() => {
           }, '3');
         }
       }
+
+      for (const p of graces) {
+        hits.push({ x: p.x, chord: p.cell, note: p.index,
+          on: p.owner.sel === p.index, after: p.owner.after === p.index });
+        drawGrace(p);
+      }
     }
 
     for (const r of rows) {
@@ -1802,7 +1869,10 @@ const Chords = (() => {
       for (const p of noteBeats(item.notes).items) {
         const name = ruling[p.index] || 'C';
         const chord = parseChord(name);
-        const x = item.x + NOTE_INSET + p.beat * beat;
+        // A grace note stands ahead of the note it leans on here too, and is
+        // written smaller, so the two rows read the same note for note.
+        const k = p.ev.grace ? 0.75 : 1;
+        const x = item.x + NOTE_INSET + p.beat * beat - p.back * GRACE_STEP;
         hits.push({ x, chord: itemIndex, note: p.index, on: item.sel === p.index , after: item.after === (p.index) });
         if (p.ev.rest) continue;
         const stops = p.ev.tie ? carried || [] : p.ev.stops;
@@ -1822,9 +1892,10 @@ const Chords = (() => {
           }
           // The line is broken behind the number rather than run through it —
           // at this size a digit sitting on a line is unreadable.
-          add('rect', { x: x - 8, y: y(st.string) - 6, width: 16, height: 12, fill: '#000' });
+          add('rect', { x: x - 8 * k, y: y(st.string) - 6 * k,
+            width: 16 * k, height: 12 * k, fill: '#000' });
           add('text', {
-            x, y: y(st.string), fill: ink, 'font-size': TAB_NUM, 'text-anchor': 'middle',
+            x, y: y(st.string), fill: ink, 'font-size': TAB_NUM * k, 'text-anchor': 'middle',
             'dominant-baseline': 'central', 'font-weight': 600,
             'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
           }, String(st.fret));
@@ -1985,6 +2056,26 @@ const Chords = (() => {
     return svg;
   }
 
+  // A grace note, for the button that writes one: a small head, a flag, and the
+  // stroke across the stem that says it is crushed against the note after it.
+  // Drawn to the same box as noteGlyph so the row of buttons keeps one baseline.
+  function graceGlyph(scale) {
+    const k = scale || 1, w = 30 * k, h = 44 * k;
+    const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
+    const cx = 10 * k, cy = 30 * k, rx = 5 * k, ry = 3.8 * k;
+    add('ellipse', {
+      cx, cy, rx, ry, transform: `rotate(-20 ${cx} ${cy})`, fill: 'currentColor',
+    });
+    const sx = cx + rx * 0.9, top = 13 * k;
+    add('line', { x1: sx, y1: cy, x2: sx, y2: top,
+      stroke: 'currentColor', 'stroke-width': 1.4 * k });
+    add('path', { d: `M${sx} ${top} q ${5 * k} ${3 * k} ${4 * k} ${9 * k}`,
+      fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 * k });
+    add('line', { x1: sx - 5 * k, y1: top + 11 * k, x2: sx + 6 * k, y2: top + 2 * k,
+      stroke: 'currentColor', 'stroke-width': 1.4 * k });
+    return svg;
+  }
+
   function restGlyph(d, scale) {
     const k = scale || 1, w = 26 * k, h = 44 * k;
     const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
@@ -2069,7 +2160,7 @@ const Chords = (() => {
     // single notes
     parseNoteToken, parseDur, durText, notesToText, noteBeats, isDottedDur,
     tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, chordAddGlyph, beatWeights,
-    isTripletDur, tripletBase, tripletGlyph, beamGlyph,
+    isTripletDur, tripletBase, tripletGlyph, beamGlyph, graceGlyph,
     BEATS_PER_BAR,
     stopsToMarkers, stopShapes, rulingNames,
   };

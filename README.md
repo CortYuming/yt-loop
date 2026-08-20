@@ -54,6 +54,7 @@ https://cortyuming.github.io/yt-loop/
 | `1/1+2/1+3/1+4/0` | A fingering, written as the strings it strikes. Alone in its stretch it has no length of its own: it sounds until the next thing does, which is what a chord is |
 | `…:0` | No length, said out loud — for a fingering with a phrase written after it, where a bare stop would take the duration of the run instead |
 | `6/8:8-` | A trailing `-` beams the note to the one after it, across the beat if that is where the run falls. Beams are worked out from the beats otherwise — a run inside one beat is beamed, a run across two is not — so the mark is only written where the music groups against the beat |
+| `3/5*` | A grace note — struck just before the note it leans on, and taking no time from the bar, so the run around it is measured as if it were not there. Drawn small, with a stroke through its stem. A length can be written after the mark (`3/5*:16`) |
 | `r:4` | A rest, as long as it says |
 | `_:8` | Holds the note before it on for that much longer, without striking it again. Written at the head of a bar, this is a note carried over the bar line — the pitch is not written twice |
 

@@ -2209,7 +2209,7 @@ function setNoteDur(d) {
   // note, and taking it away again is what turns a note into a chord — see
   // markFreeNotes.
   if (ev) {
-    if (d === NO_DUR) ev.free = true;
+    if (d === NO_DUR) { ev.free = true; delete ev.grace; }
     else {
       ev.d = Chords.isDottedDur(ev.d) ? d * 1.5
         : Chords.isTripletDur(ev.d) ? d * (2 / 3) : d;
@@ -2297,7 +2297,39 @@ function noteJoinable() {
 // when pressed.
 function noteCanBeam() {
   const ev = editingNote();
-  return !!(ev && !ev.free && !ev.rest && !ev.tie && ev.d < 1 && noteJoinable());
+  return !!(ev && !ev.free && !ev.rest && !ev.tie && !ev.grace && ev.d < 1
+    && noteJoinable());
+}
+
+// A grace note — the small one with the stroke through its stem, struck just
+// before the note it leans on and taking no time of its own from the bar. Which
+// is why it is a mark on a note rather than a length: the run around it is
+// measured as if it were not there, and it is drawn ahead of the note it belongs
+// to rather than on a beat of its own.
+function toggleNoteGrace() {
+  if (!noteCanGrace()) return;
+  const ev = editingNote();
+  if (ev.grace) { delete ev.grace; commitNotes(); return; }
+  ev.grace = true;
+  // It takes no time from the bar, so it is outside the beats a beam is read
+  // off, and a length longer than an eighth has no flag to be drawn small.
+  delete ev.beam;
+  delete ev.free;
+  if (ev.d >= 1) ev.d = 0.5;
+  commitNotes();
+}
+
+// Only a struck note can be one: a rest is silence and has nothing to lean on
+// the next note with, a tie is the note before it still sounding, and a fingering
+// written with no length has no stem to draw the stroke across.
+function noteCanGrace() {
+  const ev = editingNote();
+  return !!(ev && !ev.rest && !ev.tie && !ev.free && ev.stops && ev.stops.length);
+}
+
+function noteGraceOn() {
+  const ev = editingNote();
+  return !!(ev && ev.grace);
 }
 
 // Whether the note being edited is joined to the next by hand — what lights the
@@ -2397,7 +2429,9 @@ function renderNotePanel() {
   if (noteSel !== null && noteSel >= notes.length) noteSel = notes.length ? notes.length - 1 : null;
   const ev = editingNote();
   const beats = noteStretchBeats();
-  const used = notes.reduce((a, n) => a + n.d, 0);
+  // A grace note takes no time from the bar, so it is not part of what is
+  // written into it.
+  const used = notes.reduce((a, n) => a + (n.grace ? 0 : n.d), 0);
 
   notePanel.hidden = false;
   notePanel.textContent = '';
@@ -2548,6 +2582,13 @@ function renderNotePanel() {
     `${ev ? 'Turn this into a tie, holding the note before it on'
       : 'Hold the last note on for the selected duration'} (key T)`,
     addNoteTie);
+  // Beside the rest and the tie, since all three are marks on a note rather than
+  // lengths: what is written here is how the note is played, not how long it is.
+  const graceBtn = button(writeRow, Chords.graceGlyph(1),
+    'Grace note — struck just before the note it leans on, taking no time from '
+    + 'the bar (key G)',
+    toggleNoteGrace, noteGraceOn(), 'note-dur');
+  if (!noteCanGrace()) graceBtn.disabled = true;
   // Three notes on one stem: the button wears what it writes, the way the
   // duration buttons do.
   button(writeRow, Chords.chordGlyph(1),
@@ -2603,7 +2644,7 @@ function renderNotePanel() {
     const keys = document.createElement('p');
     keys.className = 'note-keys';
     keys.textContent = '← → select · 1–5 duration (whole, half, quarter, eighth, sixteenth) · '
-      + '0 no length · . dot · , triplet · R rest · T tie · S stack · '
+      + '0 no length · . dot · , triplet · R rest · T tie · G grace · S stack · '
       + 'Enter close this chord · Backspace delete · Esc back to the end, then close';
     help.appendChild(keys);
   }
@@ -2724,6 +2765,7 @@ document.addEventListener('keydown', e => {
   else if (e.key === ',') toggleNoteTriplet();
   else if (e.key === 'r' || e.key === 'R') addNoteRest();
   else if (e.key === 't' || e.key === 'T') addNoteTie();
+  else if (e.key === 'g' || e.key === 'G') toggleNoteGrace();
   else if (e.key === 's' || e.key === 'S') { noteStack = !noteStack; renderNotePanel(); }
   else if (e.key === 'Backspace' || e.key === 'Delete') deleteNote();
   else if (e.key === 'Escape') {
