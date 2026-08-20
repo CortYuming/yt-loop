@@ -1521,13 +1521,20 @@ const Chords = (() => {
     // are drawn and laid over the lot at the end, so a click lands on the note
     // whichever part of it was aimed at.
     const hits = [];
+    // A run beamed by hand can begin in one chord's stretch and end in the next.
+    // The beat is what beaming is read off otherwise, and a phrase does not stop
+    // disagreeing with the beat at the cell edge, so the last group of a stretch
+    // waits here when its final note asks to be joined; the next stretch carries
+    // on drawing it.
+    let pending = null;
+    // Which chord a note is read against: the one in force where it falls, kept
+    // on the note, since a group can hold notes from either side of a cell edge.
+    const chordAt = p => parseChord(p.ruling || 'C');
 
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
       const item = items[itemIndex];
       const chord = parseChord(item.name || 'C');
       const ruling = rulingNames(item);
-      // Which chord a note is read against: the one in force where it falls.
-      const chordAt = index => parseChord(ruling[index] || 'C');
       if (!item.notes || !item.notes.length) {
         const { notes } = staffChord(item.name, item.markers, key);
         if (notes.length) {
@@ -1538,18 +1545,28 @@ const Chords = (() => {
       }
 
       // Beamed groups: notes shorter than a beat, of the same duration, within
-      // one beat of the bar. A group is never carried across a chord change —
-      // the beam would then cross the cell edge the chord names sit on, and a
-      // beam is read as one gesture, which two chords are not.
+      // one beat of the bar. Left to the beats a group stays inside one stretch,
+      // since a beam is read as one gesture and two chords are not. A beam asked
+      // for by hand is that gesture said out loud, so it crosses the cell edge.
       const { items: placed } = noteBeats(item.notes);
       const from = beat > 0 ? item.x / beat : 0;
       const groups = [];
+      // Where a note belongs, written on the note itself: a group crossing a cell
+      // edge holds notes from two stretches, and each is drawn at its own place,
+      // read against its own chord, and clicked back into its own cell.
+      for (const p of placed) {
+        p.cell = itemIndex;
+        p.owner = item;
+        p.ruling = ruling[p.index] || item.name;
+        p.beatAt = from + p.beat;
+        p.x = item.x + NOTE_INSET + p.beat * beat;
+      }
+      if (pending) { groups.push(pending); pending = null; }
       for (const p of placed) {
         const last = groups[groups.length - 1];
         const prev = last && last.items[last.items.length - 1];
         const sameBeat = last
-          && Math.floor(from + prev.beat + 1e-6)
-             === Math.floor(from + p.beat + 1e-6);
+          && Math.floor(prev.beatAt + 1e-6) === Math.floor(p.beatAt + 1e-6);
         // A beam asked for by hand carries across the beat it would have stopped
         // at, and across a change of value: an eighth and two sixteenths under
         // one beam is ordinary printed music, and the second beam is simply
@@ -1564,6 +1581,17 @@ const Chords = (() => {
           groups.push({ d: p.ev.d, rest: !!p.ev.rest, items: [p] });
         }
       }
+      // The last group waits for the next stretch when its final note asks to be
+      // joined and there is a note over there to join to. Nothing waits at the
+      // end of the bar: a beam across the bar line is not what the mark is for,
+      // and the bar next door is drawn on a staff of its own.
+      const tail = groups[groups.length - 1];
+      const tailNote = tail && tail.items[tail.items.length - 1];
+      const next = items[itemIndex + 1];
+      if (tailNote && tailNote.ev.beam && !tailNote.ev.rest && !tailNote.ev.free
+          && tailNote.ev.d < 1 && next && next.notes && next.notes.length) {
+        pending = groups.pop();
+      }
 
       for (const grp of groups) {
         // Which way the stems go is settled for the group, not per note: a beam
@@ -1572,34 +1600,35 @@ const Chords = (() => {
         const heads = [];
         for (const p of grp.items) {
           const stops = p.ev.tie ? (carried && carried.stops) || [] : p.ev.stops;
-          const notes = stops.map(st => stopNote(st, ruling[p.index] || item.name, key))
+          const notes = stops.map(st => stopNote(st, p.ruling, key))
             .sort((a, b) => a.step - b.step);
           for (const n of notes) { sum += n.step; count++; }
-          heads.push({ p, notes, x: item.x + NOTE_INSET + p.beat * beat });
+          heads.push({ p, notes, x: p.x });
         }
         const up = count === 0 ? true : sum / count < MID_LINE;
         const tips = [];
 
         for (const h of heads) {
-          hits.push({ x: h.x, chord: itemIndex, note: h.p.index, on: item.sel === h.p.index , after: item.after === (h.p.index) });
+          hits.push({ x: h.x, chord: h.p.cell, note: h.p.index,
+            on: h.p.owner.sel === h.p.index, after: h.p.owner.after === h.p.index });
           if (h.p.ev.rest) { drawRest(add, h.x, y(MID_LINE), h.p.ev.d); continue; }
           // A tie with nothing in front of it — the first thing in a sheet, or
           // after the note it meant to hold was deleted — has nothing to say.
           if (!h.notes.length) continue;
           // A tie is the note before it still sounding, so it is not labelled
           // again: the row says what was struck, and nothing was.
-          if (!h.p.ev.tie) drawLabels(h.notes, h.x, chordAt(h.p.index));
+          if (!h.p.ev.tie) drawLabels(h.notes, h.x, chordAt(h.p));
           // No duration written, so nothing to draw one with: heads alone, which
           // is how the chord this stands for has always been drawn.
           if (h.p.ev.free) {
-            drawHeads(h.notes, h.x, chordAt(h.p.index), false, true);
+            drawHeads(h.notes, h.x, chordAt(h.p), false, true);
             carried = { x: h.x, stops: h.p.ev.stops };
             continue;
           }
           const hollow = h.p.ev.d >= 2;
           // A tied note is not struck again, so it carries no accidental of its
           // own: the sign in front of the note it continues still stands.
-          drawHeads(h.notes, h.x, chordAt(h.p.index), hollow, !h.p.ev.tie);
+          drawHeads(h.notes, h.x, chordAt(h.p), hollow, !h.p.ev.tie);
           if (h.p.ev.tie) {
             ties.push({
               from: carried ? carried.x : 0, to: h.x, step: h.notes[0].step, up,

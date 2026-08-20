@@ -2270,15 +2270,34 @@ function toggleNoteTriplet() {
 // One join is all this writes, and it is all it needs to: the mark sits on the
 // link between two notes, so joining 1–2 and then 2–3 makes a run of three. A
 // button per length would be several ways of saying the same thing.
-// Pressing it again parts them, and the beats take over there again. Notes of
-// one value only — see the grouping in staffBar.
+// Pressing it again parts them, and the beats take over there again.
 function toggleNoteBeam() {
+  if (!noteCanBeam()) return;
   const ev = editingNote();
-  if (!ev || noteSel === null) return;
-  if (noteSel + 1 >= noteEntries().length) return;
   if (ev.beam) delete ev.beam;
   else ev.beam = true;
   commitNotes();
+}
+
+// Whether there is a note on the other side of the join. A stretch's last note
+// looks over the cell edge to the next stretch of the same bar, since that is a
+// join staffBar now draws — but not over the bar line, which is drawn as a staff
+// of its own, and not past an empty stretch, which has a chord of its own to say.
+function noteJoinable() {
+  if (noteSel === null) return false;
+  if (noteSel + 1 < noteEntries().length) return true;
+  const bar = notePanelAt && chordCache.bars[notePanelAt.bar];
+  const next = bar && bar.chords[notePanelAt.chord + 1];
+  return !!(next && next.notes && next.notes.length);
+}
+
+// Beams say a note is shorter than a beat, so only such a note can carry one: a
+// quarter has no beam to share, and a fingering written with no length has no
+// stem to hang one from. The button is down on those rather than doing nothing
+// when pressed.
+function noteCanBeam() {
+  const ev = editingNote();
+  return !!(ev && !ev.free && !ev.rest && !ev.tie && ev.d < 1 && noteJoinable());
 }
 
 // Whether the note being edited is joined to the next by hand — what lights the
@@ -2512,13 +2531,13 @@ function renderNotePanel() {
     toggleNoteTriplet, shownTriplet, 'note-trip');
   // Beaming, beside the triplet: both are about a run rather than a single note,
   // and both are read off the shape drawn on the button. Nothing to join with no
-  // note selected, or on the last note of a stretch, so it is down until there
-  // is something on the other side of the join.
+  // note selected, or on the last note of the bar, so it is down until there is
+  // something on the other side of the join.
   const beamBtn = button(lengthRow, Chords.beamGlyph(2, shown === NO_DUR ? 0.5 : shown, 0.9),
     'Beam — draw this note and the next under one beam, across the beat if it '
     + 'falls there. Join the next pair too and the run grows (press again to part them)',
     toggleNoteBeam, noteBeamOn(), 'note-trip');
-  if (!ev || noteSel === null || noteSel + 1 >= notes.length) beamBtn.disabled = true;
+  if (!noteCanBeam()) beamBtn.disabled = true;
 
   // ---- what to write ----
   const writeRow = row('Write');
