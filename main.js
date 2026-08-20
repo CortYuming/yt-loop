@@ -2259,6 +2259,31 @@ function toggleNoteTriplet() {
   commitNotes();
 }
 
+// Beaming a run by hand: this note and the next are drawn as one gesture,
+// whatever the beat under them says. Which is what beaming is for once a phrase
+// stops agreeing with the beat — four sixteenths straddling two beats are one
+// run to play, and the row breaks them into two.
+// One join is all this writes, and it is all it needs to: the mark sits on the
+// link between two notes, so joining 1–2 and then 2–3 makes a run of three. A
+// button per length would be several ways of saying the same thing.
+// Pressing it again parts them, and the beats take over there again. Notes of
+// one value only — see the grouping in staffBar.
+function toggleNoteBeam() {
+  const ev = editingNote();
+  if (!ev || noteSel === null) return;
+  if (noteSel + 1 >= noteEntries().length) return;
+  if (ev.beam) delete ev.beam;
+  else ev.beam = true;
+  commitNotes();
+}
+
+// Whether the note being edited is joined to the next by hand — what lights the
+// button, and what pressing it takes back.
+function noteBeamOn() {
+  const ev = editingNote();
+  return !!(ev && ev.beam);
+}
+
 // The three notes a triplet is made of. Going in, that is the selected note and
 // the two after it — and if the phrase ends before that, whatever there is, so
 // the last note of a bar can still be marked. Coming out, it is the three of the
@@ -2481,6 +2506,15 @@ function renderNotePanel() {
   button(lengthRow, Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
     'Triplet — three of these in the time of two (key ,)',
     toggleNoteTriplet, shownTriplet, 'note-trip');
+  // Beaming, beside the triplet: both are about a run rather than a single note,
+  // and both are read off the shape drawn on the button. Nothing to join with no
+  // note selected, or on the last note of a stretch, so it is down until there
+  // is something on the other side of the join.
+  const beamBtn = button(lengthRow, Chords.beamGlyph(2, shown === NO_DUR ? 0.5 : shown, 0.9),
+    'Beam — draw this note and the next under one beam, across the beat if it '
+    + 'falls there. Join the next pair too and the run grows (press again to part them)',
+    toggleNoteBeam, noteBeamOn(), 'note-trip');
+  if (!ev || noteSel === null || noteSel + 1 >= notes.length) beamBtn.disabled = true;
 
   // ---- what to write ----
   const writeRow = row('Write');

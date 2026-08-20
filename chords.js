@@ -343,7 +343,12 @@ const Chords = (() => {
   // A note, the name of the chord it starts if it starts one, and how long it is:
   // `1/5+2/6+3/9(Eb9):4`. The name belongs to the stop rather than to a stretch of
   // the bar, so a chord can begin wherever a note does.
-  const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*)|r|_)(?:\(([^)]*)\))?(?::(\d{1,2}[.t]?))?$/;
+  // A trailing `-` beams the note to the one after it: `3/5:8- 3/7:8` is a pair
+  // written as one gesture. Beaming is worked out from the beats otherwise — a
+  // run inside one beat is beamed, and a run across two is not — so the mark is
+  // only ever there where the music is grouped against the beat, which is what
+  // it is for.
+  const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*)|r|_)(?:\(([^)]*)\))?(?::(\d{1,2}[.t]?))?(-)?$/;
   // Long enough to be the whole of a bar, short enough to still be a note.
   const DEFAULT_DUR = 0.5;
 
@@ -388,7 +393,7 @@ const Chords = (() => {
   function parseNoteToken(token, lastDur) {
     const m = NOTE_TOKEN.exec(String(token));
     if (!m) return null;
-    const [, body, named, durText] = m;
+    const [, body, named, durText, joined] = m;
     // `:0` is no length at all: the note sounds until the next one, the way a
     // chord does. It says out loud what a bare stop can only say when it is
     // alone in its stretch — see markFreeNotes — so a fingering keeps its
@@ -409,6 +414,9 @@ const Chords = (() => {
     // Whether the duration was written matters later — see markFreeNotes.
     const ev = { d: dur, stops, noDur: !written && !free };
     if (free) ev.free = true;
+    // Beamed to the next note. Only a struck note carries it: a rest ends a beam
+    // wherever it falls, and a tie is drawn as the note it holds on.
+    if (joined) ev.beam = true;
     // A name on a rest or a tie has nothing to hold it, so only a struck note
     // carries one.
     const name = (named || '').trim();
@@ -442,10 +450,11 @@ const Chords = (() => {
         + (ev.name ? `(${ev.name})` : '');
       // A note with no duration of its own goes back the way it came, and leaves
       // the run's duration where it was for whatever follows.
-      if (ev.free) return alone ? body : `${body}:0`;
+      const join = ev.beam && !ev.rest && !ev.tie ? '-' : '';
+      if (ev.free) return (alone ? body : `${body}:0`) + join;
       const d = ev.d === last ? '' : `:${durText(ev.d) || '4'}`;
       last = ev.d;
-      return body + d;
+      return body + d + join;
     }).join(' ');
   }
 
@@ -1537,11 +1546,19 @@ const Chords = (() => {
       const groups = [];
       for (const p of placed) {
         const last = groups[groups.length - 1];
+        const prev = last && last.items[last.items.length - 1];
         const sameBeat = last
-          && Math.floor(from + last.items[last.items.length - 1].beat + 1e-6)
+          && Math.floor(from + prev.beat + 1e-6)
              === Math.floor(from + p.beat + 1e-6);
+        // A beam asked for by hand carries across the beat it would have stopped
+        // at, and across a change of value: an eighth and two sixteenths under
+        // one beam is ordinary printed music, and the second beam is simply
+        // drawn where the sixteenths are. Left to the beats, a group is still
+        // one value — that is the run this row was written to draw, and the
+        // grouping of a phrase against the beat is what the mark is for.
+        const joined = prev && prev.ev.beam === true;
         if (!p.ev.rest && !p.ev.free && p.ev.d < 1
-            && last && !last.rest && last.d === p.ev.d && sameBeat) {
+            && last && !last.rest && ((sameBeat && last.d === p.ev.d) || joined)) {
           last.items.push(p);
         } else {
           groups.push({ d: p.ev.d, rest: !!p.ev.rest, items: [p] });
@@ -1596,7 +1613,10 @@ const Chords = (() => {
               x1: sx, y1: up ? y(lo) : y(hi), x2: sx, y2: tip,
               stroke: '#dcdcdc', 'stroke-width': 1.4,
             });
-            if (beamCount(h.p.ev.d)) tips.push({ x: sx, tip });
+            // How many beams this note wants, kept per note: a group joined by
+            // hand can hold more than one value, and then each beam runs only
+            // as far as the notes that carry it.
+            if (beamCount(h.p.ev.d)) tips.push({ x: sx, tip, beams: beamCount(h.p.ev.d) });
           }
           if (isDottedDur(h.p.ev.d)) {
             // Every head in a chord takes a dot, the way printed music writes
@@ -1620,21 +1640,37 @@ const Chords = (() => {
         // Beams sit at one height across the group, which is what makes them
         // read as one gesture; the stems stretch to meet them.
         const flat = up ? Math.min(...tips.map(t => t.tip)) : Math.max(...tips.map(t => t.tip));
+        const beams = Math.max(...tips.map(t => t.beams));
         if (up) inked(flat - (isTripletDur(grp.d) ? 13 : 2));
-        else inkedLow(flat + (beamCount(grp.d) * BEAM_GAP) + (isTripletDur(grp.d) ? 13 : 2));
+        else inkedLow(flat + (beams * BEAM_GAP) + (isTripletDur(grp.d) ? 13 : 2));
         for (const t of tips) {
           add('line', {
             x1: t.x, y1: t.tip, x2: t.x, y2: flat, stroke: '#dcdcdc', 'stroke-width': 1.4,
           });
         }
-        const beams = beamCount(grp.d);
         if (tips.length > 1) {
+          // The first beam runs the length of the group, since every note in it
+          // carries one; the ones under it run only across the notes that do.
+          // A note carrying a beam its neighbours do not gets a stub of one,
+          // pointing back at the note it belongs with — forward only where there
+          // is nothing behind it — which is how printed music says sixteenth
+          // here without saying it of the note beside it.
           for (let i = 0; i < beams; i++) {
             const off = (up ? 1 : -1) * i * BEAM_GAP;
-            add('line', {
-              x1: tips[0].x, y1: flat + off, x2: tips[tips.length - 1].x, y2: flat + off,
-              stroke: '#dcdcdc', 'stroke-width': BEAM_W,
-            });
+            let at = 0;
+            while (at < tips.length) {
+              if (tips[at].beams <= i) { at++; continue; }
+              let to = at;
+              while (to + 1 < tips.length && tips[to + 1].beams > i) to++;
+              const x1 = tips[at].x;
+              const x2 = to > at ? tips[to].x
+                : x1 + (at > 0 ? -1 : 1) * SP * 0.9;
+              add('line', {
+                x1, y1: flat + off, x2, y2: flat + off,
+                stroke: '#dcdcdc', 'stroke-width': BEAM_W,
+              });
+              at = to + 1;
+            }
           }
         } else {
           // A note alone in its beat gets flags instead of a beam, one per beam
@@ -1851,6 +1887,34 @@ const Chords = (() => {
     return svg;
   }
 
+  // A run written as one gesture: `count` heads under the beam their value
+  // carries. The button wears what pressing it draws, the way the triplet's does,
+  // and follows the chosen value so a pair of sixteenths shows two beams.
+  function beamGlyph(count, d, scale) {
+    const k = scale || 1, n = Math.max(2, count || 2);
+    const w = 30 * k, h = 26 * k;
+    const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
+    const left = 5 * k, right = 25 * k, top = 6 * k, foot = 21 * k;
+    const beams = Math.max(1, beamCount(d));
+    const xs = [];
+    for (let i = 0; i < n; i++) xs.push(left + ((right - left) * i) / (n - 1));
+    for (const x of xs) {
+      add('line', { x1: x, y1: top, x2: x, y2: foot,
+        stroke: 'currentColor', 'stroke-width': 1.5 * k });
+      add('ellipse', {
+        cx: x - 2.6 * k, cy: foot, rx: 3.2 * k, ry: 2.4 * k,
+        transform: `rotate(-20 ${x - 2.6 * k} ${foot})`, fill: 'currentColor',
+      });
+    }
+    for (let i = 0; i < beams; i++) {
+      add('line', {
+        x1: left, y1: top + i * 5 * k, x2: right, y2: top + i * 5 * k,
+        stroke: 'currentColor', 'stroke-width': 2.2 * k,
+      });
+    }
+    return svg;
+  }
+
   // Three notes struck at once on one stem — what stacking writes, and what a
   // chord looks like on a staff. Drawn to the same box as noteGlyph so the row
   // of buttons keeps one baseline.
@@ -1976,7 +2040,7 @@ const Chords = (() => {
     // single notes
     parseNoteToken, parseDur, durText, notesToText, noteBeats, isDottedDur,
     tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, chordAddGlyph, beatWeights,
-    isTripletDur, tripletBase, tripletGlyph,
+    isTripletDur, tripletBase, tripletGlyph, beamGlyph,
     BEATS_PER_BAR,
     stopsToMarkers, stopShapes, rulingNames,
   };
