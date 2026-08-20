@@ -1213,15 +1213,18 @@ function drawChordStrip(fromCache) {
         // Writing at the end marks nothing, and then nothing on screen says where
         // the next tap goes. So the note it will follow is marked too, in its own
         // way: what is written there yet is not this note but the one after it.
-        const after = here && noteSel === null && chord.notes && chord.notes.length
-          ? chord.notes.length - 1 : null;
+        const after = here && noteAfter === null && noteSel === null
+          && chord.notes && chord.notes.length ? chord.notes.length - 1 : null;
+        // Room held open after this note, for what is written next — the staff
+        // moves the notes after it over and marks the space.
+        const gap = here && noteAfter !== null ? noteAfter : null;
         // Nothing written here yet, and the board open on it: the first beat is
         // where the next tap lands, and with no note to mark there would be
         // nothing at all on screen saying which stretch is being written into.
         const caret = here && !(chord.notes && chord.notes.length);
         return {
           x: at, chord: j, name: chord.name, markers: chord.markers, notes: chord.notes,
-          sel, after, caret,
+          sel, after, caret, gap,
         };
       });
       // A bar is four slots wide, so one slot is one beat — which is what the
@@ -1951,10 +1954,11 @@ let noteTriplet = false;
 // While on, a tap piles onto the last note instead of following it, which is how
 // a double stop gets written.
 let noteStack = false;
-// Armed by ⏎: the next tap starts a new event even with stacking on. This is how
-// one chord is closed and the next begun — a sheet is written chord after chord,
-// and letting go of stacking between each of them is a toggle per chord.
-let noteBreak = false;
+// Armed by the + between ← and →: the next thing written goes in just after this
+// note rather than at the end of the stretch. Which is how a note is put between
+// two others, and how the next chord is begun without letting go of stacking —
+// what is written lands on a place of its own rather than piling onto the last.
+let noteAfter = null;
 // Whether the list of keys is open. Remembered rather than reset per note: the
 // list is asked for by someone learning the board, and that lasts longer than
 // one tap.
@@ -2046,7 +2050,7 @@ function openNameInViewer(chord, name) {
 function openNotePanel(barIndex, chordIndex) {
   notePanelAt = { bar: barIndex, chord: chordIndex };
   noteSel = null;
-  noteBreak = false;
+  noteAfter = null;
   // Through the strip rather than the panel alone: what is being written into is
   // marked in the strip, and a panel drawn without it says the caret is nowhere.
   renderChordStrip(true);
@@ -2065,7 +2069,8 @@ function openNotePanel(barIndex, chordIndex) {
 // subtree that size is replaced, and the page jumped every ← →.
 function markNoteSelection() {
   const notes = noteEntries();
-  const after = noteSel === null && notes.length ? notes.length - 1 : null;
+  const after = noteAfter !== null ? null
+    : (noteSel === null && notes.length ? notes.length - 1 : null);
   for (const hit of chordStrip.querySelectorAll('.staff-hit')) {
     const barEl = hit.closest('.chord-bar');
     const here = !!notePanelAt && !!barEl
@@ -2093,9 +2098,11 @@ function focusNotePanel() {
 }
 
 function closeNotePanel() {
+  const wasOpen = noteAfter !== null;
   notePanelAt = null;
   noteSel = null;
-  noteBreak = false;
+  noteAfter = null;
+  if (wasOpen) renderChordStrip(true);
   if (!notePanel) return;
   notePanel.hidden = true;
   notePanel.textContent = '';
@@ -2117,11 +2124,54 @@ function commitNotes() {
   renderNotePanel();
 }
 
+// Back to writing at the end of the stretch: nothing selected, and no room being
+// held open anywhere.
+function endNoteWriting() {
+  const wasOpen = noteAfter !== null;
+  noteSel = null;
+  noteAfter = null;
+  if (wasOpen) renderChordStrip(true);
+  renderNotePanel();
+  markNoteSelection();
+}
+
+// A place to write, just after what is selected — or after the last note, when
+// writing was already at the end. Nothing goes into the sheet yet: the next tap,
+// rest or tie goes in there, and is then what is being edited, so stacking piles
+// the rest of a chord onto it.
+function insertAfterNote() {
+  const notes = noteEntries();
+  if (!notes.length) return;
+  noteAfter = noteSel !== null ? noteSel : notes.length - 1;
+  noteSel = null;
+  renderChordStrip(true);
+  renderNotePanel();
+  markNoteSelection();
+}
+
+// Where what is written goes: into the gap the + opened, which is then what is
+// being edited, or at the end of the stretch when no gap is open.
+function putNote(ev) {
+  const notes = noteEntries();
+  if (noteAfter === null) { notes.push(ev); return; }
+  const at = Math.min(noteAfter + 1, notes.length);
+  notes.splice(at, 0, ev);
+  noteSel = at;
+  noteAfter = null;
+}
+
 // A tap on the board. With a note selected it replaces that note — which is how
 // one written on the wrong string is corrected — and otherwise it writes a new
-// one after the last.
+// one after the last, or into the gap the + opened.
 function pressStop(string, fret) {
   const notes = noteEntries();
+  if (noteAfter !== null) {
+    putNote(noteDur === NO_DUR
+      ? { d: 1, stops: [{ string, fret }], free: true }
+      : { d: noteValue(), stops: [{ string, fret }] });
+    commitNotes();
+    return;
+  }
   const ev = editingNote();
   if (ev) {
     if (noteStack && !ev.tie) {
@@ -2134,11 +2184,10 @@ function pressStop(string, fret) {
     return;
   }
   const last = notes[notes.length - 1];
-  if (noteStack && !noteBreak && last && !last.rest && !last.tie) {
+  if (noteStack && last && !last.rest && !last.tie) {
     last.stops = stackStop(last.stops, string, fret);
   } else if (noteDur === NO_DUR) notes.push({ d: 1, stops: [{ string, fret }], free: true });
   else notes.push({ d: noteValue(), stops: [{ string, fret }] });
-  noteBreak = false;
   commitNotes();
 }
 
@@ -2169,19 +2218,8 @@ function copyNote() {
   // The copy is what is being written now — the reason to copy one is usually to
   // move a string of it — so it is what the board is holding when it lands.
   noteSel = at + 1;
-  noteBreak = false;
+  noteAfter = null;
   commitNotes();
-}
-
-// That chord is finished; the next tap begins the next one. Writing goes back to
-// the end of the stretch, since a chord being written is always the last thing
-// in it — pressing this while a note further back is selected is a way out of
-// editing that note as much as it is a way on to the next chord.
-function breakChord() {
-  noteSel = null;
-  noteBreak = true;
-  renderNotePanel();
-  markNoteSelection();
 }
 
 // Rest and tie do the same double duty as the board: they turn the selected note
@@ -2190,7 +2228,7 @@ function addNoteRest() {
   const notes = noteEntries();
   const ev = editingNote();
   if (ev) notes[noteSel] = { d: ev.d, rest: true, stops: [] };
-  else notes.push({ d: restValue(), rest: true, stops: [] });
+  else putNote({ d: restValue(), rest: true, stops: [] });
   commitNotes();
 }
 
@@ -2198,7 +2236,7 @@ function addNoteTie() {
   const notes = noteEntries();
   const ev = editingNote();
   if (ev) notes[noteSel] = { d: ev.d, tie: true, stops: [] };
-  else notes.push({ d: restValue(), tie: true, stops: [] });
+  else putNote({ d: restValue(), tie: true, stops: [] });
   commitNotes();
 }
 
@@ -2359,6 +2397,7 @@ function deleteNote() {
   const at = noteSel !== null ? noteSel : notes.length - 1;
   if (at < 0 || at >= notes.length) return;
   notes.splice(at, 1);
+  noteAfter = null;
   if (noteSel !== null) noteSel = notes.length ? Math.min(at, notes.length - 1) : null;
   commitNotes();
 }
@@ -2398,7 +2437,7 @@ function moveNoteStretch(by) {
 // notes. Stepping off either end of that walks into the next stretch.
 function stepNote(by) {
   if (!notePanelAt) return;
-  noteBreak = false;
+  if (noteAfter !== null) { noteAfter = null; renderChordStrip(true); }
   const notes = noteEntries();
   const at = noteSel === null ? notes.length : noteSel;
   const next = at + by;
@@ -2411,7 +2450,7 @@ function stepNote(by) {
 
 // Clicking a note in the strip selects it — see the staff's own click handler.
 function selectNote(barIndex, chordIndex, index) {
-  noteBreak = false;
+  if (noteAfter !== null) { noteAfter = null; renderChordStrip(true); }
   const same = notePanelAt && notePanelAt.bar === barIndex && notePanelAt.chord === chordIndex;
   notePanelAt = { bar: barIndex, chord: chordIndex };
   noteSel = same && noteSel === index ? null : index;
@@ -2444,8 +2483,8 @@ function renderNotePanel() {
     + `${beats} beat${beats === 1 ? '' : 's'}`;
   const mode = document.createElement('span');
   mode.className = 'note-panel-mode';
-  mode.textContent = noteBreak
-    ? 'starting a new chord — the next tap begins one'
+  mode.textContent = noteAfter !== null
+    ? `writing after note ${noteAfter + 1} — a tap goes in there`
     : ev
       ? `editing note ${noteSel + 1} of ${notes.length} — a tap replaces it`
       : 'adding at the end — a tap follows the last note';
@@ -2594,18 +2633,20 @@ function renderNotePanel() {
   button(writeRow, Chords.chordGlyph(1),
     'While on, a tap piles onto the note — a double stop, or a chord (key S)',
     () => { noteStack = !noteStack; renderNotePanel(); }, noteStack, 'note-dur');
-  // The same three notes with a plus: that chord is finished, and the next tap
-  // begins another — without letting go of stacking to say so.
-  button(writeRow, Chords.chordAddGlyph(1),
-    'Close this chord — the next tap begins a new one (Enter)',
-    breakChord, noteBreak, 'note-dur');
 
   // ---- what to fix ----
   const fixRow = row('Fix');
   button(fixRow, '◀', 'Select the note before (←)', () => stepNote(-1));
+  // Between the two arrows because it is the same walk: ◀ ▶ move to a note, this
+  // moves to the space after one. What is written there goes in rather than over.
+  const gapBtn = button(fixRow, '+',
+    'Make room just after this note — the next tap, rest or tie goes in there, '
+    + 'and stacking piles onto it (key I)',
+    insertAfterNote, noteAfter !== null);
+  gapBtn.disabled = !notes.length;
   button(fixRow, '▶', 'Select the note after (→)', () => stepNote(1));
   button(fixRow, '▷▷|', 'Stop editing that note and write at the end (Esc)',
-    () => { noteSel = null; renderNotePanel(); markNoteSelection(); }, !ev);
+    endNoteWriting, !ev && noteAfter === null);
   gap(fixRow);
   // The same again, whatever it is. A bar of one chord held while the tune moves
   // is the ordinary shape of a sheet, and tapping out its six strings a second
@@ -2645,7 +2686,8 @@ function renderNotePanel() {
     keys.className = 'note-keys';
     keys.textContent = '← → select · 1–5 duration (whole, half, quarter, eighth, sixteenth) · '
       + '0 no length · . dot · , triplet · R rest · T tie · G grace · S stack · '
-      + 'Enter close this chord · Backspace delete · Esc back to the end, then close';
+      + 'I room after this note · Backspace delete · '
+      + 'Esc back to the end, then close';
     help.appendChild(keys);
   }
   notePanel.appendChild(help);
@@ -2758,7 +2800,6 @@ document.addEventListener('keydown', e => {
   const n = parseInt(e.key, 10);
   if (e.key === 'ArrowLeft') stepNote(-1);
   else if (e.key === 'ArrowRight') stepNote(1);
-  else if (e.key === 'Enter') breakChord();
   else if (e.key === '0') setNoteDur(NO_DUR);
   else if (n >= 1 && n <= NOTE_DURATIONS.length) setNoteDur(NOTE_DURATIONS[n - 1][0]);
   else if (e.key === '.') toggleNoteDot();
@@ -2766,10 +2807,11 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'r' || e.key === 'R') addNoteRest();
   else if (e.key === 't' || e.key === 'T') addNoteTie();
   else if (e.key === 'g' || e.key === 'G') toggleNoteGrace();
+  else if (e.key === 'i' || e.key === 'I') insertAfterNote();
   else if (e.key === 's' || e.key === 'S') { noteStack = !noteStack; renderNotePanel(); }
   else if (e.key === 'Backspace' || e.key === 'Delete') deleteNote();
   else if (e.key === 'Escape') {
-    if (noteSel !== null) { noteSel = null; renderNotePanel(); markNoteSelection(); }
+    if (noteSel !== null || noteAfter !== null) endNoteWriting();
     else closeNotePanel();
   } else return;
   e.preventDefault();

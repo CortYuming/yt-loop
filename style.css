@@ -808,6 +808,17 @@ button.pin {
    closed the cell is a link to the viewer and the press belongs to that. */
 .editing-mode .chord-staff .staff-slot,
 .editing-mode .chord-tab .staff-slot { pointer-events: all; cursor: pointer; }
+/* The room held open by the + in the panel, between two notes: what is written
+   next goes in there. Drawn only while it is open, so there is no class to turn
+   on — unlike the caret below, which is drawn for every stretch and lit for one.
+   Dashed like the other marks for a place nothing is written in yet. */
+.staff-gap { display: none; }
+.editing-mode .staff-gap {
+  display: inline;
+  stroke: var(--blue);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
 /* Where writing starts in a stretch with nothing in it — dashed, like the mark
    for the place after the last note, since nothing is written there either. */
 .staff-caret { display: none; }

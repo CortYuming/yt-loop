@@ -1272,6 +1272,9 @@ const Chords = (() => {
   // leans on rather than on that note's own place.
   const GRACE_K = 0.9;
   const GRACE_STEP = SP * 2.1;
+  // The room the + opens up, a note's width: what is written next goes in there,
+  // so the mark for it stands between two notes instead of over one of them.
+  const GAP_W = SP * 4.4;
   const BEAM_GAP = SP * 0.72;
 
   // How many beams or flags a duration carries. A dotted note carries what the
@@ -1359,7 +1362,8 @@ const Chords = (() => {
       if (!item.notes || !item.notes.length) continue;
       const { length } = noteBeats(item.notes);
       if (length <= 0) continue;
-      const room = width - (item.x + NOTE_INSET) - NOTE_RX * 2;
+      const room = width - (item.x + NOTE_INSET) - NOTE_RX * 2
+        - (item.gap === null || item.gap === undefined ? 0 : GAP_W);
       if (room <= 0) continue;
       scale = Math.min(scale, room / (length * beat));
     }
@@ -1423,8 +1427,13 @@ const Chords = (() => {
       // names itself where it falls, which is what a chord changing mid-stretch
       // looks like on paper.
       const marks = [{ x: item.x, name: item.name || '', note: null }];
+      const gapAt = item.gap === undefined ? null : item.gap;
       for (const p of noteBeats(item.notes).items) {
-        if (p.ev.name) marks.push({ x: item.x + p.beat * beat, name: p.ev.name, note: p.index });
+        if (!p.ev.name) continue;
+        marks.push({
+          x: item.x + p.beat * beat + (gapAt !== null && p.index > gapAt ? GAP_W : 0),
+          name: p.ev.name, note: p.index,
+        });
       }
       for (const mark of marks) {
         if (mark.name === held) continue;
@@ -1607,6 +1616,9 @@ const Chords = (() => {
       // for by hand is that gesture said out loud, so it crosses the cell edge.
       const { items: placed } = noteBeats(item.notes);
       const from = beat > 0 ? item.x / beat : 0;
+      // Room held open after one note, for what is about to be written between it
+      // and the next — see putNote. The notes after it move over to make it.
+      const gapAt = item.gap === undefined ? null : item.gap;
       const groups = [];
       // Grace notes are drawn on their own, after the beams: they take no time
       // from the bar, so there is no beat for a beam to be read off.
@@ -1619,7 +1631,21 @@ const Chords = (() => {
         p.owner = item;
         p.ruling = ruling[p.index] || item.name;
         p.beatAt = from + p.beat;
-        p.x = item.x + NOTE_INSET + p.beat * beat - p.back * GRACE_STEP;
+        p.x = item.x + NOTE_INSET + p.beat * beat - p.back * GRACE_STEP
+          + (gapAt !== null && p.index > gapAt ? GAP_W : 0);
+      }
+      if (gapAt !== null) {
+        const held = placed.find(q => q.index === gapAt);
+        const next = placed.find(q => q.index === gapAt + 1);
+        if (held) {
+          const at = next ? (held.x + next.x) / 2 : held.x + GAP_W;
+          const box = add('rect', {
+            class: 'staff-gap', x: at - 13, y: 0, width: 26,
+            height: Number(svg.getAttribute('height')) || 0, rx: 4,
+            fill: 'none', 'pointer-events': 'none',
+          });
+          box.dataset.gap = String(itemIndex);
+        }
       }
       if (pending) { groups.push(pending); pending = null; }
       for (const p of placed) {
@@ -1866,13 +1892,15 @@ const Chords = (() => {
       const item = items[itemIndex];
       if (!item.notes || !item.notes.length) continue;
       const ruling = rulingNames(item);
+      const gapAt = item.gap === undefined ? null : item.gap;
       for (const p of noteBeats(item.notes).items) {
         const name = ruling[p.index] || 'C';
         const chord = parseChord(name);
         // A grace note stands ahead of the note it leans on here too, and is
         // written smaller, so the two rows read the same note for note.
         const k = p.ev.grace ? 0.75 : 1;
-        const x = item.x + NOTE_INSET + p.beat * beat - p.back * GRACE_STEP;
+        const x = item.x + NOTE_INSET + p.beat * beat - p.back * GRACE_STEP
+          + (gapAt !== null && p.index > gapAt ? GAP_W : 0);
         hits.push({ x, chord: itemIndex, note: p.index, on: item.sel === p.index , after: item.after === (p.index) });
         if (p.ev.rest) continue;
         const stops = p.ev.tie ? carried || [] : p.ev.stops;
@@ -2040,22 +2068,6 @@ const Chords = (() => {
     return svg;
   }
 
-  // The same three notes with a plus beside them: the chord being tapped out is
-  // finished, and the next tap begins another. Built on chordGlyph so the pair
-  // read as one thing said twice — what stacking is, and what ends it.
-  function chordAddGlyph(scale) {
-    const k = scale || 1;
-    const svg = chordGlyph(k);
-    const w = Number(svg.getAttribute('width'));
-    const add = svgAdder(svg);
-    const x = w - 5 * k, y = 13 * k, r = 4 * k;
-    add('line', { x1: x - r, y1: y, x2: x + r, y2: y,
-      stroke: 'currentColor', 'stroke-width': 2 * k, 'stroke-linecap': 'round' });
-    add('line', { x1: x, y1: y - r, x2: x, y2: y + r,
-      stroke: 'currentColor', 'stroke-width': 2 * k, 'stroke-linecap': 'round' });
-    return svg;
-  }
-
   // A grace note, for the button that writes one: a small head, a flag, and the
   // stroke across the stem that says it is crushed against the note after it.
   // Drawn to the same box as noteGlyph so the row of buttons keeps one baseline.
@@ -2159,7 +2171,7 @@ const Chords = (() => {
     staffRange, staffBar, staffHead, staffHeadWidth,
     // single notes
     parseNoteToken, parseDur, durText, notesToText, noteBeats, isDottedDur,
-    tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, chordAddGlyph, beatWeights,
+    tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, beatWeights,
     isTripletDur, tripletBase, tripletGlyph, beamGlyph, graceGlyph,
     BEATS_PER_BAR,
     stopsToMarkers, stopShapes, rulingNames,
