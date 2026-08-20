@@ -2099,6 +2099,10 @@ function closeNotePanel() {
   if (!notePanel) return;
   notePanel.hidden = true;
   notePanel.textContent = '';
+  // The marks on the staff say what the panel is open on, so they go out with
+  // it. Closing used to leave a note ringed with nothing open on it — the ring
+  // says a tap replaces this note, and there was nothing left to tap with.
+  markNoteSelection();
 }
 
 // Every change goes the same way out: into the sheet, then back onto the strip
