@@ -1628,8 +1628,26 @@ chordViewport.addEventListener('click', e => {
 // belongs to and selects it. Only while editing — with the editor closed the
 // strip is something you read, and a click on it is the fretboard-viewer link.
 chordStrip.addEventListener('click', e => {
-  if (chordEditor.hidden) return;
   if (!e.target.closest) return;
+  // With the editor closed a note is still a way in: pressing one opens editing
+  // on that note. Asking for the mode first and then for the note again is two
+  // steps to say one thing, and the note pressed is the note meant.
+  if (chordEditor.hidden) {
+    const shut = e.target.closest('.staff-hit');
+    if (!shut) return;
+    const barEl = shut.closest('.chord-bar');
+    if (!barEl) return;
+    e.preventDefault();
+    // Read before the strip is rebuilt: opening the editor draws it again, and
+    // the element these came off is gone by then.
+    const bar = Number(barEl.dataset.bar);
+    const chord = Number(shut.dataset.chord);
+    const note = Number(shut.dataset.note);
+    openChordEditor(false);
+    selectNote(bar, chord, note);
+    focusNotePanel();
+    return;
+  }
   // A chord's name, where it is written on the staff: the way out to the viewer,
   // which used to be the ↗ in the cell.
   const named = e.target.closest('.staff-name');
