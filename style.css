@@ -459,6 +459,26 @@ button.pin {
   color: var(--sub);
   font-size: 11px;
 }
+/* The label is as wide as the word. The 44px the fields above it use is there to
+   line their boxes up in a column, and in a row of its own it was 20px of nothing
+   between "Key" and the select. */
+.chord-key .field-label { width: auto; }
+/* The key's own chord, on the way out to the fretboard viewer. A little air on
+   its right so the ↗ is not read as part of the switch that follows it. */
+.key-chord {
+  padding: 2px 5px;
+  margin-right: 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--sub);
+  font-size: 11px;
+  line-height: 1.4;
+  text-decoration: none;
+}
+.key-chord:hover { background: var(--panel-hover); border-color: var(--blue); color: var(--text); }
+/* No key set, so there is no chord to open — down rather than gone, since the
+   row would otherwise change width the moment a key is picked. */
+.key-chord.off { opacity: 0.4; cursor: default; }
 .chord-key select {
   padding: 2px 4px;
   border: 1px solid var(--border);

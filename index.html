@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=28597d75">
+<link rel="stylesheet" href="style.css?v=443c6264">
 </head>
 <body>
 <main>
@@ -135,6 +135,10 @@
           </optgroup>
         </select>
       </label>
+      <!-- The key as a chord, out on the fretboard: the whole scale in one shape
+           to read positions off. Outside the label above, since a link inside one
+           is a click the label takes for the select. -->
+      <a id="chordKeyChord" class="key-chord" target="_blank" rel="noopener">↗</a>
       <div class="legend-toggle" role="group" aria-label="Dot labelling">
         <button id="chordModeInterval" class="legend-toggle-btn active"
                 title="Label the dots with degrees">Interval</button>
@@ -230,6 +234,6 @@
      scripts/bump-cache-buster.sh to refresh them locally. A hand-kept counter used to get
      reused across changes, which left the browser on stale files while they were tested. -->
 <script src="chords.js?v=38697745"></script>
-<script src="main.js?v=b80023f1"></script>
+<script src="main.js?v=d2f408c6"></script>
 </body>
 </html>

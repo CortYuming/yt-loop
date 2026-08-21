@@ -142,6 +142,7 @@ const chordViewport   = document.getElementById('chordViewport');
 const chordRevisions  = document.getElementById('chordRevisions');
 const chordRevList    = document.getElementById('chordRevList');
 const chordKeySelect  = document.getElementById('chordKeySelect');
+const chordKeyChord   = document.getElementById('chordKeyChord');
 const chordModeBtns   = {
   number: document.getElementById('chordModeInterval'),
   note:   document.getElementById('chordModeNote'),
@@ -1045,6 +1046,14 @@ function drawChordStrip(fromCache) {
     return;
   }
   chordSection.hidden = false;
+  // The sheet is parsed before anything is drawn from it — the select and the
+  // pill both read the key off this parse. Read from the one left over from the
+  // last draw, the select put the old key back in the box the moment a new one
+  // was picked: the first pick looked like it had been ignored, and picking it a
+  // second time was what made it stick.
+  const { bars, spans } = fromCache && chordCache.vid === currentVideoId
+    ? chordCache
+    : refreshChordCache();
   updateChordKeySelect();
   // The key decides whether solfège is on offer at all, so the pill is brought
   // up to date wherever the sheet is.
@@ -1054,10 +1063,6 @@ function drawChordStrip(fromCache) {
   syncChordEditMode();
   chordViewport.hidden = !visible;
   if (!visible) return;
-
-  const { bars, spans } = fromCache && chordCache.vid === currentVideoId
-    ? chordCache
-    : refreshChordCache();
   chordWindows = Chords.fretWindows(bars);
   // The clef and signature are drawn outside the strip — see below — so the pair
   // from the last draw is cleared here rather than with the strip's contents.
@@ -3229,6 +3234,28 @@ function updateChordKeySelect() {
     chordKeySelect.appendChild(extraKeyOption);
   }
   chordKeySelect.value = label;
+  updateKeyChordLink(key);
+}
+
+// The key as one chord, out on the fretboard viewer: every note of the scale in
+// a single shape, which is what the neck positions are read off.
+// Major is Δ13 — the seven notes of the major scale and nothing else, where a
+// plain 13 would bring a ♭7 the key does not have. Minor is m13, the dorian
+// seven: the natural minor's ♭13 sits a semitone under the 5th and is not a note
+// anyone voices, and a dorian minor is what a minor tonic is played as.
+// Written with the triangle rather than as maj13, which is how it is read on a
+// chart. The viewer takes either.
+function updateKeyChordLink(key) {
+  if (!chordKeyChord) return;
+  const name = key ? key.label.replace(/m$/, '') + (key.minor ? 'm13' : 'Δ13') : '';
+  chordKeyChord.classList.toggle('off', !name);
+  if (!name) {
+    chordKeyChord.removeAttribute('href');
+    chordKeyChord.title = 'Set the key to open it as a chord';
+    return;
+  }
+  chordKeyChord.href = Chords.viewerUrl({ name });
+  chordKeyChord.title = `Open ${Chords.displayName(name)} in Guitar Chord Viewer`;
 }
 
 chordKeySelect.addEventListener('change', () => {
