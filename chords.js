@@ -502,8 +502,25 @@ const Chords = (() => {
       // A grace note takes no time from the bar: it stands on the beat of the
       // note it leans on, and is only drawn ahead of it — see `back`.
       if (!ev.grace) at += ev.free ? 0 : ev.d;
-      return { ev, beat: b, index, back: 0 };
+      return { ev, beat: b, index, back: 0, stack: 0 };
     });
+    // Events with no length of their own all begin on the same beat — a
+    // fingering written as a stop, a second one copied after it, the first note
+    // of a phrase written under one — so left on that beat they would be drawn
+    // one on top of another, and a copy of a chord would be a thing nothing on
+    // screen said was there. Each one after the first is moved along by a head's
+    // width. Beats are what the music is measured in, so this is a place to draw
+    // and to press rather than a time: nothing about when it sounds changes.
+    const beats = new Map();
+    for (const p of out) {
+      // A grace note already stands off its beat — see `back` — and moving it
+      // again would take it away from the note it leans on.
+      if (p.ev.grace) continue;
+      const key = Math.round(p.beat * 1e6);
+      const n = beats.get(key) || 0;
+      p.stack = n;
+      beats.set(key, n + 1);
+    }
     // How far ahead of that beat each one is drawn, counted in grace steps: a
     // run of them leans in order, the last of the run nearest the note.
     for (let i = 0; i < out.length; i++) {
@@ -1275,6 +1292,9 @@ const Chords = (() => {
   // The room the + opens up, a note's width: what is written next goes in there,
   // so the mark for it stands between two notes instead of over one of them.
   const GAP_W = SP * 4.4;
+  // The step between two events sharing a beat — see noteBeats. A note head
+  // wide, which is what it takes for the two to be read, and pressed, apart.
+  const STACK_W = SP * 2.6;
   const BEAM_GAP = SP * 0.72;
 
   // How many beams or flags a duration carries. A dotted note carries what the
@@ -1360,9 +1380,12 @@ const Chords = (() => {
     let scale = 1;
     for (const item of items) {
       if (!item.notes || !item.notes.length) continue;
-      const { length } = noteBeats(item.notes);
+      const { items: placed, length } = noteBeats(item.notes);
       if (length <= 0) continue;
-      const room = width - (item.x + NOTE_INSET) - NOTE_RX * 2
+      // The steps a stacked beat takes are room the notes after it no longer
+      // have, the same as the gap the + opens.
+      const stacked = placed.reduce((most, p) => Math.max(most, p.stack), 0);
+      const room = width - (item.x + NOTE_INSET) - NOTE_RX * 2 - stacked * STACK_W
         - (item.gap === null || item.gap === undefined ? 0 : GAP_W);
       if (room <= 0) continue;
       scale = Math.min(scale, room / (length * beat));
@@ -1431,7 +1454,8 @@ const Chords = (() => {
       for (const p of noteBeats(item.notes).items) {
         if (!p.ev.name) continue;
         marks.push({
-          x: item.x + p.beat * beat + (gapAt !== null && p.index > gapAt ? GAP_W : 0),
+          x: item.x + p.beat * beat + p.stack * STACK_W
+            + (gapAt !== null && p.index > gapAt ? GAP_W : 0),
           name: p.ev.name, note: p.index,
         });
       }
@@ -1632,6 +1656,7 @@ const Chords = (() => {
         p.ruling = ruling[p.index] || item.name;
         p.beatAt = from + p.beat;
         p.x = item.x + NOTE_INSET + p.beat * beat - p.back * GRACE_STEP
+          + p.stack * STACK_W
           + (gapAt !== null && p.index > gapAt ? GAP_W : 0);
       }
       if (gapAt !== null) {
@@ -1900,6 +1925,7 @@ const Chords = (() => {
         // written smaller, so the two rows read the same note for note.
         const k = p.ev.grace ? 0.75 : 1;
         const x = item.x + NOTE_INSET + p.beat * beat - p.back * GRACE_STEP
+          + p.stack * STACK_W
           + (gapAt !== null && p.index > gapAt ? GAP_W : 0);
         hits.push({ x, chord: itemIndex, note: p.index, on: item.sel === p.index , after: item.after === (p.index) });
         if (p.ev.rest) continue;

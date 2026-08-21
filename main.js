@@ -2214,8 +2214,13 @@ function stackStop(stops, string, fret) {
 // repeated over the next shape reads as a chord change to itself, and what this
 // writes is the same chord struck again, which the ruling name already says.
 function copyNote() {
+  // Only ever the selected note. Falling back to the last note of the stretch
+  // put the copy somewhere nobody had pointed at — the button says "this again",
+  // and with nothing selected there is no this. The button is down then, so
+  // there is nothing to press and no silent second meaning to it.
+  if (noteSel === null) return;
   const notes = noteEntries();
-  const at = noteSel !== null ? noteSel : notes.length - 1;
+  const at = noteSel;
   const src = notes[at];
   if (!src) return;
   const copy = { d: src.d, stops: (src.stops || []).map(st => ({ ...st })) };
@@ -2459,9 +2464,13 @@ function stepNote(by) {
 // Clicking a note in the strip selects it — see the staff's own click handler.
 function selectNote(barIndex, chordIndex, index) {
   if (noteAfter !== null) { noteAfter = null; renderChordStrip(true); }
-  const same = notePanelAt && notePanelAt.bar === barIndex && notePanelAt.chord === chordIndex;
   notePanelAt = { bar: barIndex, chord: chordIndex };
-  noteSel = same && noteSel === index ? null : index;
+  // Pressing the selected note again keeps it selected. It used to unselect it,
+  // and nothing on screen said much about the difference — while the Chord box
+  // and ⧉ Copy both quietly change what they act on when nothing is selected,
+  // so a press meant to make sure of a note renamed the whole stretch instead.
+  // Esc and ▷▷| are how writing goes back to the end of the stretch.
+  noteSel = index;
   renderNotePanel();
   markNoteSelection();
 }
@@ -2569,13 +2578,27 @@ function renderNotePanel() {
   // hold, moved to where the music is being written rather than printed a second
   // time above it.
   const nameRow = row('Chord');
+  // It writes on what is selected and on nothing else. With notes in the stretch
+  // and none of them selected there is no such thing, so the box is down: it used
+  // to rename the whole stretch instead, which is how naming a copied chord
+  // renamed the chord at the head of the bar. A stretch with nothing written in
+  // it is the one case with no note to point at — the name is then the only thing
+  // the box can be about, so there it stands open.
+  // The first note of a stretch is the stretch's own name: the same moment, and
+  // printed once at its head. So the box writes there rather than laying a second
+  // name over the one already drawn in that spot.
+  const headName = !!ev && noteSel === 0 && !ev.name;
+  const onStretch = !ev || headName;
   const nameBox = shapeNameBox(chord,
-    ev ? { name: names[noteSel] || chord.name || '', index: noteSel }
-      : { name: '', index: -1 },
-    ev ? 'note' : 'stretch');
-  nameBox.title = ev
-    ? 'The chord from this note on — leave it empty to keep the one already sounding'
-    : 'The chord this stretch starts on';
+    onStretch ? { name: '', index: -1 }
+      : { name: names[noteSel] || chord.name || '', index: noteSel },
+    onStretch ? 'stretch' : 'note');
+  nameBox.disabled = !ev && notes.length > 0;
+  nameBox.title = nameBox.disabled
+    ? 'Select a note to write the chord it starts'
+    : onStretch
+      ? 'The chord this stretch starts on'
+      : 'The chord from this note on — leave it empty to keep the one already sounding';
   nameRow.appendChild(nameBox);
 
   // ---- how long ----
@@ -2668,8 +2691,10 @@ function renderNotePanel() {
   // if a chord were the only thing it would copy.
   // The same marks the strip's own buttons use, so one copy and one delete are
   // one thing wherever they are pressed.
-  button(fixRow, '⧉ Copy',
-    'Write this again, just after it — a chord, a note, or a rest', copyNote);
+  const copyBtn = button(fixRow, '⧉ Copy',
+    'Write the selected note again, just after it — a chord, a note, or a rest',
+    copyNote);
+  copyBtn.disabled = !ev;
   const undo = button(fixRow, '↺ Undo', 'Undo the last thing tapped here', undoNote);
   undo.disabled = !canUndoNote();
   button(fixRow, '🗑 Delete', 'Remove the selected note, or the last one (Backspace)',

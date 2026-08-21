@@ -1154,6 +1154,12 @@ footer {
   outline: none;
   border-color: var(--blue);
 }
+/* Nothing selected to write a name on — see renderNotePanel. Down like the tools
+   beside it rather than gone: what it holds is still the chord being played. */
+.note-name-box:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
 /* The viewport turns selection off so drags scrub instead of highlighting;
    inside a box, text is text again. */
 .note-name-box { font-family: inherit; user-select: text; -webkit-user-select: text; }
