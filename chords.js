@@ -1087,11 +1087,8 @@ const Chords = (() => {
   const LABEL_R = DOT_R;
   const LABEL_GAP = SP * 0.22;
   const labelSize = label => (label.length > 2 ? 10 : label.length > 1 ? 12 : 13);
-  // What has to fit between the dots and the highest note: a stem at full
-  // stretch, and the 3 a triplet wears above its beam.
-  const LABEL_CLEAR = SP * 4.4;
   const labelBandHeight = stack => (stack
-    ? stack * LABEL_R * 2 + (stack - 1) * LABEL_GAP + SP * 0.5
+    ? stack * LABEL_R * 2 + (stack - 1) * LABEL_GAP + SP * 0.15
     : 0);
   const NAME_SIZE = SP * 1.6;
   // Accidentals are the small print of a staff and were the first thing to go
@@ -1275,37 +1272,24 @@ const Chords = (() => {
   // the height of a given place. Every stretch is measured from the same reach,
   // which is what makes them line up when they are butted together.
   function staffCanvas(width, range) {
-    const band = labelBandHeight(range.stack || 0);
-    // What has to fit between the dots and the music is a stem at full stretch
-    // over the highest note written. The staff is drawn down to its own lines
-    // whatever is played, so there is usually air up there already — a phrase
-    // that never leaves the middle of the staff leaves plenty — and only what
-    // the air does not cover is added to the row. Reserving the whole of it
-    // every time left a hand's width of nothing between the dots and the notes.
+    // Room under the bottom line for a stem turned down off the lowest head,
+    // less whatever air the staff already has down there: a phrase that never
+    // leaves the middle of the staff leaves plenty. The row of dots used to
+    // stand in this space, and moving it under the tab took the stems' clearance
+    // with it — they came within a few pixels of the tab's top line.
     const slack = range.loNote === null || range.loNote === undefined
       ? 0 : Math.max(0, (range.loNote - range.bottom) * HALF);
-    const below = band ? Math.max(STAFF_PAD, band + LABEL_CLEAR - slack) : STAFF_PAD;
+    const below = Math.max(STAFF_PAD, STAFF_PAD + STEM_LEN - slack);
     const yBottom = NAME_BAND + STAFF_PAD + (range.top - BOTTOM_LINE) * HALF;
     const h = yBottom + (BOTTOM_LINE - range.bottom) * HALF + below;
     const y = step => yBottom - (step - BOTTOM_LINE) * HALF;
-    // The dots read under the staff, where the words under a tune go. The row
-    // hugs the bottom line and only drops where the music does: it is settled
-    // once the bar is drawn, against the lowest ink actually put on it — a head,
-    // a ledger line, a stem that went down. `low` is that, in y.
-    const LABEL_STANDOFF = SP * 1.6;
-    const labelY = (n, low) => {
-      const rest = y(BOTTOM_LINE) + LABEL_STANDOFF + LABEL_R;
-      const clear = low === -Infinity ? rest : Math.max(rest, low + LABEL_STANDOFF + LABEL_R);
-      return clear + n * (LABEL_R * 2 + LABEL_GAP);
-    };
-
     const { svg, add } = svgCanvas(width, h, { 'aria-hidden': 'true' });
     for (let s = BOTTOM_LINE; s <= TOP_LINE; s += 2) {
       add('line', {
         x1: 0, y1: y(s), x2: width, y2: y(s), stroke: '#4d4d4d', 'stroke-width': 1,
       });
     }
-    return { svg, add, y, labelY, hasLabels: band > 0 };
+    return { svg, add, y };
   }
 
   // ---------- the head of the staff ----------
@@ -1515,7 +1499,7 @@ const Chords = (() => {
       empty.setAttribute('height', '0');
       return empty;
     }
-    const { svg, add, y, labelY, hasLabels } = staffCanvas(width, range);
+    const { svg, add, y } = staffCanvas(width, range);
     const paced = beatWidth || width / BEATS_PER_BAR;
     const beat = paced * beatFit(items, width, paced);
 
@@ -1584,9 +1568,6 @@ const Chords = (() => {
     // read as degrees, names or solfège without leaving the staff.
     // An octave of a note already in the chord says nothing the first one did
     // not, so it is not printed twice.
-    // Kept until the bar is drawn, then written above whatever the drawing
-    // reached up to.
-    const rows = [];
     // Every triplet-timed note in the bar, in playing order, kept until the bar
     // is drawn: a triplet is three notes, and the three are not always in one
     // beam group or even in one stretch — a bar of quarter triplets is three
@@ -1598,30 +1579,7 @@ const Chords = (() => {
     let ord = 0;
     // The topmost thing drawn on this bar, filled in as it is drawn.
     let inkTop = Infinity;
-    let inkLow = -Infinity;
     const inked = at => { if (at < inkTop) inkTop = at; };
-    const inkedLow = at => { if (at > inkLow) inkLow = at; };
-    const drawLabels = (notes, x, chord) => {
-      // A shape has its own diagram, which names every note in it in these very
-      // dots. Saying it again over the staff is the same thing twice, so the row
-      // is for single notes — which is what it was added for.
-      if (!hasLabels || notes.length !== 1) return;
-      const seen = new Set();
-      for (const n of notes) {
-        if (seen.has(n.pc)) continue;
-        seen.add(n.pc);
-        // Read against exactly what the head under it is read against — the
-        // stretch's chord, or C where there is none, which is what the head is
-        // already coloured by. A dot that went grey over a coloured head said
-        // the two were about different things.
-        rows.push({
-          x,
-          hue: colourDegree(n.pc, chord, mode, key),
-          label: pitchLabel(n.pc, chord, mode, key),
-          at: seen.size - 1,
-        });
-      }
-    };
 
     // Heads of one event, spread the way engraving spreads a second, with the
     // accidentals in front of them.
@@ -1659,7 +1617,6 @@ const Chords = (() => {
         const degree = colourDegree(n.pc, chord, mode, key);
         const ink = degree === null ? '#dcdcdc' : DEGREE_HUE[degree];
         inked(y(n.step) - ry - 2);
-        inkedLow(y(n.step) + ry + 2);
         add('ellipse', {
           cx: nx, cy: y(n.step), rx, ry,
           fill: hollow ? 'none' : ink,
@@ -1845,7 +1802,6 @@ const Chords = (() => {
           if (!h.notes.length) continue;
           // A tie is the note before it still sounding, so it is not labelled
           // again: the row says what was struck, and nothing was.
-          if (!h.p.ev.tie) drawLabels(h.notes, h.x, chordAt(h.p));
           // No duration written, so nothing to draw one with: heads alone, which
           // is how the chord this stands for has always been drawn.
           if (h.p.ev.free) {
@@ -1922,7 +1878,6 @@ const Chords = (() => {
         const flat = up ? Math.min(...tips.map(t => t.tip)) : Math.max(...tips.map(t => t.tip));
         const beams = Math.max(...tips.map(t => t.beams));
         if (up) inked(flat - (isTripletDur(grp.d) ? 13 : 2));
-        else inkedLow(flat + (beams * BEAM_GAP) + (isTripletDur(grp.d) ? 13 : 2));
         for (const t of tips) {
           add('line', {
             x1: t.x, y1: t.tip, x2: t.x, y2: flat, stroke: '#dcdcdc', 'stroke-width': 1.4,
@@ -1978,20 +1933,6 @@ const Chords = (() => {
       }
     }
 
-    for (const r of rows) {
-      const fs = labelSize(r.label);
-      add('circle', {
-        class: 'staff-label-dot',
-        cx: r.x, cy: labelY(r.at, inkLow), r: LABEL_R,
-        fill: r.hue === null ? '#5f5f5f' : DEGREE_HUE[r.hue],
-      });
-      add('text', {
-        x: r.x, y: labelY(r.at, inkLow) + fs * 0.355, fill: DOT_INK, 'font-size': fs,
-        'text-anchor': 'middle', 'font-weight': 600,
-        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
-      }, r.label);
-    }
-
     // Three in the time of two, said the way printed music says it. Under one
     // beam the beam is the bracket and a 3 over it is the whole mark. With no
     // beam to hang it on — quarter triplets, a chord change on each of the three
@@ -2015,7 +1956,7 @@ const Chords = (() => {
       const tips = chunk.map(t => t.tip);
       const line = (up ? Math.min(...tips) - 8 : Math.max(...tips) + 8);
       const mid = (first.x + last.x) / 2;
-      if (up) inked(line - 7); else inkedLow(line + 7);
+      if (up) inked(line - 7);
       if (chunk.length === 1) { three(first.x, line + (up ? 3.2 : 7)); return; }
       // Two hooks turned back towards the heads, with the number in the break
       // between them.
@@ -2095,12 +2036,20 @@ const Chords = (() => {
   const TAB_PAD = SP * 0.8;
   const TAB_NUM = 11.5;
 
-  function tabHeight() {
-    return TAB_PAD * 2 + 5 * TAB_SP;
+  // Room under the six lines for the row of dots — see tabBar. Only where the
+  // sheet has single notes in it at all: `stack` is staffRange's count of them,
+  // and with none the row is height taken for nothing.
+  const TAB_LABEL_PAD = SP * 0.9;
+  function tabHeight(stack) {
+    // The pad under the six lines is what the dots stand in: kept as well as
+    // their band, it left the row of dots floating a pad's width above the
+    // chord names under it.
+    const lines = TAB_PAD + 5 * TAB_SP;
+    return lines + (stack ? TAB_LABEL_PAD + labelBandHeight(stack) : TAB_PAD);
   }
 
-  function tabBar(items, width, key, mode, beatWidth, carryIn) {
-    const h = tabHeight();
+  function tabBar(items, width, key, mode, beatWidth, carryIn, stack) {
+    const h = tabHeight(stack);
     const { svg, add } = svgCanvas(Math.max(0, width), h, { 'aria-hidden': 'true' });
     if (width <= 0) return svg;
     const y = string => TAB_PAD + (string - 1) * TAB_SP;   // the 1st string on top
@@ -2111,6 +2060,11 @@ const Chords = (() => {
     const beat = paced * beatFit(items, width, paced);
     let carried = (carryIn && carryIn.length) ? carryIn : null;
     const hits = [];
+    // The dots read under the tab, where the words under a tune go. They name
+    // single notes only: a shape has its own diagram, which names every note in
+    // it in these very dots, and saying it again here is the same thing twice.
+    const labels = [];
+    const labelCy = TAB_PAD + 5 * TAB_SP + TAB_LABEL_PAD + LABEL_R;
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
       const item = items[itemIndex];
       if (!item.notes || !item.notes.length) continue;
@@ -2131,6 +2085,14 @@ const Chords = (() => {
           : (p.ev.stops && p.ev.stops.length) ? p.ev.stops : carried || [];
         if (!stops.length) continue;
         for (const st of stops) {
+          if (stack && stops.length === 1 && !p.ev.tie) {
+            const one = stopNote(st, name, key);
+            labels.push({
+              x,
+              hue: colourDegree(one.pc, chord, mode, key),
+              label: pitchLabel(one.pc, chord, mode, key),
+            });
+          }
           const note = stopNote(st, name, key);
           const degree = colourDegree(note.pc, chord, mode, key);
           const ink = degree === null ? '#dcdcdc' : DEGREE_HUE[degree];
@@ -2151,6 +2113,19 @@ const Chords = (() => {
         }
         carried = stops;
       }
+    }
+    for (const r of labels) {
+      const fs = labelSize(r.label);
+      add('circle', {
+        class: 'staff-label-dot',
+        cx: r.x, cy: labelCy, r: LABEL_R,
+        fill: r.hue === null ? '#5f5f5f' : DEGREE_HUE[r.hue],
+      });
+      add('text', {
+        x: r.x, y: labelCy + fs * 0.355, fill: DOT_INK, 'font-size': fs,
+        'text-anchor': 'middle', 'font-weight': 600,
+        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+      }, r.label);
     }
     addSlots(add, items, width, h);
     addCarets(add, items, h);

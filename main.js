@@ -1107,7 +1107,8 @@ function drawChordStrip(fromCache) {
   const showTab = Chords.hasNotes(bars) || !chordEditor.hidden;
   // The clef is pinned to the foot of a bar, so it has to know how much of that
   // foot the tab row is taking. 2px is .chord-tab's own margin.
-  chordViewport.style.setProperty('--tab-h', showTab ? `${Chords.tabHeight() + 2}px` : '0px');
+  chordViewport.style.setProperty('--tab-h',
+    showTab ? `${Chords.tabHeight(staffReach && staffReach.stack) + 2}px` : '0px');
   // Clef and key signature go at the head of the row, where printed music puts
   // them. They are also what every accidental after them is read against — which
   // notes the staff has already flattened is a question asked in the middle of
@@ -1246,7 +1247,8 @@ function drawChordStrip(fromCache) {
       staff.setAttribute('class', 'chord-staff');
       barEl.appendChild(staff);
       if (showTab) {
-        const tab = Chords.tabBar(items, width, key, effectiveChordMode(), slot, carryIn);
+        const tab = Chords.tabBar(items, width, key, effectiveChordMode(), slot, carryIn,
+          staffReach && staffReach.stack);
         tab.setAttribute('class', 'chord-tab');
         barEl.appendChild(tab);
       }
