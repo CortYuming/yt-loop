@@ -1229,11 +1229,19 @@ function drawChordStrip(fromCache) {
       });
       // A bar is four slots wide, so one slot is one beat — which is what the
       // notes inside a chord's stretch are placed by.
-      const staff = Chords.staffBar(items, width, staffReach, key, effectiveChordMode(), slot);
+      // A bar can open on a tie — a note held over the bar line — and then what
+      // it is holding was struck in the bar before it.
+      const carryIn = Chords.carriedStops(bars, i);
+      // And a bar can end on one: the arc crossing the bar line is drawn as two
+      // halves, one in each bar, since each bar is a staff of its own.
+      const carryOut = barOpensOnTie(bars[i + 1])
+        && Chords.carriedStops(bars, i + 1).length > 0;
+      const staff = Chords.staffBar(
+        items, width, staffReach, key, effectiveChordMode(), slot, carryIn, carryOut);
       staff.setAttribute('class', 'chord-staff');
       barEl.appendChild(staff);
       if (showTab) {
-        const tab = Chords.tabBar(items, width, key, effectiveChordMode(), slot);
+        const tab = Chords.tabBar(items, width, key, effectiveChordMode(), slot, carryIn);
         tab.setAttribute('class', 'chord-tab');
         barEl.appendChild(tab);
       }
@@ -1295,6 +1303,14 @@ function drawChordStrip(fromCache) {
   // The panel is drawn against the same parse, so it follows the strip rather
   // than keeping whatever it said before the sheet changed.
   if (notePanelAt) renderNotePanel();
+}
+
+// Whether a bar's first event is a tie — a note held over the bar line into it.
+function barOpensOnTie(bar) {
+  for (const chord of (bar && bar.chords) || []) {
+    if (chord.notes && chord.notes.length) return !!chord.notes[0].tie;
+  }
+  return false;
 }
 
 // A bar that isn't there yet. It starts where the last one ends, which is what
@@ -2237,20 +2253,67 @@ function copyNote() {
 
 // Rest and tie do the same double duty as the board: they turn the selected note
 // into one, or write one at the end.
-function addNoteRest() {
-  const notes = noteEntries();
+// Both are marks on a note rather than notes of their own, so pressing one again
+// takes it off and the note comes back — it used to write the same mark over
+// itself, which is a button that goes down and never comes up. The strings are
+// kept on the event while the mark is on, so the note that comes back is the note
+// that was there; a mark written before this browser last read the sheet has none
+// to keep, and then what comes back is the note it was holding on, which is the
+// one the row was already drawing in that place.
+function addNoteRest() { markNote('rest'); }
+
+function addNoteTie() { markNote('tie'); }
+
+function markNote(mark) {
+  const other = mark === 'rest' ? 'tie' : 'rest';
   const ev = editingNote();
-  if (ev) notes[noteSel] = { d: ev.d, rest: true, stops: [] };
-  else putNote({ d: restValue(), rest: true, stops: [] });
+  if (!ev) {
+    putNote({ d: restValue(), [mark]: true, stops: [] });
+    commitNotes();
+    return;
+  }
+  // A tie is a note held on, so there has to be one: written where nothing is
+  // ringing — the first note of a sheet — it would take the note off the staff
+  // and put nothing in its place, which is a note deleted by a button that says
+  // it ties. The button is down in that case, so this is the second door.
+  if (mark === 'tie' && !ev.tie && !heldStops(noteSel).length) return;
+  if (ev[mark]) {
+    const stops = (ev.stops && ev.stops.length) ? ev.stops : heldStops(noteSel);
+    // Nothing to be a note with — a tie written as the first thing in a stretch,
+    // holding a note in the bar before it — so the mark stays where it is rather
+    // than leaving an event that sounds nothing at all.
+    if (!stops.length) return;
+    delete ev[mark];
+    ev.stops = stops;
+  } else {
+    delete ev[other];
+    // A rest and a tie both take a length, and neither is struck ahead of the
+    // note after it: the two states a note can be written in that they cannot.
+    delete ev.free;
+    delete ev.grace;
+    ev[mark] = true;
+    ev.stops = ev.stops || [];
+  }
   commitNotes();
 }
 
-function addNoteTie() {
-  const notes = noteEntries();
-  const ev = editingNote();
-  if (ev) notes[noteSel] = { d: ev.d, tie: true, stops: [] };
-  else putNote({ d: restValue(), tie: true, stops: [] });
-  commitNotes();
+// What a rest or a tie at `at` is sounding: the last thing struck before it,
+// counted over the whole bar and then over the bars before it, since a tie at the
+// head of a bar holds a note struck in the one before. A tie is that note still
+// ringing, so striking it again is the same strings — which is what taking the
+// tie off writes.
+function heldStops(at) {
+  const all = barNoteEvents();
+  const pos = all.findIndex(p => p.cell === notePanelAt.chord && p.index === at);
+  for (let i = pos - 1; i >= 0; i--) {
+    const ev = all[i].ev;
+    if (ev.tie) continue;
+    // Nothing rings over a rest, so nothing is being held after one.
+    if (ev.rest) return [];
+    if (ev.stops && ev.stops.length) return ev.stops.map(st => ({ ...st }));
+  }
+  const over = Chords.carriedStops(chordCache.bars, notePanelAt.bar);
+  return over.map(st => ({ ...st }));
 }
 
 // The duration buttons set what comes next, or re-time what is selected.
@@ -2289,8 +2352,9 @@ function toggleNoteDot() {
 
 // Three of these in the time of two. Three notes make a triplet, not one — a
 // lone third of a beat is nothing anyone plays — so this works on the selected
-// note and the two after it, the way it is done on paper: mark three, and they
-// now fill the time two of them used to. The rest of the bar moves up by the one
+// note and the two after it — across a chord change, since three notes under
+// three different chords are still a triplet — the way it is done on paper: mark
+// three, and they now fill the time two of them used to. The rest of the bar moves up by the one
 // note's worth of time that buys, which is the point of writing it.
 // Pressing it again on any of the three undoes that group and nothing else.
 // A note already dotted gives the dot up: one note is bent one way, and a dotted
@@ -2303,8 +2367,7 @@ function toggleNoteTriplet() {
     renderNotePanel();
     return;
   }
-  const notes = noteEntries();
-  const group = tripletGroup(notes, noteSel);
+  const group = tripletGroup();
   if (Chords.isTripletDur(ev.d)) {
     for (const n of group) { n.d = Chords.tripletBase(n.d); delete n.free; }
   } else {
@@ -2395,14 +2458,31 @@ function noteBeamOn() {
 // the last note of a bar can still be marked. Coming out, it is the three of the
 // run the selected note belongs to, counted from where that run starts: a run of
 // six is two triplets, and undoing one of them leaves the other alone.
-function tripletGroup(notes, at) {
-  const ev = notes[at];
-  if (!ev) return [];
-  if (!Chords.isTripletDur(ev.d)) return notes.slice(at, at + 3);
+function tripletGroup() {
+  const all = barNoteEvents();
+  const at = all.findIndex(p => p.cell === notePanelAt.chord && p.index === noteSel);
+  if (at < 0) return [];
+  const notes = all.map(p => p.ev);
+  if (!Chords.isTripletDur(notes[at].d)) return notes.slice(at, at + 3);
   let from = at;
   while (from > 0 && Chords.isTripletDur(notes[from - 1].d)) from--;
   const start = from + Math.floor((at - from) / 3) * 3;
   return notes.slice(start, start + 3);
+}
+
+// Every note in the bar, in playing order, with the stretch each one came from.
+// A triplet is three notes and the harmony under them has nothing to do with it:
+// a bar of quarter triplets is three chords, each a stretch of its own. Counted
+// over the bar rather than inside one stretch's own notes, which is why marking
+// one used to shorten a single note and leave it a triplet of nothing.
+function barNoteEvents() {
+  const bar = notePanelAt && chordCache.bars[notePanelAt.bar];
+  if (!bar) return [];
+  const out = [];
+  bar.chords.forEach((chord, cell) => {
+    (chord.notes || []).forEach((ev, index) => out.push({ ev, cell, index }));
+  });
+  return out;
 }
 
 function deleteNote() {
@@ -2492,12 +2572,18 @@ function renderNotePanel() {
   notePanel.hidden = false;
   notePanel.textContent = '';
 
+  // Thirds of a beat do not add up to whole numbers in binary — three triplet
+  // eighths come to 0.9999999999999999, and a bar split six ways gives a stretch
+  // 0.6666666666666666 of a beat — so what is printed is rounded to where the ear
+  // stops caring rather than where the arithmetic does.
+  const beatsText = n => String(Math.round(n * 1000) / 1000);
+
   const head = document.createElement('p');
   head.className = 'note-panel-head';
   const what = document.createElement('span');
   what.className = 'note-panel-what';
   what.textContent = `♪ bar ${notePanelAt.bar + 1}, `
-    + `${beats} beat${beats === 1 ? '' : 's'}`;
+    + `${beatsText(beats)} beat${beats === 1 ? '' : 's'}`;
   const mode = document.createElement('span');
   mode.className = 'note-panel-mode';
   mode.textContent = noteAfter !== null
@@ -2516,10 +2602,6 @@ function renderNotePanel() {
   // out loud, since the overrun is drawn past the bar and reads as a mistake in
   // the sheet otherwise.
   room.className = 'note-panel-room' + (used > beats + 1e-6 ? ' over' : '');
-  // Thirds of a beat do not add up to whole numbers in binary — three triplet
-  // eighths come to 0.9999999999999999 — so what is printed is the sum rounded
-  // to where the ear stops caring rather than where the arithmetic does.
-  const beatsText = n => String(Math.round(n * 1000) / 1000);
   room.textContent = `${notes.length} note${notes.length === 1 ? '' : 's'}, `
     + `${beatsText(used)} beat${used === 1 ? '' : 's'} written`;
   head.append(what, mode, room);
@@ -2649,13 +2731,19 @@ function renderNotePanel() {
   // ---- what to write ----
   const writeRow = row('Write');
   button(writeRow, Chords.restGlyph(ev && !ev.free ? ev.d : restValue(), 0.8),
-    `${ev ? 'Turn this note into a rest' : 'Rest, of the selected duration'} (key R)`,
-    addNoteRest, false, 'note-dur');
+    `${ev ? (ev.rest ? 'Turn this rest back into the note it was'
+      : 'Turn this note into a rest')
+      : 'Rest, of the selected duration'} (key R)`,
+    addNoteRest, ev && !!ev.rest, 'note-dur');
   // Two heads under one curve, which is what a tie is drawn as.
-  button(writeRow, Chords.tieGlyph(0.8),
-    `${ev ? 'Turn this into a tie, holding the note before it on'
+  const canTie = !ev || !!ev.tie || heldStops(noteSel).length > 0;
+  const tieBtn = button(writeRow, Chords.tieGlyph(0.8),
+    `${ev ? (ev.tie ? 'Strike this note again instead of holding the one before it on'
+      : canTie ? 'Turn this into a tie, holding the note before it on'
+        : 'Nothing is ringing here for a tie to hold on')
       : 'Hold the last note on for the selected duration'} (key T)`,
-    addNoteTie, false, 'note-dur');
+    addNoteTie, ev && !!ev.tie, 'note-dur');
+  tieBtn.disabled = !canTie;
   // Beside the rest and the tie, since all three are marks on a note rather than
   // lengths: what is written here is how the note is played, not how long it is.
   const graceBtn = button(writeRow, Chords.graceGlyph(1),

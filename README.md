@@ -57,6 +57,7 @@ https://cortyuming.github.io/yt-loop/
 | `3/5*` | A grace note — struck just before the note it leans on, and taking no time from the bar, so the run around it is measured as if it were not there. Drawn small, with a stroke through its stem. A length can be written after the mark (`3/5*:16`) |
 | `r:4` | A rest, as long as it says |
 | `_:8` | Holds the note before it on for that much longer, without striking it again. Written at the head of a bar, this is a note carried over the bar line — the pitch is not written twice |
+| `1/3+2/3+3/2_` | The same for a chord: a tie with its strings written out holds those, so a chord carried over a bar line is drawn as the notes still ringing rather than as whatever happened to sound last |
 
 A bar with no end runs to the start of the next one; the last bar borrows the
 length of the one before it. **📍 Time** drops the current playback position in

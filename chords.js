@@ -351,7 +351,7 @@ const Chords = (() => {
   // A `*` after the stop is a grace note: struck just before the note it leans
   // on and taking no time of its own from the bar, which is why it is written as
   // a mark on the note rather than as a length.
-  const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*)|r|_)(?:\(([^)]*)\))?(\*)?(?::(\d{1,2}[.t]?))?(-)?$/;
+  const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*_?)|r|_)(?:\(([^)]*)\))?(\*)?(?::(\d{1,2}[.t]?))?(-)?$/;
   // Long enough to be the whole of a bar, short enough to still be a note.
   const DEFAULT_DUR = 0.5;
 
@@ -408,7 +408,12 @@ const Chords = (() => {
     const dur = d !== null ? d : (lastDur !== null ? lastDur : DEFAULT_DUR);
     if (body === 'r') return { d: dur, rest: true, stops: [] };
     if (body === '_') return { d: dur, tie: true, stops: [] };
-    const stops = body.split('+').map(part => {
+    // Strings with a tie written after them: that shape held on rather than
+    // struck again. A bare `_` holds whatever was ringing, which is all a single
+    // note needs; a chord has to say which strings it is holding, or the tie is
+    // drawn as whatever happened to sound last — one note where three were held.
+    const tied = body.endsWith('_');
+    const stops = (tied ? body.slice(0, -1) : body).split('+').map(part => {
       const [str, fret] = part.split('/');
       return { string: Number(str), fret: Number(fret) };
     });
@@ -423,6 +428,14 @@ const Chords = (() => {
     // Beamed to the next note. Only a struck note carries it: a rest ends a beam
     // wherever it falls, and a tie is drawn as the note it holds on.
     if (joined) ev.beam = true;
+    // A tie is not struck, so it is neither lengthless nor a grace note: it has
+    // a value, and it is the value it holds the note on for.
+    if (tied) {
+      ev.tie = true;
+      delete ev.noDur;
+      delete ev.free;
+      delete ev.grace;
+    }
     // A name on a rest or a tie has nothing to hold it, so only a struck note
     // carries one.
     const name = (named || '').trim();
@@ -450,9 +463,11 @@ const Chords = (() => {
     // duration of the run around it, so there the lack of one is written out.
     const alone = (notes || []).length === 1;
     return (notes || []).map(ev => {
-      const body = (ev.tie ? '_'
-        : ev.rest ? 'r'
-        : ev.stops.map(st => `${st.string}/${st.fret}`).join('+'))
+      const struck = (ev.stops || []).map(st => `${st.string}/${st.fret}`).join('+');
+      const body = (ev.rest ? 'r'
+        // A tie that knows which strings it holds says so — see parseNoteToken.
+        : ev.tie ? (struck ? `${struck}_` : '_')
+        : struck)
         + (ev.name ? `(${ev.name})` : '');
       // A note with no duration of its own goes back the way it came, and leaves
       // the run's duration where it was for whatever follows.
@@ -479,12 +494,36 @@ const Chords = (() => {
     return markers;
   }
 
+  // What is still ringing as a bar begins: the strings of the last event struck
+  // before it. A tie written as the first thing in a bar is a note carried over
+  // the bar line — the pitch is not written twice — so the bar it lands in has to
+  // be told what it is holding, or the note is drawn as nothing at all.
+  // A rest between the two ends it: nothing is ringing over a rest, and a tie
+  // after one has nothing to hold.
+  function carriedStops(bars, barIndex) {
+    for (let b = (barIndex || 0) - 1; b >= 0; b--) {
+      const chords = (bars[b] && bars[b].chords) || [];
+      for (let c = chords.length - 1; c >= 0; c--) {
+        const notes = chords[c].notes || [];
+        for (let i = notes.length - 1; i >= 0; i--) {
+          const ev = notes[i];
+          if (ev.tie) continue;
+          if (ev.rest) return [];
+          if (ev.stops && ev.stops.length) return ev.stops;
+        }
+      }
+    }
+    return [];
+  }
+
   // The shapes in a stretch, each with the beat it falls on: every event that
   // strikes more than one string at once.
   function stopShapes(notes, stretchName) {
     const ruling = rulingNames({ name: stretchName, notes });
     return noteBeats(notes).items
-      .filter(it => it.ev.stops && it.ev.stops.length > 1)
+      // A tie carries the strings it holds, but nothing is struck there: the
+      // shape was already drawn where it was played.
+      .filter(it => !it.ev.tie && it.ev.stops && it.ev.stops.length > 1)
       .map(it => ({
         markers: stopsToMarkers(it.ev.stops), beat: it.beat, index: it.index,
         // The name this shape is read against, and whether it is the shape that
@@ -1425,7 +1464,7 @@ const Chords = (() => {
     });
   }
 
-  function staffBar(items, width, range, key, mode, beatWidth) {
+  function staffBar(items, width, range, key, mode, beatWidth, carryIn, carryOut) {
     if (!range || width <= 0) {
       const empty = document.createElementNS(NS, 'svg');
       empty.setAttribute('width', '0');
@@ -1504,6 +1543,15 @@ const Chords = (() => {
     // Kept until the bar is drawn, then written above whatever the drawing
     // reached up to.
     const rows = [];
+    // Every triplet-timed note in the bar, in playing order, kept until the bar
+    // is drawn: a triplet is three notes, and the three are not always in one
+    // beam group or even in one stretch — a bar of quarter triplets is three
+    // chords, each its own stretch, with no beam anywhere. See the runs below.
+    const trips = [];
+    // Where each note falls in the bar, counted across the stretches: what says
+    // three triplet notes are the three next to each other rather than three
+    // picked from either end of the bar.
+    let ord = 0;
     // The topmost thing drawn on this bar, filled in as it is drawn.
     let inkTop = Infinity;
     let inkLow = -Infinity;
@@ -1577,8 +1625,20 @@ const Chords = (() => {
       return placed;
     };
 
-    // What a tie hangs on to: the last struck event.
-    let carried = null;
+    // What a tie hangs on to: the last struck event. A bar opening on a tie is
+    // handed what the bar before it left ringing, drawn from the bar line rather
+    // than from a note inside this bar — see carriedStops.
+    let carried = (carryIn && carryIn.length) ? { x: 0, stops: carryIn } : null;
+    // The last heads drawn in this bar, for the tie that leaves it: a bar is a
+    // staff of its own, so an arc across the bar line is drawn as two halves —
+    // one reaching the right edge here, one leaving the left edge there — and the
+    // bars butt against each other, which makes the two read as one curve.
+    let leaving = null;
+    // Nothing struck in this bar yet. A tie before the first strike is holding a
+    // note in another bar, and that bar may well have scrolled off the row, so
+    // the signs are written again here — every altered note in this sheet carries
+    // its own, for exactly that reason.
+    let struck = false;
     const ties = [];
     // Where each note can be clicked, and which note that is. Collected as they
     // are drawn and laid over the lot at the end, so a click lands on the note
@@ -1652,6 +1712,9 @@ const Chords = (() => {
       // read against its own chord, and clicked back into its own cell.
       for (const p of placed) {
         p.cell = itemIndex;
+        p.ord = ord++;
+        p.fresh = !struck;
+        if (!p.ev.tie && !p.ev.rest && p.ev.stops && p.ev.stops.length) struck = true;
         p.owner = item;
         p.ruling = ruling[p.index] || item.name;
         p.beatAt = from + p.beat;
@@ -1711,7 +1774,9 @@ const Chords = (() => {
         let sum = 0, count = 0;
         const heads = [];
         for (const p of grp.items) {
-          const stops = p.ev.tie ? (carried && carried.stops) || [] : p.ev.stops;
+          const stops = !p.ev.tie ? p.ev.stops
+            : (p.ev.stops && p.ev.stops.length) ? p.ev.stops
+              : (carried && carried.stops) || [];
           const notes = stops.map(st => stopNote(st, p.ruling, key))
             .sort((a, b) => a.step - b.step);
           for (const n of notes) { sum += n.step; count++; }
@@ -1723,7 +1788,14 @@ const Chords = (() => {
         for (const h of heads) {
           hits.push({ x: h.x, chord: h.p.cell, note: h.p.index,
             on: h.p.owner.sel === h.p.index, after: h.p.owner.after === h.p.index });
-          if (h.p.ev.rest) { drawRest(add, h.x, y(MID_LINE), h.p.ev.d); continue; }
+          if (h.p.ev.rest) {
+            if (isTripletDur(h.p.ev.d)) {
+              trips.push({ ord: h.p.ord, x: h.x, grp, up,
+                tip: y(MID_LINE) + (up ? -SP * 2 : SP * 2) });
+            }
+            drawRest(add, h.x, y(MID_LINE), h.p.ev.d);
+            continue;
+          }
           // A tie with nothing in front of it — the first thing in a sheet, or
           // after the note it meant to hold was deleted — has nothing to say.
           if (!h.notes.length) continue;
@@ -1738,18 +1810,30 @@ const Chords = (() => {
             continue;
           }
           const hollow = h.p.ev.d >= 2;
-          // A tied note is not struck again, so it carries no accidental of its
-          // own: the sign in front of the note it continues still stands.
-          drawHeads(h.notes, h.x, chordAt(h.p), hollow, !h.p.ev.tie);
+          // Signs are written on a held note too. What an arc joins is not always
+          // the same note twice: joining one shape to another is a slide, and then
+          // the note it lands on is a different pitch with a sign of its own to
+          // read. Both ends of the arc say what they are, which is the whole point
+          // of writing the two shapes out.
+          drawHeads(h.notes, h.x, chordAt(h.p), hollow, true);
           if (h.p.ev.tie) {
-            ties.push({
-              from: carried ? carried.x : 0, to: h.x, step: h.notes[0].step, up,
-            });
+            // An arc per string held: a chord tied over a bar line is three
+            // notes still ringing, and one arc under the lot of them said one.
+            const from = carried ? carried.x : 0;
+            // Held over the bar line: the curve starts at the line itself, where
+            // the half drawn in the bar before it ends, rather than a note's
+            // width inside — that gap left a tick floating in front of the head.
+            const fromEdge = h.p.fresh;
+            for (const n of h.notes) {
+              ties.push({ from, to: h.x, step: n.step, up, fromEdge });
+            }
           }
           const hi = h.notes[h.notes.length - 1].step, lo = h.notes[0].step;
+          let stemTip = null;
           if (h.p.ev.d < 4) {
             const sx = h.x + (up ? NOTE_RX : -NOTE_RX);
             const tip = up ? y(hi) - STEM_LEN : y(lo) + STEM_LEN;
+            stemTip = tip;
             add('line', {
               x1: sx, y1: up ? y(lo) : y(hi), x2: sx, y2: tip,
               stroke: '#dcdcdc', 'stroke-width': 1.4,
@@ -1774,7 +1858,18 @@ const Chords = (() => {
               add('circle', { cx: h.x + NOTE_RX + 5, cy, r: 1.9, fill: '#dcdcdc' });
             }
           }
-          carried = { x: h.x, stops: h.p.ev.tie ? (carried && carried.stops) || [] : h.p.ev.stops };
+          if (isTripletDur(h.p.ev.d)) {
+            trips.push({ ord: h.p.ord, x: h.x, grp, up,
+              tip: stemTip === null ? y(up ? hi : lo) + (up ? -SP : SP) : stemTip });
+          }
+          // What the next tie hangs on: the strings still ringing here. A tie
+          // that named its own keeps those going; one that named none carries on
+          // whatever it was already holding.
+          const ringing = !h.p.ev.tie ? h.p.ev.stops
+            : (h.p.ev.stops && h.p.ev.stops.length) ? h.p.ev.stops
+              : (carried && carried.stops) || [];
+          carried = { x: h.x, stops: ringing };
+          if (h.notes.length) leaving = { x: h.x, notes: h.notes, up };
         }
 
         if (!tips.length) continue;
@@ -1825,16 +1920,11 @@ const Chords = (() => {
             });
           }
         }
-        // Three in the time of two, said the way printed music says it: one 3
-        // over the group, on the far side of the beam from the heads.
-        if (isTripletDur(grp.d)) {
-          add('text', {
-            x: (tips[0].x + tips[tips.length - 1].x) / 2,
-            y: flat + (up ? -4 : (beams ? beams * BEAM_GAP : 0) + 11),
-            fill: '#dcdcdc', 'font-size': 9, 'text-anchor': 'middle', 'font-style': 'italic',
-            'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
-          }, '3');
-        }
+        // What a 3 over this group would be hung off, for the pass that draws
+        // them: a beam of three is its own bracket, and the number goes over it.
+        grp.flat = flat;
+        grp.beams = beams;
+        grp.beamed = tips.length > 1;
       }
 
       for (const p of graces) {
@@ -1858,6 +1948,52 @@ const Chords = (() => {
       }, r.label);
     }
 
+    // Three in the time of two, said the way printed music says it. Under one
+    // beam the beam is the bracket and a 3 over it is the whole mark. With no
+    // beam to hang it on — quarter triplets, a chord change on each of the three
+    // — it is a bracket over the three notes, which is what tells the reader
+    // they are one triplet and not three notes that happen to be short. Read
+    // three at a time from the start of each run, so six triplet notes are two
+    // triplets rather than one bracket over the lot.
+    const three = (x, ty) => add('text', {
+      x, y: ty, fill: '#dcdcdc', 'font-size': 9, 'text-anchor': 'middle',
+      'font-style': 'italic',
+      'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+    }, '3');
+    const drawTriplet = chunk => {
+      const first = chunk[0], last = chunk[chunk.length - 1];
+      const { up } = first;
+      if (chunk.length > 1 && chunk.every(t => t.grp === first.grp && t.grp.beamed)) {
+        three((first.x + last.x) / 2,
+          first.grp.flat + (up ? -4 : (first.grp.beams * BEAM_GAP) + 11));
+        return;
+      }
+      const tips = chunk.map(t => t.tip);
+      const line = (up ? Math.min(...tips) - 8 : Math.max(...tips) + 8);
+      const mid = (first.x + last.x) / 2;
+      if (up) inked(line - 7); else inkedLow(line + 7);
+      if (chunk.length === 1) { three(first.x, line + (up ? 3.2 : 7)); return; }
+      // Two hooks turned back towards the heads, with the number in the break
+      // between them.
+      const hook = up ? 4 : -4;
+      const stroke = { fill: 'none', stroke: '#dcdcdc', 'stroke-width': 1.1 };
+      add('path', { d: `M${first.x} ${line + hook} L${first.x} ${line} L${mid - 7} ${line}`,
+        ...stroke });
+      add('path', { d: `M${mid + 7} ${line} L${last.x} ${line} L${last.x} ${line + hook}`,
+        ...stroke });
+      three(mid, line + (up ? 3.2 : 7));
+    };
+    trips.sort((a, b) => a.ord - b.ord);
+    const runs = [];
+    for (const t of trips) {
+      const run = runs[runs.length - 1];
+      if (run && t.ord === run[run.length - 1].ord + 1) run.push(t);
+      else runs.push([t]);
+    }
+    for (const run of runs) {
+      for (let i = 0; i < run.length; i += 3) drawTriplet(run.slice(i, i + 3));
+    }
+
     // The names sit over the highest thing in the bar — the dots where there are
     // any, the music where there are not — rather than at the top of the canvas.
     const anchor = Math.min(inkTop, y(TOP_LINE));
@@ -1875,14 +2011,32 @@ const Chords = (() => {
     addCarets(add, items, Number(svg.getAttribute('height')) || 0);
     addNoteHits(add, hits, Number(svg.getAttribute('height')) || 0);
 
+    // The bar after this one opens on a tie, so the curve starts here: from the
+    // last heads to the right edge, where the next bar picks it up.
+    if (carryOut && leaving) {
+      for (const n of leaving.notes) {
+        ties.push({ from: leaving.x, to: width + NOTE_RX, step: n.step, up: leaving.up });
+      }
+    }
+
     // Ties last, so an arc is never drawn under a head it has to clear. It
     // curves away from the stems, which is the side engraving puts it on.
     for (const t of ties) {
       const dir = t.up ? 1 : -1;
       const y0 = y(t.step) + dir * (NOTE_RY + 5);
+      const x0 = t.fromEdge ? t.from : t.from + NOTE_RX;
+      const x1 = t.to - NOTE_RX;
+      // The bend follows the span. A tie's own curve over the few pixels between
+      // a bar line and the note just inside it is a caret rather than an arc, and
+      // what belongs there is the flat end of the curve coming in from the bar
+      // before — see the halves drawn at each edge.
+      const bend = Math.max(1.2, Math.min(7, (x1 - x0) * 0.12));
       add('path', {
-        d: `M${t.from + NOTE_RX} ${y0} Q ${(t.from + t.to) / 2} ${y0 + dir * 7} ${t.to - NOTE_RX} ${y0}`,
-        fill: 'none', stroke: '#cfcfcf', 'stroke-width': 1.6,
+        // Set back a little: the arc says two notes are joined, and it is read
+        // off the notes rather than for itself — drawn at the weight of a head it
+        // was the loudest thing in the bar.
+        d: `M${x0} ${y0} Q ${(x0 + x1) / 2} ${y0 + dir * bend} ${x1} ${y0}`,
+        fill: 'none', stroke: '#cfcfcf', 'stroke-width': 1.4, opacity: 0.55,
       });
     }
     return svg;
@@ -1901,7 +2055,7 @@ const Chords = (() => {
     return TAB_PAD * 2 + 5 * TAB_SP;
   }
 
-  function tabBar(items, width, key, mode, beatWidth) {
+  function tabBar(items, width, key, mode, beatWidth, carryIn) {
     const h = tabHeight();
     const { svg, add } = svgCanvas(Math.max(0, width), h, { 'aria-hidden': 'true' });
     if (width <= 0) return svg;
@@ -1911,7 +2065,7 @@ const Chords = (() => {
     }
     const paced = beatWidth || width / BEATS_PER_BAR;
     const beat = paced * beatFit(items, width, paced);
-    let carried = null;
+    let carried = (carryIn && carryIn.length) ? carryIn : null;
     const hits = [];
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
       const item = items[itemIndex];
@@ -1929,21 +2083,18 @@ const Chords = (() => {
           + (gapAt !== null && p.index > gapAt ? GAP_W : 0);
         hits.push({ x, chord: itemIndex, note: p.index, on: item.sel === p.index , after: item.after === (p.index) });
         if (p.ev.rest) continue;
-        const stops = p.ev.tie ? carried || [] : p.ev.stops;
+        const stops = !p.ev.tie ? p.ev.stops
+          : (p.ev.stops && p.ev.stops.length) ? p.ev.stops : carried || [];
         if (!stops.length) continue;
         for (const st of stops) {
           const note = stopNote(st, name, key);
           const degree = colourDegree(note.pc, chord, mode, key);
           const ink = degree === null ? '#dcdcdc' : DEGREE_HUE[degree];
-          // A tied note is not struck again, so its number is not repeated: a
-          // line carries the one before it on instead.
-          if (p.ev.tie) {
-            add('line', {
-              x1: x - TAB_SP, y1: y(st.string), x2: x + TAB_SP, y2: y(st.string),
-              stroke: ink, 'stroke-width': 1.6,
-            });
-            continue;
-          }
+          // The fret is printed on a held note too, rather than a line standing
+          // in for the number before it: what the arc joins is not always the
+          // same shape twice — joined to another shape it is a slide, and the
+          // fret it slides to is the thing a player needs to read. The arc on the
+          // staff is what says the two are joined.
           // The line is broken behind the number rather than run through it —
           // at this size a digit sitting on a line is unreadable.
           add('rect', { x: x - 8 * k, y: y(st.string) - 6 * k,
@@ -2226,6 +2377,6 @@ const Chords = (() => {
     isTripletDur, tripletBase, tripletGlyph, beamGlyph, graceGlyph,
     dotGlyph, tieGlyph,
     BEATS_PER_BAR,
-    stopsToMarkers, stopShapes, rulingNames,
+    stopsToMarkers, stopShapes, rulingNames, carriedStops,
   };
 })();
