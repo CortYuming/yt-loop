@@ -1957,13 +1957,29 @@ let noteSel = null;
 // rather than every tap re-measuring the sheet and moving the board.
 let staffHold = null;
 
+const widerReach = (a, b, pick) =>
+  (a === null || a === undefined) ? b : (b === null || b === undefined) ? a : pick(a, b);
+
 function holdStaffReach(reach) {
   if (!notePanelAt) { staffHold = null; return reach; }
   if (!reach) return staffHold;
   if (staffHold) {
+    // Everything the reach carries is kept: the row of dots is measured from
+    // `stack` and the foot of the staff from `loNote`, so a merge that named only
+    // the two lines dropped both — the row lost its label band and its slack on
+    // the first tap after the board opened, and the staff shrank under the hand.
+    // The dot row widens the same way the lines do, so deleting the last single
+    // note does not pull it back down mid-edit either.
     reach = {
+      ...reach,
       top: Math.max(reach.top, staffHold.top),
       bottom: Math.min(reach.bottom, staffHold.bottom),
+      stack: Math.max(reach.stack || 0, staffHold.stack || 0),
+      // A sheet with nothing on the staff yet has no highest or lowest note, and
+      // null is what says so — Math.max would read it as zero and put the foot of
+      // the staff somewhere nothing is written.
+      hiNote: widerReach(reach.hiNote, staffHold.hiNote, Math.max),
+      loNote: widerReach(reach.loNote, staffHold.loNote, Math.min),
     };
   }
   staffHold = reach;
