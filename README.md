@@ -18,7 +18,7 @@ https://cortyuming.github.io/yt-loop/
 - **Live duration** display (end − start)
 - **Loop toggle** — turn looping on/off without losing your start/end
 - **History** — every range you play is remembered on its own, newest first, grouped by video. No save button: ▶ Play on an entry puts its range, speed and note back in the controls. 🗑 on an entry drops it; 🗑 on a video header clears that video's history. The video in the player has its ranges open and the rest are collapsed to their header — ▸ opens one without disturbing playback
-- **🎼 Chords** — a chord sheet per video: the fingerings you picked in [Guitar Chord Viewer](https://cortyuming.github.io/guitar-chord-viewer/), drawn as diagrams of the five frets around the shape and laid out as one unbroken row that slides under a playhead fixed in the middle — what is playing stays in one place and what is coming arrives from the right. Every bar is four slots wide whatever it holds, its chords taking slots in proportion to their beats, so the sheet moves at one steady pace; a bar with more than four chords stacks them four to a line inside that same width. The slot narrows on a window too small for four, so a whole bar always fits across. Seconds the sheet says nothing about are drawn as blank of the same width those seconds would have taken, so the row keeps moving through a hole instead of parking under the playhead; where two phrases overlap it never runs backwards — a bar starting before the sheet has got there is crossed at once. An amber rule and the bar number mark where each bar starts. The time on a bar head is also how a range is marked out from the sheet: click it and **start📍 / end📍** appear, each putting that bar's moment in the box it names — one bar's time for the start, a later bar's for the end, instead of catching both by ear as they go past. Dots are labelled with degrees by default, note names on the **Interval / Note** switch; the root is set apart, open strings are hollow, muted ones get `×`. A chord name opens the full fretboard in the viewer. **Show** folds the strip away; 🎼 in a video's header loads that video and opens its editor. See the notation below
+- **🎼 Sheet** — a sheet per video: the fingerings you picked in [Guitar Chord Viewer](https://cortyuming.github.io/guitar-chord-viewer/), drawn as diagrams of the five frets around the shape and laid out as one unbroken row that slides under a playhead fixed in the middle — what is playing stays in one place and what is coming arrives from the right. Every bar is four slots wide whatever it holds, its chords taking slots in proportion to their beats, so the sheet moves at one steady pace; a bar with more than four chords stacks them four to a line inside that same width. The slot narrows on a window too small for four, so a whole bar always fits across. Seconds the sheet says nothing about are drawn as blank of the same width those seconds would have taken, so the row keeps moving through a hole instead of parking under the playhead; where two phrases overlap it never runs backwards — a bar starting before the sheet has got there is crossed at once. An amber rule and the bar number mark where each bar starts. The time on a bar head is also how a range is marked out from the sheet: click it and **start📍 / end📍** appear, each putting that bar's moment in the box it names — one bar's time for the start, a later bar's for the end, instead of catching both by ear as they go past. Dots are labelled with degrees by default, note names on the **Interval / Note** switch; the root is set apart, open strings are hollow, muted ones get `×`. A chord name opens the full fretboard in the viewer. **Show** folds the strip away; 🎼 in a video's header loads that video and opens its editor. See the notation below
 - **♪ Single notes** — the line actually played over a chord, not just the chord: a solo, a riff, the head of the tune. Written on the staff with the durations it is played in — stems, beams, flags, rests, dots and ties — and again below it as tab, so the same phrase says what the music is and where it is on the neck. A tab row appears only in a sheet that has notes in it. Where a note falls is never written down: a note follows the one before it and the durations stack up from the start of the chord's stretch, so re-timing one slides the rest along instead of leaving a row of positions to correct by hand. Notes struck together — a double stop, the three-note chords a chord-melody ends on — are one event with more than one string in it. A tie holds a note on without striking it again, which is also how a note carries over a bar line: the tie is simply the first thing in the next bar, and the pitch is not written twice. In 🎼 Edit mode every chord cell has a ♪ that opens the whole neck under the strip: pick a duration, tap a fret, and it is written. **A fingering is written on that same board** — click a diagram in the strip and it opens with that shape held and stacking on, so each tap adds a string to it and a string already in it moves to where it was just tapped. A chord still written as a name and six frets becomes the stop it sounds as the moment it is tapped. **None** is the duration a chord is written in: no length of its own, sounding until the next thing does. A **grace note** — drawn small with a stroke through its stem — is written with the button beside the rest and the tie: it is struck just before the note it leans on and takes no time from the bar, so the run around it is measured as if it were not there. **⧉ Copy** in the Fix row writes whatever is selected again just after it — a chord, a note, a rest — for the bar that holds one voicing while the tune moves. The panel's buttons stand in three rows by what they do: **Length**, **Write**, **Fix**. **↺ Undo** in the Fix row takes back one tap at a time (the Versions list files a run of them as one entry, which is what makes it readable), and the **Int / Note / Sol** switch at the end of that row labels the board's dots — the same choice as the pill above the strip. Clicking a note in the strip — head, fret number, or the column between them — selects it, and the same buttons then re-time it, dot it, move it to another string, or turn it into a rest or a tie. The dots on the board are labelled by the same **Interval / Note / Solfege** switch the diagrams use. Keys while the panel is open: **← →** to walk the selection, **1**–**5** for the durations, **0** no length, **.** dot, **R** rest, **T** tie, **G** grace note, **S** stack, **Backspace** delete, **Esc** out
 - **🔗 URL** — copies a link that encodes video, start, end, rate and note as query params. This is how you keep a loop for good: bookmark the link. Editing a value flashes the field and both copy buttons, so it's visible that the link tracks the form. Notes are capped at 30 characters, since percent-encoding costs 9 characters per Japanese character. On landing, a note already in this browser's history wins over the one in the link — the link's copy only fills in where there's no local entry, which is the case it exists for (another machine, or storage that got cleared)
 - **📝 MD** — copies the same link as a Markdown link, labelled with the video title and time range
@@ -30,12 +30,12 @@ https://cortyuming.github.io/yt-loop/
 |-----|--------|
 | `Space` | Play / pause |
 | `S` | Jump to loop start |
-| `E` | Open / close the chord editor (the strip's 🎼 Edit) |
+| `E` | Open / close the sheet editor (the strip's 🎼 Edit) |
 | `←` / `→` | Seek 0.05 seconds (move the caret when Start/End is focused) |
 | `Shift + ←` / `→` | Seek 1 second (nudge the value by 0.05s when Start/End is focused) |
 | While ♪ is open | The panel takes the keyboard: `← →` walk the note selection, `1`–`5` set the duration, `0` gives it no length, `.` dots it, `R` rest, `T` tie, `G` grace note, `S` stack, `Backspace` delete, `Esc` back to writing at the end and then closed. Seeking with `← →` comes back as soon as it is closed |
 
-## Chord notation
+## Sheet notation
 
 ```
 @43.50 Bb9:1.1.1.0.. Eb9:.6.6.5.6.|@45.90 D7+9:.6.5.4.5. G7+9:13.11.10.9..
@@ -94,12 +94,12 @@ python3 -m http.server 8000
 
 ## Data
 
-History and chord sheets live in your browser's `localStorage` under the key
+History and sheets live in your browser's `localStorage` under the key
 `yt-loop-data-v3`. Nothing is synced across devices or browsers.
 
 Each video keeps its **5 most recent ranges**, dropping the least recently
 played — the range list is a short "back to what I was just on", not an archive.
-Videos themselves are never dropped automatically: one can hold a chord sheet,
+Videos themselves are never dropped automatically: one can hold a sheet,
 which is typed work rather than a by-product of pressing play. A video goes when
 you clear it with the 🗑 in its header, and its chords go with it.
 
@@ -109,7 +109,7 @@ over, and `yt-loop-data-v1` (loops saved by hand, back when saving was a button)
 is converted to history.
 
 Anything worth keeping belongs in a bookmark — 🔗 URL for a range, 🔗 URL under
-**Chords** for a sheet.
+**Sheet** for the sheet itself.
 
 ## Share URL format
 
@@ -127,7 +127,7 @@ The **📝 MD** button wraps this link in Markdown:
 
 Example: `[My Song (0:12.50 → 0:24.80)](https://.../?v=dQw4w9WgXcQ&s=12.50&e=24.80&r=0.75)`
 
-A chord sheet travels in `k`, in the notation above:
+A sheet travels in `k`, in the notation above:
 
 ```
 ?v=<videoId>&k=<sheet>

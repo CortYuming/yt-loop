@@ -867,7 +867,7 @@ function clearVideoHistory(vid) {
   const title = resolveVideoTitle(vid) || vid;
   const data = loadData();
   const v = data.videos[vid];
-  const sheetWarning = v && v.sheet ? ' Its chord sheet goes too.' : '';
+  const sheetWarning = v && v.sheet ? ' Its sheet goes too.' : '';
   if (!confirm(`Clear the history for "${title}"?${sheetWarning} Bookmarked links are not affected.`)) return;
   delete data.videos[vid];
   saveData(data);
@@ -1075,7 +1075,7 @@ function drawChordStrip(fromCache) {
     // do what they have already done. What is missing then is a first bar, and
     // the box above is only one of the two ways to make one.
     empty.textContent = chordEditor.hidden
-      ? 'No chords for this video yet — 🎼 Edit to write some.'
+      ? 'Nothing written for this video yet — 🎼 Edit to start.'
       : 'Nothing written yet — + Bar starts one, or type in the box above.';
     chordStrip.appendChild(empty);
     if (!chordEditor.hidden) chordStrip.appendChild(addBarButton());
@@ -3615,7 +3615,7 @@ function renderVideoHeader(vid, videoData) {
   const sheetBtn = document.createElement('button');
   sheetBtn.className = 'sheet-video';
   sheetBtn.textContent = '🎼';
-  sheetBtn.title = videoData.sheet ? "Edit this video's chords" : 'Add chords for this video';
+  sheetBtn.title = videoData.sheet ? "Edit this video's sheet" : 'Add a sheet for this video';
   sheetBtn.addEventListener('click', e => {
     e.stopPropagation();
     if (isCurrent) { openChordEditor(); return; }

@@ -93,12 +93,12 @@
 
   <section class="chords" hidden>
     <div class="row chord-toolbar">
-      <span class="chord-label">Chords</span>
-      <label class="toggle-switch small" title="Show the chord strip">
+      <span class="chord-label">Sheet</span>
+      <label class="toggle-switch small" title="Show the sheet">
         <input type="checkbox" id="chordShowToggle" checked />
         <span class="toggle-track"><span class="toggle-thumb"></span></span>
       </label>
-      <button id="chordEditBtn" class="chord-edit-btn" title="Edit this video's chords">🎼 Edit</button>
+      <button id="chordEditBtn" class="chord-edit-btn" title="Edit this video's sheet">🎼 Edit</button>
       <!-- The song's key. Kept in the sheet itself as a `key:` line, so the
            select and the first line of the editor are two views of one thing. -->
       <label class="chord-key" title="The song's key — what solfège calls do">
@@ -185,7 +185,7 @@
       <button id="exportBtn" title="Save everything this app keeps in your browser to a file">⬇ Export</button>
       <button id="importBtn" title="Read a backup file back in">⬆ Import</button>
       <input type="file" id="importFile" accept="application/json,.json" hidden />
-      <span class="hint" id="backupStatus">Chord sheets, versions, loop history and settings — one JSON file.</span>
+      <span class="hint" id="backupStatus">Sheets, versions, loop history and settings — one JSON file.</span>
     </div>
 
     <!-- An import is a picker, not a restore: a file from another machine is
@@ -195,7 +195,7 @@
       <p class="import-file" id="importFileName"></p>
       <p class="import-head">What to bring in</p>
       <div class="import-parts">
-        <label><input type="checkbox" id="importSheets" checked /> Chord sheets <span class="import-note">(the key rides along in the sheet)</span></label>
+        <label><input type="checkbox" id="importSheets" checked /> Sheets <span class="import-note">(the key rides along in the sheet)</span></label>
         <label><input type="checkbox" id="importRevisions" /> Versions</label>
         <label><input type="checkbox" id="importHistory" /> Loop history</label>
         <label><input type="checkbox" id="importSettings" /> Display settings</label>
@@ -217,7 +217,7 @@
       Replaying a range at the same speed moves its entry back to the top instead
       of adding another. Each video keeps its 5 most recent ranges; videos
       themselves stay until you clear them with the 🗑 in their header, which
-      also drops that video's chords. Bookmark a 🔗 URL to keep a range for
+      also drops that video's sheet. Bookmark a 🔗 URL to keep a range for
       good. All of it lives in your browser's localStorage.
     </small>
   </footer>
