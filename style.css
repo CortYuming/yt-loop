@@ -866,9 +866,12 @@ button.pin {
 /* The room the head would have taken in the row, kept empty so the bars still
    begin where they did. */
 .chord-staff-gap { flex: none; }
+/* No margin of its own: the head is put where the staff actually is, measured
+   after the row is built — see renderChordStrip — and the 4px the bars' staves
+   take above them is already in that measurement. Kept here as well, it pushed
+   the clef's five lines exactly that far below the ones they belong to. */
 .chord-staff-head svg {
   display: block;
-  margin-top: 4px;
 }
 /* Everything in a cell is read at the beat the cell starts on, which is its left
    edge: the diagrams sit there, the staff and the tab put their names there, and
