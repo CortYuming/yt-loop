@@ -757,8 +757,9 @@ button.pin {
 }
 .editing-mode .chord-add { display: block; }
 .chord-add:hover { border-color: var(--blue); color: var(--blue); }
-/* Four to a line, wrapping inside the bar's own width: five to eight chords
-   take two lines, nine and up take three. */
+/* Four to a line, wrapping inside the bar's own width: five to eight diagrams
+   take two lines, nine and up take three. Counted in diagrams, not in chords —
+   one stretch of notes can hold half a dozen voicings. */
 .chord-bar-cells {
   display: flex;
   flex-wrap: wrap;
@@ -1273,10 +1274,3 @@ footer {
 /* A stretch of single notes with no fingering: the cell keeps the width its
    beats are worth and draws nothing. See renderChord. */
 .chord-notes-only { flex: none; }
-/* A stretch of notes puts the shapes in it in the diagram row at the beats they
-   fall on, so they are a row with the gaps between them taken as margin. Each
-   sits at the left of its slot rather than centred in it: the beat is where the
-   note starts, so it is the diagram's left edge that belongs over it. */
-.chord-stops { display: flex; align-items: flex-start; }
-.chord-stop { flex: none; width: var(--slot); }
-.chord-stop svg { margin-left: 0; }

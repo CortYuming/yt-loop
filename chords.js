@@ -516,20 +516,64 @@ const Chords = (() => {
     return [];
   }
 
+  // Whether two stops name the same strings at the same frets — the test for
+  // "nothing new sounds here", which is the whole of what a tie is meant to be.
+  function sameStops(a, b) {
+    const key = st => `${st.string}/${st.fret}`;
+    return (a || []).map(key).sort().join(' ') === (b || []).map(key).sort().join(' ');
+  }
+
+  // What is ringing as one stretch opens: the strings of the last event that
+  // named any, looked for in the bar's earlier stretches and then in the bars
+  // before it. A tie counts, since a tie naming its own strings is what is
+  // sounding after it — which is where this parts company with carriedStops,
+  // whose narrower question is what a bar-opening tie has to be drawn as.
+  function soundingBefore(bars, barIndex, chordIndex) {
+    for (let b = barIndex; b >= 0; b--) {
+      const chords = (bars[b] && bars[b].chords) || [];
+      const from = b === barIndex
+        ? Math.min(chordIndex, chords.length) - 1 : chords.length - 1;
+      for (let c = from; c >= 0; c--) {
+        const notes = chords[c].notes || [];
+        for (let i = notes.length - 1; i >= 0; i--) {
+          const ev = notes[i];
+          if (ev.rest) return [];
+          if (ev.stops && ev.stops.length) return ev.stops;
+        }
+      }
+    }
+    return [];
+  }
+
   // The shapes in a stretch, each with the beat it falls on: every event that
-  // strikes more than one string at once.
-  function stopShapes(notes, stretchName) {
+  // strikes more than one string at once. `heldStops` is what was ringing as the
+  // stretch opened — see soundingBefore — which is what its first event, if that
+  // is a tie, is read against.
+  function stopShapes(notes, stretchName, heldStops) {
     const ruling = rulingNames({ name: stretchName, notes });
-    return noteBeats(notes).items
-      // A tie carries the strings it holds, but nothing is struck there: the
-      // shape was already drawn where it was played.
-      .filter(it => !it.ev.tie && it.ev.stops && it.ev.stops.length > 1)
-      .map(it => ({
-        markers: stopsToMarkers(it.ev.stops), beat: it.beat, index: it.index,
+    let sounding = heldStops || [];
+    const out = [];
+    for (const it of noteBeats(notes).items) {
+      const ev = it.ev;
+      if (ev.rest) { sounding = []; continue; }
+      const stops = ev.stops || [];
+      if (!stops.length) continue;
+      // A tie is the note before it held on, so there is nothing new to draw
+      // there — unless the strings it names are not the ones ringing, which is a
+      // shape moving rather than a note sustained. A slide of the whole grip a
+      // semitone is written that way, and it is a different chord: drawn nowhere,
+      // the sheet showed that voicing nowhere at all.
+      const held = ev.tie && sameStops(stops, sounding);
+      sounding = stops;
+      if (held || stops.length < 2) continue;
+      out.push({
+        markers: stopsToMarkers(stops), beat: it.beat, index: it.index,
         // The name this shape is read against, and whether it is the shape that
         // names it — a diagram writes its name only where the name changes.
-        name: ruling[it.index] || '', names: !!it.ev.name,
-      }));
+        name: ruling[it.index] || '', names: !!ev.name,
+      });
+    }
+    return out;
   }
 
   // Where each note of a stretch begins, in beats from the start of it, and how
@@ -2377,6 +2421,6 @@ const Chords = (() => {
     isTripletDur, tripletBase, tripletGlyph, beamGlyph, graceGlyph,
     dotGlyph, tieGlyph,
     BEATS_PER_BAR,
-    stopsToMarkers, stopShapes, rulingNames, carriedStops,
+    stopsToMarkers, stopShapes, rulingNames, carriedStops, soundingBefore,
   };
 })();

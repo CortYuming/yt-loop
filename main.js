@@ -1258,14 +1258,8 @@ function drawChordStrip(fromCache) {
     // the same music in boxes. While editing the bar is its staff: the names are
     // written where they sound, and the notes are tapped out on the board.
     if (chordEditor.hidden) {
-      const cells = document.createElement('div');
-      cells.className = 'chord-bar-cells';
-      bar.chords.forEach((chord, j) => {
-        const cell = renderChord(chord, i, j);
-        cell.style.width = `${weights[j] * slot}px`;
-        cells.appendChild(cell);
-      });
-      barEl.appendChild(cells);
+      const cells = renderBarLane(bars, i, slot);
+      if (cells) barEl.appendChild(cells);
     }
 
     chordStrip.appendChild(barEl);
@@ -1721,85 +1715,93 @@ window.addEventListener('resize', () => {
   renderChordStrip();
 });
 
-// A chord in the strip. With the editor closed it is a link to the fretboard
-// viewer — the whole cell, diagram included, since the shape is the larger and
-// the more obvious half of a chord. With the editor open it is instead the pair
-// of boxes the chord is written in, ready to be typed into.
-// The time belongs to the bar, printed once in its header — a stamp under every
-// chord was four times the number for a quarter of the confidence, since a
-// chord's own moment is only its bar divided evenly.
-function renderChord(chord, barIndex, chordIndex) {
-  return renderChordCell(chord, (chordWindows[barIndex] || [])[chordIndex]);
+// Every diagram a bar shows, in time order: the fingering picked for a stretch,
+// and every stop in it that strikes more than one string. A fingering is a
+// fingering whichever way it was written, so one list holds both — kept apart,
+// a chord and a stop drifted at every change and a stretch holding both showed
+// only the chord.
+// A grip repeating the one before it is left out: it is a second picture of the
+// same hand, and the staff above already says the chord was struck again.
+function barShapes(bars, barIndex) {
+  const chords = (bars[barIndex] && bars[barIndex].chords) || [];
+  const all = [];
+  chords.forEach((chord, j) => {
+    const picked = chord.markers && chord.markers.some(f => f !== null);
+    if (picked) {
+      all.push({ markers: chord.markers, name: chord.name || '', chord: j });
+    }
+    for (const sh of Chords.stopShapes(chord.notes, chord.name,
+      Chords.soundingBefore(bars, barIndex, j))) {
+      all.push({ markers: sh.markers, name: sh.name, chord: j });
+    }
+    // A chord written as a name and nothing else still says what it is. A stretch
+    // with notes in it does not: its name would be printed a second time directly
+    // above the one the staff already carries.
+    if (!picked && chord.name && !(chord.notes && chord.notes.length)) {
+      all.push({ markers: null, name: chord.name, chord: j });
+    }
+  });
+  const keep = [];
+  for (const sh of all) {
+    const prev = keep[keep.length - 1];
+    if (prev && sh.markers && prev.markers
+      && prev.markers.join() === sh.markers.join()) continue;
+    // And a bare name repeating the name of the shape before it, which is the
+    // chord already drawn there.
+    if (prev && !sh.markers && prev.name === sh.name) continue;
+    keep.push(sh);
+  }
+  return keep;
 }
 
-// Every diagram a stretch shows, in one lane in time order: the fingering picked
-// for the chord at the head of it, and every stop that strikes more than one
-// string at the beat it falls on. A fingering is a fingering whichever way it was
-// written, so there is one row and one piece of code drawing it — drawn by two,
-// a chord and a stop drifted apart at every change, and a stretch holding both
-// showed only the chord.
-// The beat, not the middle of the cell, is what a diagram sits over: the row is
-// read against the staff under it, so a shape landing on the third beat belongs
-// over the third beat. The gaps are taken as margin and the diagrams left in
-// flow, so the row still stands as tall as a diagram for the staff to sit below.
-// A shape arriving less than a slot after the one before it has no room of its
-// own and is left to the staff and the tab, which is where a run that fast is
-// read anyway.
-function diagramLane(chord, markers, windowFrom) {
-  const picked = markers && markers.some(f => f !== null);
-  const shapes = picked
-    ? [{ markers, beat: 0, name: chord.name || '', ofChord: true }] : [];
-  for (const shape of Chords.stopShapes(chord.notes, chord.name)) shapes.push(shape);
+// The bar's diagrams as the row reads them: left to right in time order, four to
+// a line, wrapping inside the bar's own width — the same shape the row has always
+// had, counted in diagrams rather than in stretches. Beats are the staff's job;
+// down here they were dropping every diagram that landed less than a slot after
+// the one before it, which in a bar of eighths is most of them.
+function renderBarLane(bars, barIndex, slot) {
+  const shapes = barShapes(bars, barIndex);
   if (!shapes.length) return null;
-  const row = document.createElement('div');
-  row.className = 'chord-stops';
-  const slot = chordSlotWidth();
-  let placed = 0;
-  let lastX = null;
+  const weights = Chords.slotWeights(shapes.length);
+  const cells = document.createElement('div');
+  cells.className = 'chord-bar-cells';
   let shown = null;
-  let first = true;
-  for (const shape of shapes) {
-    const x = shape.beat * slot;
-    if (lastX !== null && x - lastX < slot) continue;
-    lastX = x;
-    const wrap = document.createElement('div');
-    wrap.className = 'chord-stop';
-    wrap.style.marginLeft = `${x - placed}px`;
-    // The name sits over the shape it names, which is where it is read and — with
-    // the editor open — where it is written. Every name in the row is written the
-    // same way, in a box of the same size over the shape it belongs to: one shown
-    // as a label beside one shown as a box read as two different kinds of name.
-    // A name repeated over the next shape says it was struck again as a new chord,
-    // which is not what a held chord is.
-    // Which name a box holds: the one the shape shows. A shape carrying a name of
-    // its own is that name; anything else is the name in force, which is the
-    // stretch's, and typing on it renames the stretch rather than inventing a
-    // second name for the same moment.
-    if (shape.name && shape.name !== shown) {
-      wrap.appendChild(viewerLink(shapeName(shape.name), shape));
-    }
-    first = false;
+  shapes.forEach((shape, k) => {
+    const cell = document.createElement('div');
+    cell.className = shape.markers ? 'chord' : 'chord chord-notes-only';
+    cell.style.width = `${weights[k] * slot}px`;
+    // The name sits over the shape it names, which is where it is read. A name
+    // repeated over the next diagram says the chord was struck again as a new
+    // one, which is not what a second voicing of it is — so it goes unwritten,
+    // but the line it would take is kept all the same. Left out entirely, the
+    // diagram under it rode up and the row read as two rows.
+    const label = shape.name && shape.name !== shown ? shape.name : '';
+    cell.appendChild(label ? viewerLink(shapeName(label), shape) : shapeName(''));
     if (shape.name) shown = shape.name;
-    // With no chord over it a shape is read against C, which is what the staff and
-    // the tab above it already do — a shape whose dots went plain while the tab
-    // numbers under it kept their colours read as two pictures of the same notes.
-    const dia = Chords.diagram(
-      shape.markers, shape.name || 'C', effectiveChordMode(), currentChordKey(), windowFrom,
-    );
-    // The shape is the way out to the fretboard viewer — this shape, not whatever
-    // the stretch is called. The whole cell used to be the link, which left no
-    // way to click a name.
-    wrap.appendChild(shape.name ? viewerLink(dia, shape) : dia);
-    row.appendChild(wrap);
-    placed = x + slot;
-  }
-  return row;
+    if (shape.markers) {
+      // With no chord over it a shape is read against C, which is what the staff
+      // and the tab above it already do — a shape whose dots went plain while the
+      // tab numbers under it kept their colours read as two pictures of one thing.
+      const dia = Chords.diagram(
+        shape.markers, shape.name || 'C', effectiveChordMode(), currentChordKey(),
+        (chordWindows[barIndex] || [])[shape.chord],
+      );
+      // The shape is the way out to the fretboard viewer — this shape, not
+      // whatever the stretch is called. The whole cell used to be the link, which
+      // left no way to click a name.
+      cell.appendChild(shape.name ? viewerLink(dia, shape) : dia);
+    }
+    cells.appendChild(cell);
+  });
+  return cells;
 }
 
 function shapeName(name) {
   const el = document.createElement('span');
   el.className = 'chord-name';
-  el.textContent = Chords.displayName(name);
+  // Empty is a name deliberately left unwritten — see renderBarLane — and it
+  // still has to stand as tall as one, or the diagram under it climbs.
+  el.textContent = name ? Chords.displayName(name) : '\u00a0';
   return el;
 }
 
@@ -1862,29 +1864,6 @@ function shapeNameBox(chord, shape, target) {
     e.stopPropagation();
   });
   box.addEventListener('blur', () => commit());
-  return box;
-}
-
-// The cell around that row. Where it carries a name it is a link to the fretboard
-// viewer — the whole cell, diagrams included, since the shape is the larger and
-// the more obvious half of a chord.
-// A stretch of notes with no shape in it has nothing to head: its cell would be
-// the name and nothing else, printed a second time directly above the name the
-// staff already carries. So the cell keeps its width — the bar is still four
-// slots — and says nothing.
-function renderChordCell(chord, windowFrom) {
-  const lane = diagramLane(chord, chord.markers, windowFrom);
-  const written = !!(chord.notes && chord.notes.length);
-  const named = !!chord.name && (!!lane || !written);
-  const box = document.createElement('div');
-  box.className = lane ? 'chord' : 'chord chord-notes-only';
-  // With a lane the name is written over the shape it names — see diagramLane. A
-  // named chord with no fingering picked has no shape to write it over, so the
-  // cell says it instead, and it is renamed the same way.
-  if (named && !lane) {
-    box.appendChild(viewerLink(shapeName(chord.name), chord));
-  }
-  if (lane) box.appendChild(lane);
   return box;
 }
 
