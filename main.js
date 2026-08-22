@@ -2527,6 +2527,172 @@ function moveNoteStretch(by) {
   return true;
 }
 
+// ============================================================
+// Moving one thing along the sheet (Shift + arrows)
+// ============================================================
+// What stands on the staff is one thing at a time: a stop, a note, a rest, a
+// tie — or a chord written as a name with nothing under it yet. A chord name is
+// not a thing of its own; it is written on the moment it starts, so it travels
+// with whatever it is written on. That is the whole of the move: the thing
+// picked and the one beside it trade places, and nothing else on the sheet is
+// touched. A chord does not carry the phrase written after it — those notes did
+// not move, the chord did, and the phrase is read against whatever is over it.
+//
+// The nesting the sheet is parsed into — bar, stretch, note — is not that row.
+// A stretch holds a name and the notes after it, and a chord can also be a name
+// written on a note inside another stretch. So the row is built first, moved in,
+// and the touched bars are written back out of it. Only the bars either end of
+// the step are rebuilt: every other bar keeps the objects, and the text, it
+// already had.
+function sheetEvents() {
+  const out = [];
+  (chordCache.bars || []).forEach((bar, bi) => {
+    (bar.chords || []).forEach((st, si) => {
+      const notes = st.notes || [];
+      if (!notes.length) {
+        out.push({ bar: bi, stretch: si, note: null, name: st.name || '',
+          markers: st.markers || null, ev: null });
+        return;
+      }
+      notes.forEach((ev, k) => {
+        // A name written on a stretch's first note rules from the stretch's head
+        // — see Chords.rulingNames — so it is that head's name, and the
+        // stretch's own has nothing left to say. Which is also what the staff
+        // draws: see the marks in Chords.staffBar.
+        const name = k === 0 ? (notes[0].name || st.name || '') : (ev.name || '');
+        out.push({ bar: bi, stretch: si, note: k, name,
+          markers: k === 0 ? (st.markers || null) : null, ev });
+      });
+    });
+  });
+  return out;
+}
+
+// Where a note's length comes from when none is written on it: the note before
+// it. Three notes have a new note before them after a step — the two that traded
+// places, and whatever followed them — so those three have theirs written out.
+// Left alone, a stop that inherited a quarter would come back as an eighth, or
+// as no length at all, and the move would have changed the music.
+function pinnedNote(item) {
+  const ev = Object.assign({}, item.ev);
+  delete ev.name;                                   // the event carries it now
+  if (item.pin && ev.noDur && !ev.free) delete ev.noDur;
+  return ev;
+}
+
+// The row back into bars. A thing carrying a name opens a stretch of its own;
+// one without a name joins the stretch in front of it, which is what a phrase
+// under a chord is.
+// Returns where each thing in the row ended up, so the panel can follow the one
+// that moved: the rebuild copies every note, and the object the row is holding
+// is no longer the object in the sheet.
+function writeBarsFromEvents(list, touched) {
+  const held = new Map();
+  list.forEach((item, i) => {
+    if (!touched.has(item.bar)) return;
+    if (!held.has(item.bar)) held.set(item.bar, []);
+    held.get(item.bar).push({ item, i });
+  });
+  const homes = new Map();
+  for (const bi of touched) {
+    const bar = chordCache.bars[bi];
+    if (!bar) continue;
+    const chords = [];
+    let open = null;
+    for (const { item, i } of held.get(bi) || []) {
+      if (item.name || item.markers || !open) {
+        open = { name: item.name, markers: item.markers, notes: [] };
+        chords.push(open);
+      }
+      if (item.ev) open.notes.push(pinnedNote(item));
+      homes.set(i, {
+        bar: bi, stretch: chords.length - 1,
+        note: item.ev ? open.notes.length - 1 : null,
+      });
+    }
+    // A bar every thing moved out of is still a bar of the tune: it keeps its
+    // time and an empty stretch to write into, the same as one just inserted.
+    bar.chords = chords.length ? chords : [{ name: '', markers: null }];
+  }
+  return homes;
+}
+
+// Which thing in the row the panel is pointing at. With a note selected it is
+// that note; with nothing selected it is the chord at the head of the stretch
+// being written into, since that is what the panel is open on.
+function selectedEventIndex(list) {
+  if (!notePanelAt) return -1;
+  const at = notePanelAt;
+  const want = noteSel === null ? 0 : noteSel;
+  let head = -1;
+  for (let i = 0; i < list.length; i++) {
+    const e = list[i];
+    if (e.bar !== at.bar || e.stretch !== at.chord) continue;
+    if (head < 0) head = i;
+    if (e.note === null || e.note === want) return i;
+  }
+  return head;
+}
+
+// Whether the thing the panel is pointing at is a chord — a name is written on
+// it — which is the whole difference between the buttons saying Chord and Note.
+function selectedIsChord() {
+  const list = sheetEvents();
+  const i = selectedEventIndex(list);
+  return i >= 0 && !!list[i].name;
+}
+
+function canMoveSelection(by) {
+  const list = sheetEvents();
+  const i = selectedEventIndex(list);
+  if (i < 0) return false;
+  return by > 0 ? i + 1 < list.length : i > 0;
+}
+
+// One step. The thing picked and its neighbour trade places, each keeping the
+// bar of the place it lands in — which is how a step at a bar's edge crosses the
+// bar line without the move having to know anything about bar lines.
+function moveSelection(by) {
+  const list = sheetEvents();
+  const from = selectedEventIndex(list);
+  if (from < 0) return;
+  const at = by > 0 ? from : from - 1;              // the pair trading places
+  if (at < 0 || at + 1 >= list.length) return;
+  const a = list[at], b = list[at + 1];
+  const barA = a.bar, barB = b.bar;
+  list[at] = b; list[at + 1] = a;
+  list[at].bar = barA; list[at + 1].bar = barB;
+  for (const k of [at, at + 1, at + 2]) {
+    if (list[k] && list[k].ev) list[k].pin = true;
+  }
+  const touched = new Set([barA, barB]);
+  const homes = writeBarsFromEvents(list, touched);
+  dropDanglingBeams(touched);
+  // The panel follows what was moved rather than the place it left, so pressing
+  // again carries the same thing further along.
+  const home = homes.get(by > 0 ? at + 1 : at);
+  if (home) {
+    notePanelAt = { bar: home.bar, chord: home.stretch };
+    noteSel = home.note;
+  }
+  noteAfter = null;
+  commitNotes();
+  markNoteSelection();
+}
+
+// A beam on the last thing in a bar has nothing to join. Cleared rather than
+// kept, so a step never leaves a mark that draws as a beam off the bar's edge.
+function dropDanglingBeams(touched) {
+  for (const bi of touched) {
+    const bar = chordCache.bars[bi];
+    if (!bar) continue;
+    const notes = [];
+    for (const st of bar.chords) for (const ev of st.notes || []) notes.push(ev);
+    const last = notes[notes.length - 1];
+    if (last && last.beam) delete last.beam;
+  }
+}
+
 // A stretch holds a place per note, plus the place after the last one where
 // writing goes — which is what null is, and what an empty stretch has instead of
 // notes. Stepping off either end of that walks into the next stretch.
@@ -2773,6 +2939,22 @@ function renderNotePanel() {
   button(fixRow, '▷▷|', 'Stop editing that note and write at the end (Esc)',
     endNoteWriting, !ev && noteAfter === null);
   gap(fixRow);
+  // Moving what is picked, rather than moving the pick. Beside the walk arrows
+  // because the two are read together — ◀ ▶ go to a thing, these take it with
+  // you — and told apart by the word on them: a chord is a name written on a
+  // moment, so what the button says is what is about to travel.
+  const carry = selectedIsChord() ? 'Chord' : 'Note';
+  const back = button(fixRow, `⇦ ${carry}`,
+    `Swap this ${carry.toLowerCase()} with the one before it, chord name and all `
+    + '— nothing else on the sheet moves (Shift + ←)',
+    () => moveSelection(-1));
+  back.disabled = !canMoveSelection(-1);
+  const fwd = button(fixRow, `${carry} ⇨`,
+    `Swap this ${carry.toLowerCase()} with the one after it, chord name and all `
+    + '— nothing else on the sheet moves (Shift + →)',
+    () => moveSelection(1));
+  fwd.disabled = !canMoveSelection(1);
+  gap(fixRow);
   // The same again, whatever it is. A bar of one chord held while the tune moves
   // is the ordinary shape of a sheet, and tapping out its six strings a second
   // time is the tedious way to say so; a repeated note is the same story.
@@ -2811,7 +2993,8 @@ function renderNotePanel() {
   if (noteKeysOpen) {
     const keys = document.createElement('p');
     keys.className = 'note-keys';
-    keys.textContent = '← → select · 1–5 duration (whole, half, quarter, eighth, sixteenth) · '
+    keys.textContent = '← → select · Shift + ← → move it one place · '
+      + '1–5 duration (whole, half, quarter, eighth, sixteenth) · '
       + '0 no length · . dot · , triplet · R rest · T tie · G grace · S stack · '
       + 'I room after this note · Backspace delete · '
       + 'Esc back to the end, then close';
@@ -2925,7 +3108,11 @@ document.addEventListener('keydown', e => {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const n = parseInt(e.key, 10);
-  if (e.key === 'ArrowLeft') stepNote(-1);
+  // Shift turns the walk into a carry: the same arrows, taking the thing under
+  // the caret with them.
+  if (e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    moveSelection(e.key === 'ArrowLeft' ? -1 : 1);
+  } else if (e.key === 'ArrowLeft') stepNote(-1);
   else if (e.key === 'ArrowRight') stepNote(1);
   else if (e.key === '0') setNoteDur(NO_DUR);
   else if (n >= 1 && n <= NOTE_DURATIONS.length) setNoteDur(NOTE_DURATIONS[n - 1][0]);
