@@ -103,6 +103,11 @@ of phrases — no dependencies, no test runner. Two kinds of case:
 - **editing** — presses a button or moves a note, and checks the sheet text that
   comes back. Text is what the app saves, so it is what an edit means.
 
+A case can also carry `broken:` — the expected value is what the code does
+wrong today, and the run prints it as `!` with the reason instead of a pass.
+Writing the phrase down is the point: the day it is fixed, that case fails and
+the expected value is turned into the right answer.
+
 Every phrase in there was a bug once. Add the phrase before the fix, and the
 next one like it is caught before it ships.
 
