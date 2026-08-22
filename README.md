@@ -107,6 +107,9 @@ of phrases — no dependencies, no test runner. Two kinds of case:
   reads back as something else is how a sheet changes with nobody editing it.
 - **boxes** — what the chord box and the fret box accept, a pasted Guitar Chord
   Viewer link included.
+- **times and sharing** — where a bar starts and ends, when each chord in it
+  sounds, and the share link, checked to the character. The link is the one piece
+  of the app that leaves the machine.
 
 A case can also carry `broken:` — the expected value is what the code does
 wrong today, and the run prints it as `!` with the reason instead of a pass.

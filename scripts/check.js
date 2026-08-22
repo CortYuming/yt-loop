@@ -83,15 +83,6 @@ global.location = { href: 'https://cortyuming.github.io/yt-loop/' };
 // chords.js leans on parseTime from main.js and is loaded before it in the page,
 // so nothing there runs at load time and the one function it wants can be handed
 // in. Bar times are not what this checks, so a plain number will do.
-// main.js's own, near enough for a sheet: `43.50` and `0:43.50` both name a
-// moment, and a bar's time is what tells resolveSpans where it starts.
-global.parseTime = s => {
-  const m = /^(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(String(s || '').trim());
-  return m ? Number(m[1] || 0) * 60 + Number(m[2]) : null;
-};
-const Chords = new Function('parseTime',
-  `${fs.readFileSync(path.join(ROOT, 'chords.js'), 'utf8')}\nreturn Chords;`)(global.parseTime);
-
 const MAIN = fs.readFileSync(path.join(ROOT, 'main.js'), 'utf8');
 // The functions lifted out of main.js. Editing a bar is these and nothing else,
 // which is why they can be run without a page: they read the parsed sheet and
@@ -139,7 +130,15 @@ function lift(name) {
   }
   throw new Error(`function ${name} の終わりが読めません`);
 }
-const LIFTED_SRC = LIFTED.map(name => {
+// chords.js wants parseTime from main.js and is loaded ahead of it in the page,
+// so it is handed in — the real one, lifted, rather than something near enough:
+// a bar's `@` time is read by it, and a stub would put the bars somewhere else
+// than the app does.
+global.parseTime = new Function(`${liftOne('parseTime')}\nreturn parseTime;`)();
+const Chords = new Function('parseTime',
+  `${fs.readFileSync(path.join(ROOT, 'chords.js'), 'utf8')}\nreturn Chords;`)(global.parseTime);
+
+function liftOne(name) {
   const src = lift(name);
   // The scan above is not a JavaScript parser, so what it hands back is checked:
   // one declaration, of the name asked for, and something that parses.
@@ -151,7 +150,8 @@ const LIFTED_SRC = LIFTED.map(name => {
     throw new Error(`function ${name} の取り出しが壊れています: ${err.message}`);
   }
   return src;
-}).join('\n');
+}
+const LIFTED_SRC = LIFTED.map(liftOne).join('\n');
 
 // A sheet, opened for editing. `at(bar, stretch, note)` is where the panel is
 // pointing; everything else is the stubs those functions call into.
@@ -790,6 +790,84 @@ const READ = [
     want: 'B♭m7♭5' },
 ];
 
+// Times, and the link a loop is shared as. A bar's `@` is where it starts and
+// the end is worked out from what is around it — see resolveSpans — so a sheet
+// written bar by bar with no end times still knows where every chord sounds.
+// The share link is the one piece of the app that leaves the machine, so what it
+// carries is checked to the character.
+const share = (() => {
+  const src = ['formatTime', 'buildShareUrl', 'buildShareLabel', 'buildShareMarkdown']
+    .map(liftOne).join('\n');
+  return new Function('shim', `
+    const NOTE_MAX = 30;
+    const location = shim.location;
+    // Reads the browser's storage in the app; a case says the title outright.
+    function resolveVideoTitle() { return shim.title; }
+    ${src}
+    return { formatTime, buildShareUrl, buildShareLabel, buildShareMarkdown,
+      title(t) { shim.title = t; } };`)({
+    location: { origin: 'https://cortyuming.github.io', pathname: '/yt-loop/' },
+    title: '',
+  });
+})();
+
+const LOOP = { start: 26.83, end: 29.25, speed: 0.75, note: 'F7 の E♭' };
+const TIMES = [
+  // A bar with no end takes the next bar's start, and the last one — with
+  // nothing after it — takes the length of the bar before it.
+  { name: '小節の終わり: 次の小節の始まりを取る',
+    got: () => Chords.resolveSpans(Chords.parseSheet('@10 C7|@14 F7|@18 C7')),
+    want: [{ start: 10, end: 14 }, { start: 14, end: 18 }, { start: 18, end: 22 }] },
+  // Nothing after it, so it takes the length of the bar before it.
+  { name: '小節の終わり: 最後の小節は前の小節と同じ長さ',
+    got: () => Chords.resolveSpans(Chords.parseSheet('@10-14 C7|@14 F7')),
+    want: [{ start: 10, end: 14 }, { start: 14, end: 18 }] },
+  // A sheet whose bars overlap says so rather than being quietly reordered.
+  { name: '小節の終わり: 次が戻っていたら埋めない',
+    got: () => Chords.resolveSpans(Chords.parseSheet('@10 C7|@8 F7')),
+    want: [{ start: 10, end: null }, { start: 8, end: null }] },
+  // Four beats to the bar, split the way chord-vamp splits them: 3 chords are
+  // 2+1+1, so the second falls halfway and the third three quarters in.
+  { name: 'コードの時刻: 3つなら 2+1+1 で割る',
+    got: () => Chords.chordTimes(Chords.parseSheet('@0-4 C7 F7 G7')[0], { start: 0, end: 4 }),
+    want: [0, 2, 3] },
+  { name: 'コードの時刻: 2つなら半分ずつ',
+    got: () => Chords.chordTimes(Chords.parseSheet('@0-4 C7 F7')[0], { start: 0, end: 4 }),
+    want: [0, 2] },
+  // No end to spread them over, so only the first one has a moment.
+  { name: 'コードの時刻: 終わりが分からなければ先頭だけ',
+    got: () => Chords.chordTimes(Chords.parseSheet('@0 C7 F7')[0], { start: 0, end: null }),
+    want: [0, null] },
+  { name: '時刻を読む: 秒だけ', got: () => parseTime('43.50'), want: 43.5 },
+  { name: '時刻を読む: 分と秒', got: () => parseTime('1:07.30'), want: 67.3 },
+  { name: '時刻を読む: 時と分と秒', got: () => parseTime('1:02:03.5'), want: 3723.5 },
+  { name: '時刻を読む: 時刻でないもの', got: () => parseTime('あとで'), want: null },
+  { name: '時刻を書く: 1分未満', got: () => share.formatTime(9.5), want: '0:09.50' },
+  { name: '時刻を書く: 1時間以上', got: () => share.formatTime(3723.5), want: '1:02:03.50' },
+  { name: '時刻を書く: 負の値は0', got: () => share.formatTime(-5), want: '0:00.00' },
+  { name: '共有URL: 区間と速度とメモ',
+    got: () => share.buildShareUrl('abc123', LOOP),
+    want: 'https://cortyuming.github.io/yt-loop/?v=abc123&s=26.83&e=29.25&r=0.75'
+      + '&n=F7+%E3%81%AE+E%E2%99%AD' },
+  // Speed 1 is the speed it plays at anyway, so it is not carried.
+  { name: '共有URL: 等速はパラメータに出ない',
+    got: () => share.buildShareUrl('abc123', { start: 1, end: 2, speed: 1 }),
+    want: 'https://cortyuming.github.io/yt-loop/?v=abc123&s=1.00&e=2.00' },
+  { name: '共有URL: 動画がなければ作らない',
+    got: () => share.buildShareUrl('', LOOP), want: null },
+  { name: '共有の見出し: 題名と区間とメモ',
+    got: () => { share.title('Autumn Leaves'); return share.buildShareLabel('abc123', LOOP); },
+    want: 'Autumn Leaves (0:26.83 → 0:29.25) F7 の E♭' },
+  { name: '共有の見出し: 題名がなければ区間だけ',
+    got: () => { share.title(''); return share.buildShareLabel('abc123', LOOP); },
+    want: '0:26.83 → 0:29.25 F7 の E♭' },
+  { name: '共有の markdown',
+    got: () => { share.title('Autumn Leaves'); return share.buildShareMarkdown('abc123', LOOP); },
+    want: '[Autumn Leaves (0:26.83 → 0:29.25) F7 の E♭]'
+      + '(https://cortyuming.github.io/yt-loop/?v=abc123&s=26.83&e=29.25&r=0.75'
+      + '&n=F7+%E3%81%AE+E%E2%99%AD)' },
+];
+
 // ---------- running them ----------
 let failed = 0, updated = 0;
 let known = 0;
@@ -921,17 +999,24 @@ for (const c of WRITTEN) {
   } else say(true, c.name);
 }
 
-console.log('\n箱に貼る');
-for (const c of READ) {
-  let got;
-  try { got = c.got(); } catch (err) { say(false, c.name, `    例外 ${err.message}`); continue; }
-  const ok = JSON.stringify(got) === JSON.stringify(c.want);
-  say(ok, c.name, ok ? '' : `    got  ${JSON.stringify(got)}\n    want ${JSON.stringify(c.want)}`);
-}
+// A list of "call this, expect that" — the pure halves of the app, where a case
+// is one value and reads as the rule it is checking.
+const answers = (title, list) => {
+  console.log(`\n${title}`);
+  for (const c of list) {
+    let got;
+    try { got = c.got(); } catch (err) { say(false, c.name, `    例外 ${err.message}`); continue; }
+    const ok = JSON.stringify(got) === JSON.stringify(c.want);
+    say(ok, c.name, ok ? '' : `    got  ${JSON.stringify(got)}\n    want ${JSON.stringify(c.want)}`);
+  }
+};
+answers('箱に貼る', READ);
+answers('時間と共有', TIMES);
 
 const drawnCount = Object.keys(DRAWN).length;
 console.log(`\n描画 ${drawnCount} 件 / 編集 ${EDITED.length} 件`
   + ` / テキスト ${WRITTEN.length} 件 / 箱 ${READ.length} 件`
+  + ` / 時間と共有 ${TIMES.length} 件`
   + `${known ? ` / 既知の壊れ方 ${known} 件` : ''}`
   + `${updated ? ` / snapshot ${updated} 件を書きました` : ''}`);
 if (failed) {
