@@ -28,24 +28,19 @@
   <line x1="257.114281222982" y1="71" x2="281.514281222982" y2="71" stroke="#8a8a8a" stroke-width="1.4"></line>
   <ellipse cx="269.314281222982" cy="71" rx="6.2" ry="4.4" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="263.114281222982" y1="71" x2="263.114281222982" y2="105" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <text x="314.8428515287275" y="107.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="325.0428515287275" cy="111" rx="6.2" ry="4.4" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
   <ellipse cx="325.0428515287275" cy="91" rx="6.2" ry="4.4" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="312.8428515287275" y1="81" x2="337.2428515287275" y2="81" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <text x="314.8428515287275" y="77.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="325.0428515287275" cy="81" rx="6.2" ry="4.4" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="312.8428515287275" y1="71" x2="337.2428515287275" y2="71" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <text x="314.8428515287275" y="62.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="325.0428515287275" cy="66" rx="6.2" ry="4.4" fill="#6d8f45" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="318.8428515287275" y1="66" x2="318.8428515287275" y2="145" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="207.38571091723654" y1="145" x2="207.38571091723654" y2="145" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="263.114281222982" y1="105" x2="263.114281222982" y2="145" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="318.8428515287275" y1="145" x2="318.8428515287275" y2="145" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="207.38571091723654" y1="145" x2="318.8428515287275" y2="145" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
-  <text x="399.97142183447306" y="97.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="410.17142183447305" cy="101" rx="6.2" ry="4.4" fill="#6d8f45" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="397.97142183447306" y1="81" x2="422.37142183447304" y2="81" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <text x="399.97142183447306" y="77.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="410.17142183447305" cy="81" rx="6.2" ry="4.4" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="397.97142183447306" y1="71" x2="422.37142183447304" y2="71" stroke="#8a8a8a" stroke-width="1.4"></line>
   <ellipse cx="410.17142183447305" cy="71" rx="6.2" ry="4.4" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
@@ -57,10 +52,8 @@
   <line x1="453.69999214021857" y1="61" x2="478.09999214021855" y2="61" stroke="#8a8a8a" stroke-width="1.4"></line>
   <ellipse cx="465.89999214021856" cy="61" rx="6.2" ry="4.4" fill="#98c9c4" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="459.69999214021857" y1="61" x2="459.69999214021857" y2="95" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <text x="511.42856244596396" y="97.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="521.628562445964" cy="101" rx="6.2" ry="4.4" fill="#6d8f45" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="509.42856244596396" y1="81" x2="533.828562445964" y2="81" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <text x="511.42856244596396" y="77.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="521.628562445964" cy="81" rx="6.2" ry="4.4" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="509.42856244596396" y1="71" x2="533.828562445964" y2="71" stroke="#8a8a8a" stroke-width="1.4"></line>
   <ellipse cx="521.628562445964" cy="71" rx="6.2" ry="4.4" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
@@ -71,28 +64,22 @@
   <line x1="459.69999214021857" y1="95" x2="459.69999214021857" y2="135" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="515.428562445964" y1="135" x2="515.428562445964" y2="135" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="403.97142183447306" y1="135" x2="515.428562445964" y2="135" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
-  <text x="567.1571327517095" y="107.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="577.3571327517095" cy="111" rx="6.2" ry="4.4" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
   <ellipse cx="577.3571327517095" cy="91" rx="6.2" ry="4.4" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="565.1571327517095" y1="81" x2="589.5571327517096" y2="81" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <text x="567.1571327517095" y="77.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="577.3571327517095" cy="81" rx="6.2" ry="4.4" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="565.1571327517095" y1="71" x2="589.5571327517096" y2="71" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <text x="567.1571327517095" y="62.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="577.3571327517095" cy="66" rx="6.2" ry="4.4" fill="#6d8f45" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="571.1571327517095" y1="66" x2="571.1571327517095" y2="145" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="620.885703057455" y1="81" x2="645.2857030574551" y2="81" stroke="#8a8a8a" stroke-width="1.4"></line>
   <line x1="620.885703057455" y1="71" x2="645.2857030574551" y2="71" stroke="#8a8a8a" stroke-width="1.4"></line>
   <ellipse cx="633.085703057455" cy="71" rx="6.2" ry="4.4" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="626.885703057455" y1="71" x2="626.885703057455" y2="105" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <text x="678.6142733632005" y="107.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="688.8142733632005" cy="111" rx="6.2" ry="4.4" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
   <ellipse cx="688.8142733632005" cy="91" rx="6.2" ry="4.4" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="676.6142733632005" y1="81" x2="701.0142733632006" y2="81" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <text x="678.6142733632005" y="77.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="688.8142733632005" cy="81" rx="6.2" ry="4.4" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="676.6142733632005" y1="71" x2="701.0142733632006" y2="71" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <text x="678.6142733632005" y="62.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="688.8142733632005" cy="66" rx="6.2" ry="4.4" fill="#6d8f45" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="682.6142733632005" y1="66" x2="682.6142733632005" y2="145" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="571.1571327517095" y1="145" x2="571.1571327517095" y2="145" stroke="#dcdcdc" stroke-width="1.4"></line>

@@ -268,7 +268,10 @@ function place(bar, n) {
 const SLOT = 190, SLOTS = 4, WIDTH = SLOT * SLOTS;
 function draw(sheet) {
   const bars = Chords.parseSheet(sheet);
-  const reach = Chords.staffRange(bars, null, 'neck');
+  // A `key:` line decides how everything after it is spelled and which letters
+  // the signature has already altered, so a case can set one.
+  const key = Chords.parseKey(sheet);
+  const reach = Chords.staffRange(bars, key, 'neck');
   if (!reach) throw new Error('この譜面には五線譜に載るものがありません');
   return bars.map((bar, i) => {
     const weights = Chords.barWeights(bar, SLOT);
@@ -282,8 +285,8 @@ function draw(sheet) {
       };
     });
     const mode = 'degrees';
-    const staff = Chords.staffBar(items, WIDTH, reach, null, mode, SLOT, [], false);
-    const tab = Chords.tabBar(items, WIDTH, null, mode, SLOT, [], reach.stack);
+    const staff = Chords.staffBar(items, WIDTH, reach, key, mode, SLOT, [], false);
+    const tab = Chords.tabBar(items, WIDTH, key, mode, SLOT, [], reach.stack);
     return [`<!-- bar ${i + 1}: ${textOf(bars, i)} -->`,
       `<!-- ${beatsOf(bar).toFixed(4)} beats -->`,
       staff.serialize(), tab.serialize()].join('\n');
@@ -325,6 +328,17 @@ const DRAWN = {
     + '@2 G7 1/10_:4 1/5:8 1/7- 1/8 1/10',
   // A grace note takes no time from the bar and hangs off the note it leans on.
   'a-grace-note': '@0 C7 1/3+2/3+3/2+4/3:4 1/7*:8 1/8 1/10 1/12',
+  // An accidental holds to the end of the bar, so a line the signature flattens
+  // and a ♮ then cancels has to be flattened again out loud. In B♭, C7's E♮ and
+  // then F7's E♭: without the second sign the reader plays E. The second E♮ of
+  // the bar carries no sign of its own — it is already in force — and F7+'s E♭
+  // an octave down carries none either, since nothing touched that line.
+  'a-natural-then-a-flat': 'key: Bb\n@26.83-29.25 C7 2/5_:8 4/5- 2/5+3/3 4/5 '
+    + 'F7 2/4+3/2:8 4/3 F7+ 2/2+3/2+4/1:4',
+  // The same rule the other way: an A♭ written at the head of the bar makes the
+  // A after it need a ♮.
+  'a-flat-then-a-natural':
+    '@0 Bb7 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 2/6+3/7:8t 3/6+4/7 3/6+4/7',
   // Four triplets in a row, which is what writing with the triplet button on
   // looks like the moment the fourth tap lands: three are a triplet and the
   // fourth is a 3 over one note, waiting for the two after it. Every button that

@@ -1192,7 +1192,29 @@ const Chords = (() => {
       pc,
       step: (Math.floor(midi / 12) - 1) * 7 + letter,
       sign,
+      // What this note is in itself, apart from what the signature says: kept so
+      // a bar can ask again — see barSign — once something earlier in it has
+      // changed what the line means.
+      own,
     };
+  }
+
+  // The sign a note needs where it stands, rather than the one the signature
+  // alone would give it. An accidental holds to the end of the bar, so a ♮
+  // written on a line cancels the signature there and the flat the signature
+  // would have given has to be asked for again: in B♭, C7's E♮ and then F7's E♭
+  // is ♮ and then ♭, and leaving the second one off has the reader playing E.
+  // It holds by line or space rather than by letter, which is why `seen` is
+  // keyed on the staff place: the E an octave up is a different line, and there
+  // the signature still rules.
+  function barSign(seen, note, signed) {
+    const letter = ((note.step % 7) + 7) % 7;
+    const held = seen.has(note.step)
+      ? seen.get(note.step)
+      : ((signed && signed[letter]) || '');
+    if (note.own === held) return '';
+    seen.set(note.step, note.own);
+    return note.own || '♮';
   }
 
   function writtenPitches(markers) {
@@ -1209,7 +1231,8 @@ const Chords = (() => {
   function stopNote(stop, chordName, key) {
     const midi = OPEN_MIDI[stop.string - 1] + stop.fret + WRITTEN_8VA;
     const note = staffNote(midi, spellsFlat(chordName, key), signedLetters(key));
-    return { step: note.step, sign: note.sign, pc: note.pc, string: stop.string, fret: stop.fret };
+    return { step: note.step, sign: note.sign, own: note.own, pc: note.pc,
+      string: stop.string, fret: stop.fret };
   }
 
   // Without a key the chord spells itself, the same rule the diagram's note
@@ -1748,6 +1771,15 @@ const Chords = (() => {
     // the beat the stretch begins on. Beams and triplets are grouped by the beat,
     // so they have to be told the beat the music is on.
     let barBeat = 0;
+    // What has been altered where, as the bar is read from left to right. An
+    // accidental holds to the end of the bar — see barSign — so this is the one
+    // thing on a staff that cannot be worked out a note at a time.
+    const altered = new Map();
+    const signed = signedLetters(key);
+    const readSigns = notes => {
+      for (const n of notes) n.sign = barSign(altered, n, signed);
+      return notes;
+    };
     // The triplets of the bar, read across the whole of it: three notes of one
     // value in a row are one triplet however the stretches they sit in are
     // divided, since a chord change inside a triplet is ordinary.
@@ -1791,6 +1823,7 @@ const Chords = (() => {
       const ruling = rulingNames(item);
       if (!item.notes || !item.notes.length) {
         const { notes } = staffChord(item.name, item.markers, key);
+        readSigns(notes);
         if (notes.length) {
           drawHeads(notes, item.x + NOTE_INSET, chord, false, true);
           carried = { x: item.x + NOTE_INSET, stops: null, notes };
@@ -1889,8 +1922,8 @@ const Chords = (() => {
           const stops = !p.ev.tie ? p.ev.stops
             : (p.ev.stops && p.ev.stops.length) ? p.ev.stops
               : (carried && carried.stops) || [];
-          const notes = stops.map(st => stopNote(st, p.ruling, key))
-            .sort((a, b) => a.step - b.step);
+          const notes = readSigns(stops.map(st => stopNote(st, p.ruling, key))
+            .sort((a, b) => a.step - b.step));
           for (const n of notes) { sum += n.step; count++; }
           heads.push({ p, notes, x: p.x });
         }
