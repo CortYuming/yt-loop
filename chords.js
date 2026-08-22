@@ -798,6 +798,54 @@ const Chords = (() => {
     return Array(n).fill(1);
   }
 
+  // How a bar's slots actually fall to its stretches. The even split above is
+  // the ground, and a bar of plain chords keeps it exactly — which is most bars,
+  // since most of a sheet is chords with no phrase written under them.
+  // A stretch that does have a phrase in it needs room for that phrase. Where
+  // its even share is not enough, the shortfall is taken from the stretches with
+  // room to spare: those are drawing a single grip in space meant for a run, and
+  // giving that space up costs them nothing. So the bar keeps its width and its
+  // place in the row, and only what is inside it moves.
+  // Where the bar is asked for more than it holds — a phrase written before its
+  // timing is right, which is ordinary — every stretch gives up the same
+  // proportion instead of the tightest one squeezing the whole bar to its own
+  // ratio. The squeeze is shared out rather than paid by the bar.
+  // `slot` is the width of one slot in pixels: a run needs the room its notes
+  // take plus the fixed room a note head and its inset take, and that part is
+  // only a share of a slot once there is a slot to measure it against.
+  function barWeights(bar, slot) {
+    const chords = (bar && bar.chords) || [];
+    const base = slotWeights(chords.length);
+    if (!chords.length || !slot) return base;
+    // What each stretch is asking for, in slots. Nothing written asks for
+    // nothing — its even share is already the right answer for a lone grip.
+    const need = chords.map(c => {
+      const { items, length } = noteBeats(c.notes);
+      if (length <= 0) return 0;
+      const stacked = items.reduce((most, p) => Math.max(most, p.stack), 0);
+      return length + (NOTE_INSET + NOTE_RX * 2) / slot + (stacked * STACK_W) / slot;
+    });
+    const short = base.map((w, i) => Math.max(0, need[i] - w));
+    const wanted = short.reduce((a, b) => a + b, 0);
+    if (wanted <= 1e-9) return base;              // everything already fits
+    const spare = base.map((w, i) => Math.max(0, w - need[i]));
+    const room = spare.reduce((a, b) => a + b, 0);
+    // Enough room going spare to cover the shortfall: hand it over, and the bar
+    // holds everything written in it at full size.
+    if (room >= wanted) {
+      return base.map((w, i) => w
+        - (spare[i] / room) * wanted
+        + (short[i] / wanted) * wanted);
+    }
+    // More written than the bar can hold however it is divided. Every stretch
+    // then gives up the same proportion. A stretch with nothing written still
+    // has to be drawn, so it asks for its even share rather than for nothing.
+    const total = base.reduce((a, b) => a + b, 0);
+    const asked = need.map((x, i) => (x > 0 ? x : base[i]));
+    const sum = asked.reduce((a, b) => a + b, 0);
+    return asked.map(x => (x / sum) * total);
+  }
+
   // Start time per chord in a bar, or nulls when the bar has no time on it.
   function chordTimes(bar, span) {
     if (!span || span.start === null) return bar.chords.map(() => null);
@@ -2403,7 +2451,7 @@ const Chords = (() => {
   }
 
   return {
-    parseSheet, resolveSpans, chordTimes, slotWeights, toCompact, viewerUrl, diagram, fretWindows,
+    parseSheet, resolveSpans, chordTimes, slotWeights, barWeights, toCompact, viewerUrl, diagram, fretWindows,
     readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
     staffRange, staffBar, staffHead, staffHeadWidth,
     // single notes

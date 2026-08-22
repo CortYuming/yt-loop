@@ -1145,7 +1145,9 @@ function drawChordStrip(fromCache) {
   };
 
   bars.forEach((bar, i) => {
-    const weights = Chords.slotWeights(bar.chords.length);
+    // Not the even split alone: a stretch holding a phrase takes the room it
+    // needs from the stretches that have room to spare. See Chords.barWeights.
+    const weights = Chords.barWeights(bar, slot);
     // Every bar is the same four slots wide. One holding more chords than that
     // stacks them four to a line within its own width instead of growing wider,
     // which would run it past the others and take the even pace with it.
@@ -2014,6 +2016,11 @@ function noteStretch() {
 function noteStretchBeats() {
   const bar = notePanelAt && chordCache.bars[notePanelAt.bar];
   if (!bar) return Chords.BEATS_PER_BAR;
+  // The bar's own four beats, split the way a written bar is read — not the room
+  // the strip happens to draw this stretch at. The width bends to fit a phrase
+  // in (see Chords.barWeights); the beat it falls on does not, and a panel
+  // reporting 1.196 beats of room was measuring the drawing rather than the
+  // music.
   const weights = Chords.beatWeights(bar.chords.length);
   return weights[notePanelAt.chord] || weights[weights.length - 1];
 }
