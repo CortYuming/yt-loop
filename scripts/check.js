@@ -98,6 +98,8 @@ const LIFTED = [
   'sheetEvents', 'pinnedNote', 'writeBarsFromEvents', 'selectedEventIndex',
   'moveBlock', 'moveSelection', 'dropDanglingBeams', 'barHead', 'keepBarHeads',
   'selectedIsChord', 'canMoveSelection',
+  // the triplet as one thing
+  'tripletGroupPlaces', 'noteCopy', 'noteCanDot',
 ];
 // Read to the brace that closes the declaration rather than to the next line
 // holding one on its own: a function written on a single line — addNoteRest is
@@ -200,6 +202,7 @@ function open(sheet) {
       grace: () => toggleNoteGrace(),
       can: () => ({
         beam: noteCanBeam(), grace: noteCanGrace(), triplet: noteCanTriplet(),
+        dot: noteCanDot(),
       }),
       on: what => ({ beam: () => noteBeamOn(), grace: () => noteGraceOn() }[what]()),
       selection: () => ({ note: noteSel, gap: noteAfter }),
@@ -292,11 +295,11 @@ const DRAWN = {
   // A grace note takes no time from the bar and hangs off the note it leans on.
   'a-grace-note': '@0 C7 1/3+2/3+3/2+4/3:4 1/7*:8 1/8 1/10 1/12',
   // Four triplets in a row, which is what writing with the triplet button on
-  // gets you when the fourth tap lands. Three are a triplet and the fourth is a
-  // 3 over one note. Nothing here can tell it was meant as part of the three
-  // before it, because the sheet does not say which notes are one triplet — it
-  // only says each is a third of a beat. Recorded so the day the groups are
-  // written down, this snapshot is what changes.
+  // looks like the moment the fourth tap lands: three are a triplet and the
+  // fourth is a 3 over one note, waiting for the two after it. Every button that
+  // edits a triplet keeps it three — see tripletGroupPlaces in main.js — so this
+  // is the one way a bar holds a triplet of one, and it is a phrase halfway
+  // written rather than a phrase gone wrong.
   'four-triplets-in-a-row': '@0 Cm7 1/8:4 1/8:8t 1/10 1/12 1/5',
 };
 
@@ -482,11 +485,12 @@ const EDITED = [
     text: 'Cm7 1/5:8 1/7', beats: 1,
   },
   {
-    name: 'コピー: 3連の1音をコピーすると4音になる',
+    // The same figure struck again, written after the three. One more note inside
+    // them would be a fourth in the time of two.
+    name: 'コピー: 3連の1音をコピーすると3連まるごと増える',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.copy(); },
-    text: 'Cm7 1/5:8 1/7:8t 1/9 1/9 1/10 1/12:8', beats: 0.5 + 4 / 3 + 0.5,
-    broken: '3連が4音の run になり、括弧が3音＋1音に割れる。小節も3分の1拍伸びる',
+    text: 'Cm7 1/5:8 1/7:8t 1/9 1/10 1/7 1/9 1/10 1/12:8', beats: 3,
   },
   {
     name: '削除: 選択した音を消す',
@@ -495,11 +499,11 @@ const EDITED = [
     text: 'Cm7 1/5:8 1/9', beats: 1,
   },
   {
-    name: '削除: 3連の1音を消すと2音になる',
+    // Two of the three left behind are a triplet of two, so the whole of it goes.
+    name: '削除: 3連の1音を消すと3連まるごと消える',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.del(); },
-    text: 'Cm7 1/5:8 1/7:8t 1/10 1/12:8', beats: 0.5 + 2 / 3 + 0.5,
-    broken: '2音に3の括弧が付く。小節も3分の1拍縮む',
+    text: 'Cm7 1/5:8 1/12', beats: 1,
   },
 
   // ---- rest and tie: marks on a note, not notes of their own ----
@@ -563,19 +567,27 @@ const EDITED = [
     text: 'Cm7 1/5:8 1/7:8. 1/9:8', beats: 1.75,
   },
   {
-    name: '長さ: 3連の1音だけ長さを変えられる',
+    // Three notes of one value, so re-timing one re-times the three.
+    name: '長さ: 3連の1音の長さを変えると3音そろって変わる',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.dur(1); },
-    text: 'Cm7 1/5:8 1/7:8t 1/9:4t 1/10:8t 1/12:8', beats: 0.5 + 1 / 3 + 2 / 3 + 1 / 3 + 0.5,
-    broken: '8分3連の中に4分3連が入り、長さが違うので3つの run に割れる（1音の括弧が3つ）',
+    text: 'Cm7 1/5:8 1/7:4t 1/9 1/10 1/12:8', beats: 3,
   },
   {
-    name: '付点: 3連の1音に付点がつけられる',
+    // There is no dotted triplet in this notation, and dotting one of three
+    // leaves the other two a triplet of two.
+    name: '付点: 3連の1音には付点をつけられない',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.dot(); },
-    text: 'Cm7 1/5:8 1/7:8t 1/9:8. 1/10:8t 1/12:8',
-    beats: 0.5 + 1 / 3 + 0.75 + 1 / 3 + 0.5,
-    broken: '真ん中の3連が外れ、残った2音が1音ずつの括弧になる',
+    text: 'Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8', beats: 2,
+    can: { dot: false },
+  },
+  {
+    // The + opens its room after the triplet, not among its three.
+    name: 'ギャップ: 3連の中で + を押すと3連の後ろに開く',
+    sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
+    run: ({ api }) => { api.board({ dur: 0.5 }); api.at(0, 0, 2); api.gap(); api.press(2, 9); },
+    text: 'Cm7 1/5:8 1/7:8t 1/9 1/10 2/9:8 1/12', beats: 2.5,
   },
 
   // ---- beams and grace notes ----

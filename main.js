@@ -2175,7 +2175,13 @@ function endNoteWriting() {
 function insertAfterNote() {
   const notes = noteEntries();
   if (!notes.length) return;
-  noteAfter = noteSel !== null ? noteSel : notes.length - 1;
+  const at = noteSel !== null ? noteSel : notes.length - 1;
+  // Room after a triplet rather than inside it: a fourth note among the three
+  // would be a fourth in the time of two — see tripletGroupPlaces.
+  const group = tripletGroupPlaces(notePanelAt.chord, at);
+  const last = group.length ? group[group.length - 1] : null;
+  if (last) notePanelAt = { bar: notePanelAt.bar, chord: last.cell };
+  noteAfter = last ? last.index : at;
   noteSel = null;
   renderChordStrip(true);
   renderNotePanel();
@@ -2238,6 +2244,16 @@ function stackStop(stops, string, fret) {
 // The same chord again, written just after it. The name is not copied: a name
 // repeated over the next shape reads as a chord change to itself, and what this
 // writes is the same chord struck again, which the ruling name already says.
+// The same note again: what it sounds and how long for, and nothing about the
+// chord — see copyNote.
+function noteCopy(src) {
+  const copy = { d: src.d, stops: (src.stops || []).map(st => ({ ...st })) };
+  if (src.free) copy.free = true;
+  if (src.rest) copy.rest = true;
+  if (src.tie) copy.tie = true;
+  return copy;
+}
+
 function copyNote() {
   // Only ever the selected note. Falling back to the last note of the stretch
   // put the copy somewhere nobody had pointed at — the button says "this again",
@@ -2248,11 +2264,21 @@ function copyNote() {
   const at = noteSel;
   const src = notes[at];
   if (!src) return;
-  const copy = { d: src.d, stops: (src.stops || []).map(st => ({ ...st })) };
-  if (src.free) copy.free = true;
-  if (src.rest) copy.rest = true;
-  if (src.tie) copy.tie = true;
-  notes.splice(at + 1, 0, copy);
+  // A note in a triplet is copied as the triplet — three more, written after the
+  // three, which is the same figure struck again. One more inside the three has
+  // nothing the sheet could say about it.
+  const group = tripletGroupPlaces(notePanelAt.chord, at);
+  if (group.length) {
+    const last = group[group.length - 1];
+    const into = chordCache.bars[notePanelAt.bar].chords[last.cell].notes;
+    into.splice(last.index + 1, 0, ...group.map(p => noteCopy(p.ev)));
+    notePanelAt = { bar: notePanelAt.bar, chord: last.cell };
+    noteSel = last.index + 1;
+    noteAfter = null;
+    commitNotes();
+    return;
+  }
+  notes.splice(at + 1, 0, noteCopy(src));
   // The copy is what is being written now — the reason to copy one is usually to
   // move a string of it — so it is what the board is holding when it lands.
   noteSel = at + 1;
@@ -2333,9 +2359,12 @@ function setNoteDur(d) {
   // markFreeNotes.
   if (ev) {
     if (d === NO_DUR) { ev.free = true; delete ev.grace; }
-    else {
-      ev.d = Chords.isDottedDur(ev.d) ? d * 1.5
-        : Chords.isTripletDur(ev.d) ? d * (2 / 3) : d;
+    else if (Chords.isTripletDur(ev.d)) {
+      // Three notes of one value, so re-timing one re-times the three: an eighth
+      // triplet with a quarter triplet in the middle of it is not a triplet.
+      for (const n of tripletGroup()) { n.d = d * (2 / 3); delete n.free; }
+    } else {
+      ev.d = Chords.isDottedDur(ev.d) ? d * 1.5 : d;
       delete ev.free;
     }
     commitNotes();
@@ -2345,7 +2374,17 @@ function setNoteDur(d) {
   renderNotePanel();
 }
 
+// A dot bends one note. A note in a triplet is one of three filling the time of
+// two, and there is no dotted triplet in this notation — see toggleNoteTriplet —
+// so the button is down on one rather than dotting it and leaving the other two
+// a triplet of two.
+function noteCanDot() {
+  const ev = editingNote();
+  return !ev || !Chords.isTripletDur(ev.d);
+}
+
 function toggleNoteDot() {
+  if (!noteCanDot()) return;
   const ev = editingNote();
   if (ev) {
     const base = Chords.tripletBase(ev.d) || ev.d;
@@ -2486,6 +2525,25 @@ function noteBeamOn() {
 // the last note of a bar can still be marked. Coming out, it is the three of the
 // run the selected note belongs to, counted from where that run starts: a run of
 // six is two triplets, and undoing one of them leaves the other alone.
+// The triplet a note is in, as the places its notes sit in — the stretch and the
+// index inside it, since a triplet can cross a cell edge and every edit that
+// works on the group has to reach into both. Empty when the note is not in one.
+// A triplet is one thing: three notes fill the time of two, so there is nothing
+// the sheet can say about four of them or two. Every button that adds, removes or
+// re-times a note works on the group for that reason — copyNote, deleteNote,
+// insertAfterNote, setNoteDur — and toggleNoteDot is down on one, since a dot
+// bends a single note and there is no note here to bend on its own.
+function tripletGroupPlaces(cell, index) {
+  const all = barNoteEvents();
+  const at = all.findIndex(p => p.cell === cell && p.index === index);
+  if (at < 0 || !all[at].trip) return [];
+  const key = all[at].trip;
+  const out = [];
+  for (let i = at; i >= 0 && all[i].trip === key; i--) out.unshift(all[i]);
+  for (let i = at + 1; i < all.length && all[i].trip === key; i++) out.push(all[i]);
+  return out;
+}
+
 function tripletGroup() {
   const all = barNoteEvents();
   const at = all.findIndex(p => p.cell === notePanelAt.chord && p.index === noteSel);
@@ -2502,11 +2560,7 @@ function tripletGroup() {
   }
   // Coming out: the notes the staff brackets with the selected one. A run of six
   // is two triplets, so undoing one leaves the other alone.
-  const key = all[at].trip;
-  const out = [];
-  for (let i = at; i >= 0 && all[i].trip === key; i--) out.unshift(all[i].ev);
-  for (let i = at + 1; i < all.length && all[i].trip === key; i++) out.push(all[i].ev);
-  return out;
+  return tripletGroupPlaces(notePanelAt.chord, noteSel).map(p => p.ev);
 }
 
 // Every note in the bar, in playing order, with the stretch each one came from.
@@ -2536,6 +2590,24 @@ function deleteNote() {
   const notes = noteEntries();
   const at = noteSel !== null ? noteSel : notes.length - 1;
   if (at < 0 || at >= notes.length) return;
+  // The whole triplet goes: two of the three left behind are a triplet of two.
+  const group = tripletGroupPlaces(notePanelAt.chord, at);
+  if (group.length) {
+    const bar = chordCache.bars[notePanelAt.bar];
+    // From the end, so the places ahead of each one are still where they were.
+    for (let i = group.length - 1; i >= 0; i--) {
+      (bar.chords[group[i].cell].notes || []).splice(group[i].index, 1);
+    }
+    const head = group[0];
+    notePanelAt = { bar: notePanelAt.bar, chord: head.cell };
+    const left = bar.chords[head.cell].notes || [];
+    noteAfter = null;
+    if (noteSel !== null) {
+      noteSel = left.length ? Math.min(head.index, left.length - 1) : null;
+    }
+    commitNotes();
+    return;
+  }
   notes.splice(at, 1);
   noteAfter = null;
   if (noteSel !== null) noteSel = notes.length ? Math.min(at, notes.length - 1) : null;
@@ -2997,8 +3069,11 @@ function renderNotePanel() {
     () => setNoteDur(NO_DUR), shown === NO_DUR, 'note-dur note-none');
   // The mark rather than the word, as the rest of the row is: the dot beside a
   // head, which is where it sits on a staff.
-  button(lengthRow, Chords.dotGlyph(0.8), 'Half again as long (key .)',
+  const dotBtn = button(lengthRow, Chords.dotGlyph(0.8),
+    'Half again as long (key .). Down on a note in a triplet, which has no dot '
+    + 'to give it',
     toggleNoteDot, shownDot, 'note-dur');
+  if (!noteCanDot()) dotBtn.disabled = true;
   // The mark itself rather than the number: three stems under the beam the chosen
   // value carries, so the button changes with the value it is about to bend.
   const tripBtn = button(lengthRow, Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
