@@ -578,6 +578,33 @@ const Chords = (() => {
 
   // Where each note of a stretch begins, in beats from the start of it, and how
   // far the lot of them reach.
+  // Which triplet each note of a bar belongs to, given the bar's notes in playing
+  // order. A triplet is three notes of one value in a row, so that is what is
+  // read: runs of one triplet value, counted three at a time from where the run
+  // begins. Six triplet eighths in a row are two triplets; a run that begins off
+  // the beat is still a triplet, which matters because after a dotted note is
+  // exactly where one is most often written. A value of its own starts a run of
+  // its own, so a bar of quarter triplets followed by eighth triplets is not one
+  // long bracket over the lot.
+  // Null where there is no triplet: a plain value, a note with no length, and a
+  // grace note, which takes no time from the bar and so is not one of the three.
+  // One reading, shared by the bracket the staff draws, the beam it is drawn
+  // over, and the button that marks and unmarks it — so all three say the same
+  // three notes.
+  function tripletGroups(notes) {
+    const keys = (notes || []).map(() => null);
+    let val = null, count = 0, group = 0;
+    (notes || []).forEach((ev, i) => {
+      if (ev.grace || ev.free || !isTripletDur(ev.d)) { val = null; return; }
+      if (val === null || !sameDur(ev.d, val) || count % 3 === 0) {
+        group++; count = 0; val = ev.d;
+      }
+      keys[i] = `t${group}`;
+      count++;
+    });
+    return keys;
+  }
+
   function noteBeats(notes) {
     let at = 0;
     const out = (notes || []).map((ev, index) => {
@@ -1715,6 +1742,18 @@ const Chords = (() => {
     // waits here when its final note asks to be joined; the next stretch carries
     // on drawing it.
     let pending = null;
+    // Where in the bar each stretch starts, counted in beats of the music rather
+    // than read back off the pixels. A bar holding more than it has room for is
+    // drawn narrower than it counts — see barWeights — and then x / beat is not
+    // the beat the stretch begins on. Beams and triplets are grouped by the beat,
+    // so they have to be told the beat the music is on.
+    let barBeat = 0;
+    // The triplets of the bar, read across the whole of it: three notes of one
+    // value in a row are one triplet however the stretches they sit in are
+    // divided, since a chord change inside a triplet is ordinary.
+    const tripKeys = tripletGroups(
+      items.reduce((all, it) => all.concat(it.notes || []), []));
+    let tripFrom = 0;
     // Which chord a note is read against: the one in force where it falls, kept
     // on the note, since a group can hold notes from either side of a cell edge.
     const chordAt = p => parseChord(p.ruling || 'C');
@@ -1763,8 +1802,11 @@ const Chords = (() => {
       // one beat of the bar. Left to the beats a group stays inside one stretch,
       // since a beam is read as one gesture and two chords are not. A beam asked
       // for by hand is that gesture said out loud, so it crosses the cell edge.
-      const { items: placed } = noteBeats(item.notes);
-      const from = beat > 0 ? item.x / beat : 0;
+      const { items: placed, length: spans } = noteBeats(item.notes);
+      const from = barBeat;
+      barBeat += spans;
+      const tripBase = tripFrom;
+      tripFrom += item.notes.length;
       // Room held open after one note, for what is about to be written between it
       // and the next — see putNote. The notes after it move over to make it.
       const gapAt = item.gap === undefined ? null : item.gap;
@@ -1783,6 +1825,7 @@ const Chords = (() => {
         p.owner = item;
         p.ruling = ruling[p.index] || item.name;
         p.beatAt = from + p.beat;
+        p.trip = tripKeys[tripBase + p.index] || null;
         p.x = item.x + NOTE_INSET + p.beat * beat - p.back * GRACE_STEP
           + p.stack * STACK_W
           + (gapAt !== null && p.index > gapAt ? GAP_W : 0);
@@ -1805,8 +1848,12 @@ const Chords = (() => {
         if (p.ev.grace) { graces.push(p); continue; }
         const last = groups[groups.length - 1];
         const prev = last && last.items[last.items.length - 1];
-        const sameBeat = last
-          && Math.floor(prev.beatAt + 1e-6) === Math.floor(p.beatAt + 1e-6);
+        // Where a beam stops when nothing asks it to carry on: at the edge of
+        // whatever it is inside — the beat, or the triplet's own division of it.
+        // Three triplets are one gesture, so the beats no longer cut through the
+        // middle of one.
+        const cellOf = q => q.trip || String(Math.floor(q.beatAt + 1e-6));
+        const sameBeat = last && cellOf(prev) === cellOf(p);
         // A beam asked for by hand carries across the beat it would have stopped
         // at, and across a change of value: an eighth and two sixteenths under
         // one beam is ordinary printed music, and the second beam is simply
@@ -1856,6 +1903,7 @@ const Chords = (() => {
           if (h.p.ev.rest) {
             if (isTripletDur(h.p.ev.d)) {
               trips.push({ ord: h.p.ord, x: h.x, grp, up,
+                cell: h.p.trip,
                 tip: y(MID_LINE) + (up ? -SP * 2 : SP * 2) });
             }
             drawRest(add, h.x, y(MID_LINE), h.p.ev.d);
@@ -1924,6 +1972,7 @@ const Chords = (() => {
           }
           if (isTripletDur(h.p.ev.d)) {
             trips.push({ ord: h.p.ord, x: h.x, grp, up,
+              cell: h.p.trip,
               tip: stemTip === null ? y(up ? hi : lo) + (up ? -SP : SP) : stemTip });
           }
           // What the next tie hangs on: the strings still ringing here. A tie
@@ -2036,12 +2085,15 @@ const Chords = (() => {
     const runs = [];
     for (const t of trips) {
       const run = runs[runs.length - 1];
-      if (run && t.ord === run[run.length - 1].ord + 1) run.push(t);
+      const prev = run && run[run.length - 1];
+      // One bracket per division, so a bar of six is two triplets however the
+      // notes in it were arrived at — and three that no longer fill their own
+      // division are bracketed as the two or the one they are, rather than
+      // quietly borrowing a note from the triplet after them.
+      if (prev && t.ord === prev.ord + 1 && t.cell === prev.cell) run.push(t);
       else runs.push([t]);
     }
-    for (const run of runs) {
-      for (let i = 0; i < run.length; i += 3) drawTriplet(run.slice(i, i + 3));
-    }
+    for (const run of runs) drawTriplet(run);
 
     // The names sit over the highest thing in the bar — the dots where there are
     // any, the music where there are not — rather than at the top of the canvas.
@@ -2457,7 +2509,7 @@ const Chords = (() => {
     // single notes
     parseNoteToken, parseDur, durText, notesToText, noteBeats, isDottedDur,
     tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, beatWeights,
-    isTripletDur, tripletBase, tripletGlyph, beamGlyph, graceGlyph,
+    isTripletDur, tripletBase, tripletGroups, tripletGlyph, beamGlyph, graceGlyph,
     dotGlyph, tieGlyph,
     BEATS_PER_BAR,
     stopsToMarkers, stopShapes, rulingNames, carriedStops, soundingBefore,

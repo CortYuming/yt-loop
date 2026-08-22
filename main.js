@@ -2376,6 +2376,7 @@ function toggleNoteTriplet() {
     renderNotePanel();
     return;
   }
+  if (!noteCanTriplet()) return;
   const group = tripletGroup();
   if (Chords.isTripletDur(ev.d)) {
     for (const n of group) { n.d = Chords.tripletBase(n.d); delete n.free; }
@@ -2384,6 +2385,24 @@ function toggleNoteTriplet() {
     for (const n of group) { n.d = base * (2 / 3); delete n.free; }
   }
   commitNotes();
+}
+
+// Three notes make a triplet, so the button is down where there are not three
+// to mark: the last two notes of a bar are not a triplet of their own, and
+// marking them left a 3 over two notes and a bar half a beat too long. Undoing
+// one is always allowed — whatever the staff brackets can be unbracketed. With
+// no note selected the button is the value the next one is written with, and
+// there is nothing yet for it to be wrong about.
+function noteCanTriplet() {
+  const ev = editingNote();
+  if (!ev) return true;
+  if (ev.free || ev.grace) return false;
+  if (Chords.isTripletDur(ev.d)) return true;
+  const group = tripletGroup();
+  // Three, and three that are not already in a triplet: marking two of somebody
+  // else's three and one plain note left a run of four, which is a triplet and a
+  // spare note wherever the reader looks at it.
+  return group.length === 3 && !group.some(n => Chords.isTripletDur(n.d));
 }
 
 // Beaming a run by hand: this note and the next are drawn as one gesture,
@@ -2471,12 +2490,23 @@ function tripletGroup() {
   const all = barNoteEvents();
   const at = all.findIndex(p => p.cell === notePanelAt.chord && p.index === noteSel);
   if (at < 0) return [];
-  const notes = all.map(p => p.ev);
-  if (!Chords.isTripletDur(notes[at].d)) return notes.slice(at, at + 3);
-  let from = at;
-  while (from > 0 && Chords.isTripletDur(notes[from - 1].d)) from--;
-  const start = from + Math.floor((at - from) / 3) * 3;
-  return notes.slice(start, start + 3);
+  // Going in: the selected note and the two struck after it. A grace note takes
+  // no time from the bar, so it is not one of the three and is stepped over.
+  if (!Chords.isTripletDur(all[at].ev.d)) {
+    const out = [];
+    for (let i = at; i < all.length && out.length < 3; i++) {
+      if (all[i].ev.grace) continue;
+      out.push(all[i].ev);
+    }
+    return out;
+  }
+  // Coming out: the notes the staff brackets with the selected one. A run of six
+  // is two triplets, so undoing one leaves the other alone.
+  const key = all[at].trip;
+  const out = [];
+  for (let i = at; i >= 0 && all[i].trip === key; i--) out.unshift(all[i].ev);
+  for (let i = at + 1; i < all.length && all[i].trip === key; i++) out.push(all[i].ev);
+  return out;
 }
 
 // Every note in the bar, in playing order, with the stretch each one came from.
@@ -2488,9 +2518,17 @@ function barNoteEvents() {
   const bar = notePanelAt && chordCache.bars[notePanelAt.bar];
   if (!bar) return [];
   const out = [];
+  // Which triplet each note belongs to, read over the bar the way the staff
+  // reads it — see Chords.tripletGroups — so the three the button undoes are the
+  // three the bracket is drawn over.
+  const all = [];
   bar.chords.forEach((chord, cell) => {
-    (chord.notes || []).forEach((ev, index) => out.push({ ev, cell, index }));
+    (chord.notes || []).forEach((ev, index) => {
+      all.push({ ev, cell, index });
+    });
   });
+  const keys = Chords.tripletGroups(all.map(p => p.ev));
+  all.forEach((p, i) => out.push({ ...p, trip: keys[i] }));
   return out;
 }
 
@@ -2554,11 +2592,16 @@ function moveNoteStretch(by) {
 function sheetEvents() {
   const out = [];
   (chordCache.bars || []).forEach((bar, bi) => {
+    // Which triplet each note is in, read over the bar — see barNoteEvents. Held
+    // as one list per bar and handed out as the notes are walked.
+    const keys = Chords.tripletGroups(
+      (bar.chords || []).reduce((all, st) => all.concat(st.notes || []), []));
+    let at = 0;
     (bar.chords || []).forEach((st, si) => {
       const notes = st.notes || [];
       if (!notes.length) {
         out.push({ bar: bi, stretch: si, note: null, name: st.name || '',
-          markers: st.markers || null, ev: null });
+          markers: st.markers || null, ev: null, trip: null });
         return;
       }
       notes.forEach((ev, k) => {
@@ -2568,7 +2611,8 @@ function sheetEvents() {
         // draws: see the marks in Chords.staffBar.
         const name = k === 0 ? (notes[0].name || st.name || '') : (ev.name || '');
         out.push({ bar: bi, stretch: si, note: k, name,
-          markers: k === 0 ? (st.markers || null) : null, ev });
+          markers: k === 0 ? (st.markers || null) : null, ev, trip: keys[at] });
+        at++;
       });
     });
   });
@@ -2656,28 +2700,63 @@ function canMoveSelection(by) {
   return by > 0 ? i + 1 < list.length : i > 0;
 }
 
+// What one step carries, which is not always one thing. Three triplets are one
+// division of the beat: a note stepping past them steps past all three, or the
+// beat they fill comes apart and the sheet says a triplet of two. So the run the
+// thing belongs to moves with it — see Chords.tripletGroups for what makes one.
+function moveBlock(list, at) {
+  const item = list[at];
+  if (!item || !item.trip) return { from: at, to: at };
+  let from = at, to = at;
+  while (from > 0 && list[from - 1].bar === item.bar
+    && list[from - 1].trip === item.trip) from--;
+  while (to + 1 < list.length && list[to + 1].bar === item.bar
+    && list[to + 1].trip === item.trip) to++;
+  return { from, to };
+}
+
 // One step. The thing picked and its neighbour trade places, each keeping the
 // bar of the place it lands in — which is how a step at a bar's edge crosses the
 // bar line without the move having to know anything about bar lines.
+// A step inside one's own triplet is still a step of one: the three are being
+// reordered, and all three are still there. A step out of it moves the triplet.
 function moveSelection(by) {
   const list = sheetEvents();
   const from = selectedEventIndex(list);
   if (from < 0) return;
-  const at = by > 0 ? from : from - 1;              // the pair trading places
-  if (at < 0 || at + 1 >= list.length) return;
-  const a = list[at], b = list[at + 1];
-  const barA = a.bar, barB = b.bar;
-  list[at] = b; list[at + 1] = a;
-  list[at].bar = barA; list[at + 1].bar = barB;
-  for (const k of [at, at + 1, at + 2]) {
-    if (list[k] && list[k].ev) list[k].pin = true;
+  const sel = list[from];
+  const next = from + (by > 0 ? 1 : -1);            // the neighbour stepped towards
+  if (next < 0 || next >= list.length) return;
+  const inside = !!sel.trip && list[next].bar === sel.bar
+    && list[next].trip === sel.trip;
+  const mine = inside ? { from, to: from } : moveBlock(list, from);
+  const other = inside ? { from: next, to: next }
+    : moveBlock(list, by > 0 ? mine.to + 1 : mine.from - 1);
+  if (other.from < 0 || other.to >= list.length) return;
+  const lo = Math.min(mine.from, other.from);
+  const hi = Math.max(mine.to, other.to);
+  // The two swap bars as well as places — a run is only ever within one bar, so
+  // each has just the one to give. Which is how a step at a bar's edge crosses
+  // the bar line, and how it crosses without leaving a triplet with a bar line
+  // through the middle of it: the whole run goes over, and the thing it traded
+  // with comes back the other way.
+  const a = list.slice(mine.from, mine.to + 1);
+  const b = list.slice(other.from, other.to + 1);
+  const barA = a[0].bar, barB = b[0].bar;
+  list.splice(lo, hi - lo + 1, ...(by > 0 ? b.concat(a) : a.concat(b)));
+  for (const e of a) e.bar = barB;
+  for (const e of b) e.bar = barA;
+  // Everything that has a new thing in front of it now writes its length out —
+  // see pinnedNote — which is everything moved, plus whatever follows the lot.
+  for (let i = lo; i <= hi + 1; i++) {
+    if (list[i] && list[i].ev) list[i].pin = true;
   }
   const touched = new Set([barA, barB]);
   const homes = writeBarsFromEvents(list, touched);
   dropDanglingBeams(touched);
   // The panel follows what was moved rather than the place it left, so pressing
   // again carries the same thing further along.
-  const home = homes.get(by > 0 ? at + 1 : at);
+  const home = homes.get(list.indexOf(sel));
   if (home) {
     notePanelAt = { bar: home.bar, chord: home.stretch };
     noteSel = home.note;
@@ -2890,9 +2969,11 @@ function renderNotePanel() {
     toggleNoteDot, shownDot, 'note-dur');
   // The mark itself rather than the number: three stems under the beam the chosen
   // value carries, so the button changes with the value it is about to bend.
-  button(lengthRow, Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
-    'Triplet — three of these in the time of two (key ,)',
+  const tripBtn = button(lengthRow, Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
+    'Triplet — three of these in the time of two, marked on this note and the '
+    + 'two after it (key ,). Down where the bar has not three left to mark',
     toggleNoteTriplet, shownTriplet, 'note-trip');
+  if (!noteCanTriplet()) tripBtn.disabled = true;
   // Beaming, beside the triplet: both are about a run rather than a single note,
   // and both are read off the shape drawn on the button. Nothing to join with no
   // note selected, or on the last note of the bar, so it is down until there is
