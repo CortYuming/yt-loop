@@ -1445,18 +1445,26 @@ const Chords = (() => {
   // and the tab under it stay note for note above one another.
   function beatFit(items, width, beat) {
     let scale = 1;
-    for (const item of items) {
-      if (!item.notes || !item.notes.length) continue;
+    items.forEach((item, index) => {
+      if (!item.notes || !item.notes.length) return;
       const { items: placed, length } = noteBeats(item.notes);
-      if (length <= 0) continue;
+      if (length <= 0) return;
+      // As far as the next chord, not as far as the bar line. A phrase written
+      // longer than the room its chord holds used to be drawn straight over the
+      // chord after it — heads and a name landing on top of the next one's, and
+      // a sheet that read as if the two had swapped places. It is squeezed into
+      // its own cell instead, and the whole bar is squeezed with it so the run
+      // keeps its shape.
+      const next = items[index + 1];
+      const edge = next ? next.x : width;
       // The steps a stacked beat takes are room the notes after it no longer
       // have, the same as the gap the + opens.
       const stacked = placed.reduce((most, p) => Math.max(most, p.stack), 0);
-      const room = width - (item.x + NOTE_INSET) - NOTE_RX * 2 - stacked * STACK_W
+      const room = edge - (item.x + NOTE_INSET) - NOTE_RX * 2 - stacked * STACK_W
         - (item.gap === null || item.gap === undefined ? 0 : GAP_W);
-      if (room <= 0) continue;
+      if (room <= 0) return;
       scale = Math.min(scale, room / (length * beat));
-    }
+    });
     // Never wider than the beat it was given: a bar with room to spare keeps the
     // even pace it shares with every other bar in the row.
     return Math.max(Math.min(scale, 1), 0.05);
@@ -1516,8 +1524,8 @@ const Chords = (() => {
       // A stretch names itself at its head; a note inside it that carries a name
       // names itself where it falls, which is what a chord changing mid-stretch
       // looks like on paper.
-      const marks = [{ x: item.x, name: item.name || '', note: null }];
       const gapAt = item.gap === undefined ? null : item.gap;
+      const marks = [];
       for (const p of noteBeats(item.notes).items) {
         if (!p.ev.name) continue;
         marks.push({
@@ -1525,6 +1533,14 @@ const Chords = (() => {
             + (gapAt !== null && p.index > gapAt ? GAP_W : 0),
           name: p.ev.name, note: p.index,
         });
+      }
+      // A name on the stretch's first stop rules from the stretch's very head —
+      // see rulingNames — so the stretch's own name has nothing left to name,
+      // and writing both put two names on one spot. The same chord is written
+      // either way depending on which box it was typed into, and a sheet holding
+      // one of each side by side is ordinary.
+      if (!marks.length || marks[0].x !== item.x) {
+        marks.unshift({ x: item.x, name: item.name || '', note: null });
       }
       for (const mark of marks) {
         if (mark.name === held) continue;
