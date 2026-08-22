@@ -2687,10 +2687,39 @@ function selectedEventIndex(list) {
 
 // Whether the thing the panel is pointing at is a chord — a name is written on
 // it — which is the whole difference between the buttons saying Chord and Note.
+// A name at the head of a bar is not one of those: it stays where it is, so what
+// travels from there is the note by itself. See keepBarHeads.
 function selectedIsChord() {
   const list = sheetEvents();
   const i = selectedEventIndex(list);
-  return i >= 0 && !!list[i].name;
+  if (i < 0 || !list[i].name) return false;
+  return list[i] !== barHead(list, list[i].bar);
+}
+
+// The first thing in a bar, which is where its chord is written.
+function barHead(list, bar) {
+  return list.find(e => e.bar === bar);
+}
+
+// A bar opens on a chord, and everything written in it is read against that name
+// — see Chords.rulingNames, and the parseChord call in staffBar that falls back
+// to C without one. So the name at a bar's head belongs to the opening rather
+// than to the thing that happens to be written there: step that thing along and
+// the name stays, and whatever lands at the head takes it up. Otherwise moving
+// the first note of a bar carried its chord away with it, and the notes it left
+// behind were read as C.
+// Unless what arrives brings a name of its own, which is a chord starting there
+// and is the new opening — then both names are where their writer put them and
+// there is nothing to hand over.
+function keepBarHeads(list, heads) {
+  for (const [bar, was] of heads) {
+    const now = barHead(list, bar);
+    if (!now || now === was || now.name) continue;
+    now.name = was.name;
+    now.markers = was.markers;
+    was.name = '';
+    was.markers = null;
+  }
 }
 
 function canMoveSelection(by) {
@@ -2743,9 +2772,12 @@ function moveSelection(by) {
   const a = list.slice(mine.from, mine.to + 1);
   const b = list.slice(other.from, other.to + 1);
   const barA = a[0].bar, barB = b[0].bar;
+  // What each bar the step touches opens on, read before anything moves.
+  const heads = [...new Set([barA, barB])].map(bar => [bar, barHead(list, bar)]);
   list.splice(lo, hi - lo + 1, ...(by > 0 ? b.concat(a) : a.concat(b)));
   for (const e of a) e.bar = barB;
   for (const e of b) e.bar = barA;
+  keepBarHeads(list, heads);
   // Everything that has a new thing in front of it now writes its length out —
   // see pinnedNote — which is everything moved, plus whatever follows the lot.
   for (let i = lo; i <= hi + 1; i++) {

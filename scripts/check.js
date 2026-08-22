@@ -87,7 +87,8 @@ const MAIN = fs.readFileSync(path.join(ROOT, 'main.js'), 'utf8');
 const LIFTED = [
   'barNoteEvents', 'tripletGroup', 'noteCanTriplet', 'toggleNoteTriplet',
   'sheetEvents', 'pinnedNote', 'writeBarsFromEvents', 'selectedEventIndex',
-  'moveBlock', 'moveSelection', 'dropDanglingBeams',
+  'moveBlock', 'moveSelection', 'dropDanglingBeams', 'barHead', 'keepBarHeads',
+  'selectedIsChord',
 ];
 function lift(name) {
   const at = MAIN.indexOf(`\nfunction ${name}(`);
@@ -103,7 +104,7 @@ const LIFTED_SRC = LIFTED.map(lift).join('\n');
 // pointing; everything else is the stubs those functions call into.
 function open(sheet) {
   const bars = Chords.parseSheet(sheet);
-  const state = { Chords, chordCache: { bars }, writes: 0 };
+  const state = { Chords, chordCache: { bars }, writes: 0, carried: null };
   const api = new Function('state', `
     const Chords = state.Chords, chordCache = state.chordCache;
     let notePanelAt = { bar: 0, chord: 0 }, noteSel = null, noteAfter = null;
@@ -122,13 +123,20 @@ function open(sheet) {
     function renderNotePanel() {}
     ${LIFTED_SRC}
     return {
-      at(bar, stretch, note) { notePanelAt = { bar, chord: stretch }; noteSel = note; },
+      at(bar, stretch, note) {
+        notePanelAt = { bar, chord: stretch }; noteSel = note;
+        // What the move button would say right now — read as the selection is
+        // made, since after a step the selection has moved with it.
+        state.carried = selectedIsChord() ? 'Chord' : 'Note';
+      },
       selected() { return { bar: notePanelAt.bar, stretch: notePanelAt.chord, note: noteSel }; },
       canTriplet: () => noteCanTriplet(),
       triplet: () => toggleNoteTriplet(),
       move: by => moveSelection(by),
+      // What the move button says is about to travel — see selectedIsChord.
+      carries: () => (selectedIsChord() ? 'Chord' : 'Note'),
     };`)(state);
-  return { api, bars };
+  return { api, bars, get carried() { return state.carried; } };
 }
 
 // ---------- reading a sheet back ----------
@@ -265,14 +273,15 @@ const EDITED = [
     beats: 2,
   },
   {
-    // The quarter clears all three, rather than landing inside the triplet. The
-    // chord name travels with it because it is written on it — a name belongs to
-    // the moment it starts, and that moment is this note. See moveSelection.
+    // The quarter clears all three, rather than landing inside the triplet. Cm7
+    // stays at the head of the bar — it is what the bar is read against, not a
+    // mark on the note that happens to be written first. See keepBarHeads.
     name: '移動: 4分音符が3連をまるごと越える',
     sheet: '@0 Cm7 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12 1/8 1/10 1/12',
     run: ({ api, bars }) => { api.at(0, ...place(bars[0], 0)); api.move(1); },
-    text: '1/8:8t 1/10 1/12 Cm7 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12',
+    text: 'Cm7 1/8:8t 1/10 1/12 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12',
     beats: 4,
+    carries: 'Note',
   },
   {
     name: '移動: 3連の中では1音ずつ入れ替わる',
@@ -284,13 +293,43 @@ const EDITED = [
   {
     // Three notes go over together and the quarter comes back the other way, so
     // neither bar is left holding part of a triplet — and both still count four
-    // beats. F7 travels with the note it is written on, as above.
+    // beats. Each bar keeps the chord written at its own head.
     name: '移動: 3連は小節線をまたいで割れない',
     sheet: '@0 Cm7 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12 1/8 1/10 1/12|@2 F7 1/5:4 1/7 1/9 1/10',
     run: ({ api, bars }) => { api.at(0, ...place(bars[0], 9)); api.move(1); },
-    text: 'Cm7 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12 F7 1/5:4',
+    text: 'Cm7 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12 1/5:4',
     beats: 4,
-    then: { bar: 1, text: '1/8:8t 1/10 1/12 1/7:4 1/9 1/10', beats: 4 },
+    then: { bar: 1, text: 'F7 1/8:8t 1/10 1/12 1/7:4 1/9 1/10', beats: 4 },
+  },
+  {
+    // A name written on a note is a chord starting there, so it goes where the
+    // note goes — and the button says Chord to say so before it is pressed.
+    name: '移動: 音符に書かれたコード名は一緒に動く',
+    sheet: '@0 Cm7 1/5:8 1/7(F7) 1/9 1/10',
+    run: ({ api, bars }) => { api.at(0, ...place(bars[0], 1)); api.move(1); },
+    text: 'Cm7 1/5:8 1/9 F7 1/7:8 1/10',
+    beats: 2,
+    carries: 'Chord',
+  },
+  {
+    // The same name stepped the other way lands at the head, and the bar now
+    // opens on it. The name that was there keeps its own note rather than being
+    // handed over — both are where their writer put them.
+    name: '移動: 先頭に来たコード名は前の名前に上書きされない',
+    sheet: '@0 Cm7 1/5:8 1/7(F7) 1/9 1/10',
+    run: ({ api, bars }) => { api.at(0, ...place(bars[0], 1)); api.move(-1); },
+    text: 'F7 1/7:8 Cm7 1/5:8 1/9 1/10',
+    beats: 2,
+  },
+  {
+    // A stretch's own name, one step earlier: the chord starts a note sooner and
+    // takes its note with it. This is the move the Chord button is for.
+    name: '移動: 小節の途中のコードは1音ぶん早く始まる',
+    sheet: '@0 Cm7 1/5:8 1/7 F7 1/9 1/10',
+    run: ({ api, bars }) => { api.at(0, 1, 0); api.move(-1); },
+    text: 'Cm7 1/5:8 F7 1/9:8 1/7 1/10',
+    beats: 2,
+    carries: 'Chord',
   },
   {
     name: '移動: 押し戻すと元の譜面に戻る',
@@ -361,6 +400,9 @@ for (const c of EDITED) {
     continue;
   }
   const checks = [];
+  if (c.carries !== undefined && c.carries !== sheet.carried) {
+    checks.push(`    ボタン表示  got ${sheet.carried}  want ${c.carries}`);
+  }
   if (c.can !== undefined) {
     const can = sheet.api.canTriplet();
     if (can !== c.can) checks.push(`    押せるか  got ${can}  want ${c.can}`);
