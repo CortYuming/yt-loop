@@ -86,6 +86,26 @@ python3 -m http.server 8000
 # then visit http://localhost:8000
 ```
 
+## Checks
+
+```bash
+node scripts/check.js            # run every case
+node scripts/check.js --update   # accept what the code draws now
+```
+
+Runs the real `chords.js` and the sheet-editing half of `main.js` over a table
+of phrases — no dependencies, no test runner. Two kinds of case:
+
+- **drawing** — renders a bar and diffs the SVG against `scripts/snapshots/`.
+  Change a beam, a bracket, a flag or a note's place and the diff says so.
+  If the change was the point, `--update` accepts it and the new snapshot goes
+  in the commit, where it reads as what the change did to the page.
+- **editing** — presses a button or moves a note, and checks the sheet text that
+  comes back. Text is what the app saves, so it is what an edit means.
+
+Every phrase in there was a bug once. Add the phrase before the fix, and the
+next one like it is caught before it ships.
+
 ## Deploy to GitHub Pages
 
 1. Repo → **Settings** → **Pages**

@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Check the sheet notation
+        run: node scripts/check.js
       - name: Assemble the site with a fresh cache buster
         run: |
           mkdir _site
