@@ -71,12 +71,24 @@ class El {
   }
 }
 global.document = { createElementNS: (ns, tag) => new El(tag), createElement: tag => new El(tag) };
+// A page has a location, and chords.js reads one: parseViewerLink resolves a
+// pasted link against it. Without this, `new URL(href, location.href)` throws,
+// the catch swallows it, and a link pasted into a chord box comes back with its
+// fingering missing — which looks exactly like a bug in the app and is not one.
+// Anything the code reads off the page has to be here, or the run is measuring
+// the harness.
+global.location = { href: 'https://cortyuming.github.io/yt-loop/' };
 
 // ---------- the two files under test ----------
 // chords.js leans on parseTime from main.js and is loaded before it in the page,
 // so nothing there runs at load time and the one function it wants can be handed
 // in. Bar times are not what this checks, so a plain number will do.
-global.parseTime = s => Number(s) || 0;
+// main.js's own, near enough for a sheet: `43.50` and `0:43.50` both name a
+// moment, and a bar's time is what tells resolveSpans where it starts.
+global.parseTime = s => {
+  const m = /^(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(String(s || '').trim());
+  return m ? Number(m[1] || 0) * 60 + Number(m[2]) : null;
+};
 const Chords = new Function('parseTime',
   `${fs.readFileSync(path.join(ROOT, 'chords.js'), 'utf8')}\nreturn Chords;`)(global.parseTime);
 
@@ -100,6 +112,8 @@ const LIFTED = [
   'selectedIsChord', 'canMoveSelection',
   // the triplet as one thing
   'tripletGroupPlaces', 'noteCopy', 'noteCanDot',
+  // bars
+  'roundTo', 'addBar', 'insertBar',
 ];
 // Read to the brace that closes the declaration rather than to the next line
 // holding one on its own: a function written on a single line — addNoteRest is
@@ -143,7 +157,7 @@ const LIFTED_SRC = LIFTED.map(name => {
 // pointing; everything else is the stubs those functions call into.
 function open(sheet) {
   const bars = Chords.parseSheet(sheet);
-  const state = { Chords, chordCache: { bars }, writes: 0, carried: null };
+  const state = { Chords, chordCache: { bars }, writes: 0, carried: null, now: 0 };
   const api = new Function('state', `
     const Chords = state.Chords, chordCache = state.chordCache;
     let notePanelAt = { bar: 0, chord: 0 }, noteSel = null, noteAfter = null;
@@ -166,6 +180,11 @@ function open(sheet) {
     function markNoteSelection() {}
     function renderNotePanel() {}
     function renderChordStrip() {}
+    function writeSheetFromCache() { state.writes++; }
+    function openNotePanel(bar, chord) { notePanelAt = { bar, chord }; noteSel = null; }
+    // The moment the video is at. A bar added with nothing to follow starts here.
+    function currentPlaybackTime() { return state.now; }
+    function settledTime(t) { return t; }
     ${LIFTED_SRC}
     return {
       // The board, as the panel's buttons set it before a tap.
@@ -194,6 +213,8 @@ function open(sheet) {
       del: () => deleteNote(),
       gap: () => insertAfterNote(),
       done: () => endNoteWriting(),
+      addBar: at => { state.now = at === undefined ? state.now : at; addBar(); },
+      insertBar: (at, start) => insertBar(at, start),
       rest: () => addNoteRest(),
       tie: () => addNoteTie(),
       dur: d => setNoteDur(d),
@@ -212,11 +233,21 @@ function open(sheet) {
 
 // ---------- reading a sheet back ----------
 const notesOf = bar => (bar.chords || []).reduce((all, c) => all.concat(c.notes || []), []);
-// The text the app would save. Written per bar, since that is the unit an edit
-// touches and the unit a case is about.
-const textOf = bar => (bar.chords || [])
-  .map(c => `${c.name ? `${c.name} ` : ''}${Chords.notesToText(c.notes)}`.trim())
-  .filter(Boolean).join(' ');
+// The text the app saves, through the door it actually saves by: the filter and
+// the toCompact call are writeSheetFromCache in main.js. Restating them here
+// would check the restatement, so an edit is checked against what would land in
+// the sheet box — including the rules only this path has, like an unnamed chord
+// leaving no trace and an emptied bar keeping its time.
+function sheetText(bars, key) {
+  const kept = c => c.name || (c.notes && c.notes.length);
+  const held = bars
+    .map(bar => ({ start: bar.start, end: bar.end, chords: (bar.chords || []).filter(kept) }))
+    .filter(bar => bar.chords.length || bar.start !== null);
+  return Chords.toCompact(held, '\n', key ? key.label : '');
+}
+// One bar of that text, without the `@time` the case is not about.
+const textOf = (bars, at) => (sheetText(bars).split('\n')[at] || '')
+  .replace(/^@[\d.]+(-[\d.]+)? /, '');
 const beatsOf = bar => Chords.noteBeats(notesOf(bar)).length;
 // Where a note is in the bar, as the pair the panel holds. Cases are written
 // against playing order — the row a reader counts along — rather than against
@@ -253,7 +284,7 @@ function draw(sheet) {
     const mode = 'degrees';
     const staff = Chords.staffBar(items, WIDTH, reach, null, mode, SLOT, [], false);
     const tab = Chords.tabBar(items, WIDTH, null, mode, SLOT, [], reach.stack);
-    return [`<!-- bar ${i + 1}: ${textOf(bar)} -->`,
+    return [`<!-- bar ${i + 1}: ${textOf(bars, i)} -->`,
       `<!-- ${beatsOf(bar).toFixed(4)} beats -->`,
       staff.serialize(), tab.serialize()].join('\n');
   }).join('\n');
@@ -618,6 +649,131 @@ const EDITED = [
     run: ({ api }) => { api.at(0, 0, 1); api.grace(); },
     text: 'Cm7 1/5:8 1/7*:8 1/9', beats: 1,
   },
+
+  // ---- bars ----
+  {
+    // A bar after the last one starts where that one ends, which is what a
+    // transcription does — bar after bar.
+    name: '小節を足す: 前の小節の終わりから始まる',
+    sheet: '@5.00-7.00 Cm7 1/5:8',
+    run: ({ api }) => { api.addBar(); },
+    sheetText: '@5.00-7.00 Cm7 1/5:8\n@7.00',
+    then: { bar: 1, at: 7 },
+  },
+  {
+    // No bar to follow, so it starts where the video is.
+    name: '小節を足す: 前がなければ再生位置から始まる',
+    sheet: 'Cm7 1/5:8',
+    run: ({ api }) => { api.addBar(12.345); },
+    then: { bar: 1, at: 12.35 },
+  },
+  {
+    // The bar arrives holding one empty chord, so there is a cell to write into
+    // — and an unnamed chord leaves no trace in the text, so the bar is its time
+    // and nothing else until something is written.
+    name: '小節を挟む: 時刻だけで残り、後ろの小節は動かない',
+    sheet: '@0 Cm7 1/5:8|@4 F7 1/9:8',
+    run: ({ api }) => { api.insertBar(1, 2); },
+    sheetText: '@0.00 Cm7 1/5:8\n@2.00\n@4.00 F7 1/9:8',
+  },
+  {
+    // Straight into the bar just made: it was asked for in order to write in it.
+    name: '小節を挟む: 板がその小節を向く',
+    sheet: '@0 Cm7 1/5:8|@4 F7 1/9:8',
+    run: ({ api }) => { api.insertBar(1, 2); },
+    at: { bar: 1, stretch: 0 },
+  },
+];
+
+// A phrase read in and written straight back out. Everything the app saves goes
+// through that door — see sheetText — so a phrase that does not survive the trip
+// is a phrase the app loses. Written out twice on purpose: the second pass
+// catches a form that reads back as something other than what it was written as,
+// which is the way a sheet quietly changes while nobody is editing it.
+const WRITTEN = [
+  {
+    name: '読み書き: 付点・タイ・3連・押弦つきのコード名',
+    sheet: '@5.07-7.60 Bb7:1.1.1.0.. 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 2/6+3/7:8t 3/6+4/7 3/6+4/7',
+    text: '@5.07-7.60 Bb7:1.1.1.0.. 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 2/6+3/7:8t 3/6+4/7 3/6+4/7',
+  },
+  {
+    name: '読み書き: 休符・装飾音符・手書きビーム・16分',
+    sheet: '@0 Dm7 r:4 1/7*:8 1/8- 1/10 1/12:16 1/5',
+    text: '@0.00 Dm7 r:4 1/7*:8 1/8- 1/10 1/12:16 1/5',
+  },
+  {
+    name: '読み書き: 音符に書かれたコード名',
+    sheet: '@0 Eb9 1/6:8 1/8(Bbm7) 1/9 1/10',
+    text: '@0.00 Eb9 1/6:8 1/8(Bbm7) 1/9 1/10',
+  },
+  {
+    // A phrase with nothing said about the harmony is an ordinary thing to write
+    // down, so the stretch is kept even with no name on it. The note opening the
+    // next stretch writes its length out: a bare stop takes the length of the
+    // run around it, and the run starts again here.
+    name: '読み書き: 名前のない区間',
+    sheet: '@0 1/5:8 1/7 Cm7 1/9 1/10',
+    text: '@0.00 1/5:8 1/7 Cm7 1/9:8 1/10',
+  },
+  {
+    // A fingering written as a stop, sounding until the next one — no length of
+    // its own, and none written back.
+    name: '読み書き: 長さのない押弦だけ',
+    sheet: '@0 Bb9 1/1+2/1+3/1+4/0',
+    text: '@0.00 Bb9 1/1+2/1+3/1+4/0',
+  },
+  {
+    // A bar emptied of chords is still a bar of the tune, and its time is the
+    // whole of what it says.
+    name: '読み書き: 時刻だけの空の小節',
+    sheet: '@0 Cm7 1/5:8|@2',
+    text: '@0.00 Cm7 1/5:8\n@2.00',
+  },
+  {
+    // A note held over the bar line is written as a tie at the head of the next
+    // bar, naming the strings it holds — otherwise the arc is drawn as whatever
+    // happened to sound last.
+    name: '読み書き: 小節線をまたぐタイ',
+    sheet: '@0 Cm7 1/5+2/7:4 1/5+2/7_:4|@2 F7 1/5+2/7_:4 1/9:4',
+    text: '@0.00 Cm7 1/5+2/7:4 1/5+2/7_\n@2.00 F7 1/5+2/7_:4 1/9',
+  },
+  {
+    name: '読み書き: キーの行',
+    sheet: 'key: Bb\n@0 Bb9 1/5:8 1/7',
+    text: 'key: Bb\n@0.00 Bb9 1/5:8 1/7',
+    key: 'Bb',
+  },
+];
+
+// What the two editing boxes accept. Going to Guitar Chord Viewer to find a
+// shape and pasting it back is the actual workflow, so a link has to give up
+// both halves of what it carries — the name and the frets.
+const VIEWER = 'https://cortyuming.github.io/guitar-chord-viewer/?c=Eb9&m=.6.6.5.6.';
+const READ = [
+  { name: 'コード箱: 素の名前', got: () => Chords.readChord('Bbm7'),
+    want: { name: 'Bbm7', markers: null } },
+  { name: 'コード箱: 名前とフレット', got: () => Chords.readChord('Bb9:1.1.1.0..'),
+    want: { name: 'Bb9', markers: [1, 1, 1, 0, null, null] } },
+  { name: 'コード箱: viewer の URL', got: () => Chords.readChord(VIEWER),
+    want: { name: 'Eb9', markers: [null, 6, 6, 5, 6, null] } },
+  { name: 'コード箱: markdown リンク', got: () => Chords.readChord(`[Eb9](${VIEWER})`),
+    want: { name: 'Eb9', markers: [null, 6, 6, 5, 6, null] } },
+  { name: 'コード箱: 空欄は名前なし', got: () => Chords.readChord('   '), want: null },
+  { name: 'フレット箱: 6つのフレット', got: () => Chords.readMarkers('1.1.1.0..'),
+    want: [1, 1, 1, 0, null, null] },
+  { name: 'フレット箱: リンクは m= を出す', got: () => Chords.readMarkers(`[Eb9](${VIEWER})`),
+    want: [null, 6, 6, 5, 6, null] },
+  { name: 'フレット箱: 書き戻すと同じ文字列',
+    got: () => Chords.markersToText(Chords.readMarkers('1.1.1.0..')), want: '1.1.1.0..' },
+  { name: 'キー: 行を読む', got: () => Chords.parseKey('key: Bb'),
+    want: { label: 'Bb', minor: false, tonic: 10, accidental: '♭' } },
+  // `tonic` is the major whose signature the key uses, not the letter typed: G
+  // minor is written with B♭'s two flats, and 10 is B♭. That is what the degree
+  // tables and the signature both read — see parseKeyName.
+  { name: 'キー: 短調は relative major の tonic を持つ', got: () => Chords.parseKey('key: Gm'),
+    want: { label: 'Gm', minor: true, tonic: 10, accidental: '♭' } },
+  { name: '表示名: b と # は記号になる', got: () => Chords.displayName('Bbm7b5'),
+    want: 'B♭m7♭5' },
 ];
 
 // ---------- running them ----------
@@ -697,23 +853,71 @@ for (const c of EDITED) {
       }
     }
   }
+  // The whole sheet, where the case is about what survives being written out
+  // rather than about one bar.
+  if (c.sheetText !== undefined) {
+    const got = sheetText(sheet.bars);
+    if (got !== c.sheetText) {
+      checks.push(`    譜面  got  ${got.replace(/\n/g, ' ⏎ ')}`
+        + `\n          want ${c.sheetText.replace(/\n/g, ' ⏎ ')}`);
+    }
+  }
+  // Where the board is pointing after the edit.
+  if (c.at) {
+    const got = sheet.api.selected();
+    if (got.bar !== c.at.bar || got.stretch !== c.at.stretch) {
+      checks.push(`    板の位置  got 小節${got.bar + 1}/区間${got.stretch + 1}`
+        + `  want 小節${c.at.bar + 1}/区間${c.at.stretch + 1}`);
+    }
+  }
   const want = [{ bar: 0, text: c.text, beats: c.beats }].concat(c.then || []);
   for (const w of want) {
     if (w.text !== undefined) {
-      const got = textOf(sheet.bars[w.bar]);
+      const got = textOf(sheet.bars, w.bar);
       if (got !== w.text) checks.push(`    小節${w.bar + 1}  got  ${got}\n              want ${w.text}`);
     }
     if (w.beats !== undefined) {
       const got = beatsOf(sheet.bars[w.bar]);
       if (!near(got, w.beats)) checks.push(`    小節${w.bar + 1}の拍  got ${got}  want ${w.beats}`);
     }
+    // When a bar starts, which is what an added or inserted one is about.
+    if (w.at !== undefined) {
+      const got = sheet.bars[w.bar] && sheet.bars[w.bar].start;
+      if (!near(got, w.at)) checks.push(`    小節${w.bar + 1}の時刻  got ${got}  want ${w.at}`);
+    }
   }
   if (!checks.length && c.broken) { noted(c.name, c.broken); continue; }
   say(!checks.length, c.name, checks.join('\n'));
 }
 
+console.log('\n譜面テキスト');
+for (const c of WRITTEN) {
+  const key = Chords.parseKey(c.sheet.split('\n')[0]);
+  if (c.key !== undefined && (!key || key.label !== c.key)) {
+    say(false, c.name, `    キー  got ${key ? key.label : '(なし)'}  want ${c.key}`);
+    continue;
+  }
+  const once = sheetText(Chords.parseSheet(c.sheet), key);
+  const twice = sheetText(Chords.parseSheet(once), key);
+  const flat = t => t.replace(/\n/g, ' ⏎ ');
+  if (once !== c.text) {
+    say(false, c.name, `    got  ${flat(once)}\n    want ${flat(c.text)}`);
+  } else if (twice !== once) {
+    say(false, c.name, `    書き出すたびに変わる\n    1回目 ${flat(once)}\n    2回目 ${flat(twice)}`);
+  } else say(true, c.name);
+}
+
+console.log('\n箱に貼る');
+for (const c of READ) {
+  let got;
+  try { got = c.got(); } catch (err) { say(false, c.name, `    例外 ${err.message}`); continue; }
+  const ok = JSON.stringify(got) === JSON.stringify(c.want);
+  say(ok, c.name, ok ? '' : `    got  ${JSON.stringify(got)}\n    want ${JSON.stringify(c.want)}`);
+}
+
 const drawnCount = Object.keys(DRAWN).length;
 console.log(`\n描画 ${drawnCount} 件 / 編集 ${EDITED.length} 件`
+  + ` / テキスト ${WRITTEN.length} 件 / 箱 ${READ.length} 件`
   + `${known ? ` / 既知の壊れ方 ${known} 件` : ''}`
   + `${updated ? ` / snapshot ${updated} 件を書きました` : ''}`);
 if (failed) {

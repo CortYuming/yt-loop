@@ -100,8 +100,13 @@ of phrases — no dependencies, no test runner. Two kinds of case:
   Change a beam, a bracket, a flag or a note's place and the diff says so.
   If the change was the point, `--update` accepts it and the new snapshot goes
   in the commit, where it reads as what the change did to the page.
-- **editing** — presses a button or moves a note, and checks the sheet text that
-  comes back. Text is what the app saves, so it is what an edit means.
+- **editing** — presses a button, moves a note, or adds a bar, and checks the
+  sheet text that comes back through `writeSheetFromCache`. Text is what the app
+  saves, so it is what an edit means.
+- **text** — reads a phrase and writes it straight back out, twice. A form that
+  reads back as something else is how a sheet changes with nobody editing it.
+- **boxes** — what the chord box and the fret box accept, a pasted Guitar Chord
+  Viewer link included.
 
 A case can also carry `broken:` — the expected value is what the code does
 wrong today, and the run prints it as `!` with the reason instead of a pass.
