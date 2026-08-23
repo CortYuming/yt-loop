@@ -56,6 +56,10 @@ class El {
     });
   }
   setAttribute(k, v) { this.attrs[k] = String(v); }
+  // Written as a property rather than through setAttribute in places, and the
+  // two are the same attribute.
+  set className(v) { this.attrs.class = String(v); }
+  get className() { return this.attrs.class || ''; }
   getAttribute(k) { return this.attrs[k] === undefined ? null : this.attrs[k]; }
   appendChild(c) { this.kids.push(c); return c; }
   set textContent(v) { this.text = v; }
@@ -104,7 +108,7 @@ const LIFTED = [
   // the triplet as one thing
   'tripletGroupPlaces', 'noteCopy', 'noteCanDot',
   // bars
-  'roundTo', 'addBar', 'insertBar',
+  'roundTo', 'addBar', 'insertBar', 'barBeats', 'barBeatLabel',
 ];
 // Read to the brace that closes the declaration rather than to the next line
 // holding one on its own: a function written on a single line — addNoteRest is
@@ -214,6 +218,14 @@ function open(sheet) {
       gap: () => insertAfterNote(),
       done: () => endNoteWriting(),
       addBar: at => { state.now = at === undefined ? state.now : at; addBar(); },
+      beats: at => barBeats(chordCache.bars[at || 0]),
+      // What the bar's head shows, as the text and the state it is shown in.
+      // No template literal here: this whole scope is itself inside one.
+      beatLabel: at => {
+        const el = barBeatLabel(chordCache.bars[at || 0]);
+        if (!el) return null;
+        return el.textContent + ' ' + (el.attrs.class.indexOf('over') < 0 ? '灰' : '赤');
+      },
       insertBar: (at, start) => insertBar(at, start),
       rest: () => addNoteRest(),
       tie: () => addNoteTie(),
@@ -861,6 +873,29 @@ const TIMES = [
   { name: '共有の見出し: 題名がなければ区間だけ',
     got: () => { share.title(''); return share.buildShareLabel('abc123', LOOP); },
     want: '0:26.83 → 0:29.25 F7 の E♭' },
+  // The count in a bar's head, and only where it is not four — see barBeatLabel.
+  { name: '拍数: 4拍ぴったりなら出さない',
+    got: () => open('@0 Cm7 1/5:4 1/7 1/9 1/10').api.beatLabel(), want: null },
+  { name: '拍数: 3連12個も4拍として出さない',
+    got: () => open('@0 Cm7 1/5:8t 1/7 1/9 1/10 1/12 1/5 1/7 1/9 1/10 1/12 1/5 1/7')
+      .api.beatLabel(), want: null },
+  { name: '拍数: 超えていたら赤',
+    got: () => open('@0 Cm7 1/5:4 1/7 1/9 1/10 1/12:8').api.beatLabel(), want: '4.5/4 赤' },
+  { name: '拍数: 足りなければ灰',
+    got: () => open('@0 Cm7 1/5:4 1/7 1/9').api.beatLabel(), want: '3/4 灰' },
+  { name: '拍数: 3連1つぶんの端数は2桁まで',
+    got: () => open('@0 Cm7 1/5:4 1/7 1/9 1/10 1/12:8t').api.beatLabel(), want: '4.33/4 赤' },
+  // A bar of plain chords carries no rhythm to be right or wrong about.
+  { name: '拍数: 音符のない小節には出さない',
+    got: () => open('@0 Cm7 F7 G7 C7').api.beatLabel(), want: null },
+  { name: '拍数: 装飾音符は数に入らない',
+    got: () => open('@0 Cm7 1/5:4 1/7 1/9 1/10 1/12*:8').api.beatLabel(), want: null },
+  // Counted over the bar, not per stretch: three triplets under three chords are
+  // still one beat.
+  // A stop alone in its stretch with no length written is read as a fingering,
+  // not a note — see markFreeNotes — so the lengths are written out here.
+  { name: '拍数: 区間をまたいで数える',
+    got: () => open('@0 Cm7 1/5:8t F7 1/7:8t G7 1/9:8t').api.beats(), want: 1 },
   { name: '共有の markdown',
     got: () => { share.title('Autumn Leaves'); return share.buildShareMarkdown('abc123', LOOP); },
     want: '[Autumn Leaves (0:26.83 → 0:29.25) F7 の E♭]'

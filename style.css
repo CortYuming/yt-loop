@@ -700,6 +700,21 @@ button.pin {
   flex: none;
   margin-right: auto;
 }
+/* What the bar's phrase counts, where that is not four beats. Sits at the far
+   end of the head, past the auto margin on the time, so it is the last thing in
+   a row that is read left to right — the number, the moment, then what is wrong
+   with it. Short of four is the head's own grey: a phrase being written is not a
+   fault. Over four is red, the colour the loop's end line is drawn in, since a
+   bar holding more than it can play is the same kind of thing. */
+.chord-bar-beats {
+  flex: none;
+  margin-left: auto;
+  padding-left: 4px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.chord-bar-beats.over { color: var(--red); }
+
 /* A button that reads as the text it replaced until you go near it. */
 .chord-time-face {
   padding: 0;

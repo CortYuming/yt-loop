@@ -1202,6 +1202,8 @@ function drawChordStrip(fromCache) {
     // A bar with a time on it carries the loop controls for that moment; one
     // without is just its number.
     if (spans[i].start !== null) head.appendChild(barTimePins(spans[i].start));
+    const count = barBeatLabel(bar);
+    if (count) head.appendChild(count);
     barEl.appendChild(head);
 
     // The same bar again, as the notes it sounds. Each chord sits at the beat
@@ -1306,6 +1308,46 @@ function drawChordStrip(fromCache) {
   // The panel is drawn against the same parse, so it follows the strip rather
   // than keeping whatever it said before the sheet changed.
   if (notePanelAt) renderNotePanel();
+}
+
+// What a bar's phrase actually counts, over the whole of it rather than one
+// stretch at a time — three eighth triplets under three chords are still one
+// beat. Null where nothing is written: a bar of plain chords carries no rhythm
+// to be right or wrong about.
+function barBeats(bar) {
+  let beats = 0;
+  let any = false;
+  for (const chord of (bar && bar.chords) || []) {
+    if (!chord.notes || !chord.notes.length) continue;
+    any = true;
+    beats += Chords.noteBeats(chord.notes).length;
+  }
+  return any ? beats : null;
+}
+
+// The count in the bar's head, and only where it is not four. A bar that adds up
+// is the ordinary case and saying so on every bar of a sheet is noise; a bar that
+// does not is the one thing about it nothing on screen used to say. Undoing a
+// triplet leaves a bar half a beat long, and beatFit then squeezes the phrase
+// into the room the bar has — so the sheet reads as usual and the count is the
+// only place the truth shows.
+// Short of four is a phrase still being written, so it is said in the head's own
+// grey; over four is a bar that cannot be played as written, and that is red.
+function barBeatLabel(bar) {
+  const beats = barBeats(bar);
+  if (beats === null || Math.abs(beats - Chords.BEATS_PER_BAR) < 1e-9) return null;
+  const over = beats > Chords.BEATS_PER_BAR;
+  const el = document.createElement('span');
+  el.className = `chord-bar-beats${over ? ' over' : ''}`;
+  // Thirds of a beat do not come out even, so the count is written to as many
+  // places as it needs and no more: 4.5 rather than 4.50, 4.33 for a stray
+  // triplet.
+  const shown = String(Number(beats.toFixed(2)));
+  el.textContent = `${shown}/${Chords.BEATS_PER_BAR}`;
+  el.title = over
+    ? `${shown} beats written in a bar of ${Chords.BEATS_PER_BAR} — more than it can hold`
+    : `${shown} beats written of ${Chords.BEATS_PER_BAR}`;
+  return el;
 }
 
 // Whether a bar's first event is a tie — a note held over the bar line into it.
