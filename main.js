@@ -28,7 +28,6 @@ let player = null;
 let currentVideoId = null;
 let currentVideoTitle = '';
 let rafId = null;
-let activeLoop = null; // {start, end}
 let playDelayTimeout = null;
 // The history row the running playback owns. Editing Start / End / speed / Note
 // while it plays rewrites this row rather than adding another, so a session of
@@ -46,33 +45,33 @@ let intentionalPlay = false;
 // provokes is claimed here and put straight back to paused.
 let seekWhilePaused = false;
 
-function setLoopActive(active) {
-  activeLoop = active;
-  if (loopToggle) loopToggle.checked = !!active;
-}
-
-// While a loop is active (playing back), keep activeLoop in sync with the
-// visible input values. Without this, editing start/end during playback
-// (via 📍 capture or direct typing) updates only the input, not the loop
-// that the RAF tick uses to seek back.
-function syncActiveLoop() {
-  if (!activeLoop) return;
+// Where the loop runs, worked out afresh every time it is asked for. The toggle
+// says whether to loop and the two boxes say where, so there is nothing to keep
+// in step and nothing that can go stale: a range that stops making sense means
+// no loop for as long as that lasts, and the moment it makes sense again the
+// loop is back.
+//
+// This used to be a variable, and only one place could ever raise it from
+// nothing — a single call as a video loaded. A video that arrived without a
+// usable range (a share link whose End equalled its Start, a duration YouTube
+// had not reported yet) therefore left the Loop toggle lit with nothing behind
+// it, and no later edit to Start or End could bring the loop back; only
+// switching the toggle off and on again did.
+function loopRange() {
+  if (!loopToggle || !loopToggle.checked) return null;
   const s = parseTime(startInput.value);
   const e = parseTime(endInput.value);
-  if (s !== null && e !== null && !isNaN(s) && !isNaN(e) && s < e) {
-    activeLoop = { start: s, end: e };
-  }
+  if (s === null || e === null || isNaN(s) || isNaN(e) || s >= e) return null;
+  return { start: s, end: e };
 }
 
-// Everything that has to be recomputed after the form's values change: the
-// duration readout and the live loop range. Callers used to hand-assemble this
-// and kept leaving syncActiveLoop out, which left the loop running the old
-// range while the inputs showed the new one. The history list is deliberately
-// not in here — it only changes when the stored data does, so renderHistory()
+// Everything that has to be recomputed after the form's values change. The loop
+// is no longer among them — loopRange() reads the boxes at the moment it needs
+// them, so there is nothing to push. The history list is deliberately not in
+// here either: it only changes when the stored data does, so renderHistory()
 // stays an explicit call.
 function refreshUI() {
   updateDurationDisplay();
-  syncActiveLoop();
 }
 
 // Push a loop into the form. Callers pass whatever they know: a history entry
@@ -97,17 +96,6 @@ function fillDefaultEnd() {
   if (!d || isNaN(d)) return;
   endInput.value = formatTime(d);
   refreshUI();
-}
-
-// If the loop toggle is on, initialize activeLoop from the current input
-// values. Used after fillDefaultEnd so a freshly loaded video starts
-// looping the whole clip without the user touching the toggle.
-function activateLoopFromInputs() {
-  if (!loopToggle || !loopToggle.checked) return;
-  const s = parseTime(startInput.value);
-  const e = parseTime(endInput.value);
-  if (s === null || e === null || isNaN(s) || isNaN(e) || s >= e) return;
-  activeLoop = { start: s, end: e };
 }
 
 // ---------- DOM ----------
@@ -421,7 +409,6 @@ function afterVideoReady(onReadyCb) {
   startTimeLoop();
   if (onReadyCb) onReadyCb();
   fillDefaultEnd();
-  activateLoopFromInputs();
   renderHistory();
   renderChordStrip();
   // Versions belong to the video, so the list changes with it — and an edit to
@@ -490,8 +477,8 @@ function onPlayerStateChange(e) {
 
   const state = e && e.data;
   // Any state but "unstarted" means the newly loaded video has landed. Run the
-  // post-load work before the interception below, so activeLoop is already up
-  // to date by the time we decide where to seek. -1 is compared as a literal
+  // post-load work before the interception below, so the boxes the loop reads
+  // are filled by the time we decide where to seek. -1 is compared as a literal
   // on purpose: YT.PlayerState has no UNSTARTED constant, so naming one gives
   // undefined and the guard silently matches every state.
   if (state !== -1) runPendingLoad();
@@ -592,10 +579,11 @@ function scheduleDelayedPlay() {
 function startPlaybackWithDelay() {
   if (!player) return;
   if (player.setPlaybackRate) player.setPlaybackRate(getSpeed());
-  if (activeLoop && typeof player.getCurrentTime === 'function') {
+  const loop = loopRange();
+  if (loop && typeof player.getCurrentTime === 'function') {
     const t = player.getCurrentTime();
-    if (t < activeLoop.start || t >= activeLoop.end) {
-      player.seekTo(activeLoop.start, true);
+    if (t < loop.start || t >= loop.end) {
+      player.seekTo(loop.start, true);
     }
   }
   scheduleDelayedPlay();
@@ -622,17 +610,21 @@ let wrapArmed = true;
 // clock; the RAF tick calls it too, but only as a fallback for the (unexpected)
 // case where the worker could not be created.
 function enforceLoopEnd() {
-  if (!player || !activeLoop || typeof player.getCurrentTime !== 'function') return;
+  if (!player || typeof player.getCurrentTime !== 'function') return;
+  // Cheapest question first: this runs 40 times a second whether or not
+  // anything is playing, and reading the range means parsing two strings.
   if (safeState() !== (window.YT && YT.PlayerState.PLAYING)) return;
+  const loop = loopRange();
+  if (!loop) return;
   let t;
   try { t = player.getCurrentTime(); } catch (e) { return; }
-  if (t < activeLoop.end) { wrapArmed = true; return; }
+  if (t < loop.end) { wrapArmed = true; return; }
   if (!wrapArmed) return;
   wrapArmed = false;
   // seekTo while PLAYING triggers BUFFERING → PLAYING again;
   // claim it as ours so onPlayerStateChange doesn't warm-up-delay it.
   intentionalPlay = true;
-  player.seekTo(activeLoop.start, true);
+  player.seekTo(loop.start, true);
   // After the seek, so the new rate lands on the fresh lap rather than on the
   // last few frames of the old one.
   bumpRampSpeed();
@@ -828,21 +820,6 @@ function seekToStart() {
 }
 
 toStartBtn.addEventListener('click', seekToStart);
-
-loopToggle.addEventListener('change', () => {
-  if (loopToggle.checked) {
-    const start = parseTime(startInput.value);
-    const end   = parseTime(endInput.value);
-    if (start === null || end === null || start >= end) {
-      loopToggle.checked = false;
-      alert('Set a valid start / end time first');
-      return;
-    }
-    activeLoop = { start, end };
-  } else {
-    activeLoop = null;
-  }
-});
 
 // Confirm, then drop one history entry — for the odd range you don't want
 // suggested back at you. A video left with nothing goes too, so no empty groups
@@ -4155,7 +4132,9 @@ function renderHistoryItem(vid, entry) {
 // playedAt isn't touched here: the warmup timer records the play once it
 // actually starts, and since the range matches this entry that's the same write.
 function playHistoryEntry(entry) {
-  setLoopActive({ start: entry.start, end: entry.end });
+  // Picking a range out of the history means looping it. The range itself needs
+  // no setting — applyLoopToForm fills the boxes and loopRange() reads them.
+  if (loopToggle) loopToggle.checked = true;
   applyLoopToForm(entry);
   player.seekTo(entry.start, true);
   scheduleDelayedPlay();
@@ -4205,8 +4184,9 @@ document.addEventListener('keydown', e => {
     seekToStart();
   } else if (e.key === 'l' || e.key === 'L') {
     e.preventDefault();
+    // Nothing listens for the change: the toggle is read where the loop is
+    // needed, so flipping it is the whole of the work.
     loopToggle.checked = !loopToggle.checked;
-    loopToggle.dispatchEvent(new Event('change'));
   } else if (e.key === 'e' || e.key === 'E') {
     // Transcribing is going in and out of the editor all the time, and the
     // button for it is at the top of a strip that has scrolled away by then.
