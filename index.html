@@ -147,6 +147,15 @@
         <button id="chordModeSolfa" class="legend-toggle-btn"
                 title="Label the dots with movable-do solfège, read from the key">Solfege</button>
       </div>
+      <!-- Jumping to a bar by its number. Its own job — moving through the sheet
+           rather than changing how the sheet is drawn — so it stands apart from
+           the switches above, over on the right past a rule of its own. -->
+      <span class="chord-jump">
+        <label class="field-label" for="barJumpInput">Bar</label>
+        <input type="text" id="barJumpInput" inputmode="numeric" autocomplete="off"
+               aria-label="Bar number to jump to" />
+        <button id="barJumpBtn" type="button" title="Jump to that bar">▸</button>
+      </span>
     </div>
 
     <div class="chord-editor" hidden>

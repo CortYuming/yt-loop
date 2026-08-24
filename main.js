@@ -137,6 +137,8 @@ const chordModeBtns   = {
   solfa:  document.getElementById('chordModeSolfa')
 };
 const chordShowToggle = document.getElementById('chordShowToggle');
+const barJumpInput    = document.getElementById('barJumpInput');
+const barJumpBtn      = document.getElementById('barJumpBtn');
 const exportBtn       = document.getElementById('exportBtn');
 const importBtn       = document.getElementById('importBtn');
 const importFile      = document.getElementById('importFile');
@@ -1530,6 +1532,40 @@ function barTimePins(index, time) {
   wrap.appendChild(face);
   wrap.appendChild(pins);
   return wrap;
+}
+
+// Which bar the video is in, and the way to any other one. Reading a
+// transcription is jumping about in it, and past a dozen bars the way there is
+// the number rather than the bar itself: bar 29 of 37 is a long drag away, and
+// two digits is no distance at all.
+// The box stays empty until a number is typed in it, the way a search box does.
+// Which bar is playing is written on the bar itself, under the playhead, so a
+// second copy of it in here would only be a value nobody typed.
+function jumpToBar() {
+  if (!barJumpInput) return;
+  const spans = chordCache.vid === currentVideoId
+    ? chordCache.spans
+    : refreshChordCache().spans;
+  const n = parseInt(barJumpInput.value.trim(), 10);
+  const span = n >= 1 && n <= spans.length ? spans[n - 1] : null;
+  // A bar the sheet does not have, or one with no time on it: there is nowhere
+  // to go, and the box says so where the number was typed.
+  if (!span || span.start === null) {
+    barJumpInput.classList.add('bad');
+    return;
+  }
+  barJumpInput.classList.remove('bad');
+  seekToTime(span.start);
+}
+
+if (barJumpInput) {
+  barJumpInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); jumpToBar(); }
+  });
+  barJumpInput.addEventListener('input', () => {
+    barJumpInput.classList.remove('bad');
+  });
+  barJumpBtn.addEventListener('click', e => { e.preventDefault(); jumpToBar(); });
 }
 
 function closeChordTimePins() {

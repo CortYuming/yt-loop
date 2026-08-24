@@ -463,6 +463,36 @@ button.pin {
    line their boxes up in a column, and in a row of its own it was 20px of nothing
    between "Key" and the select. */
 .chord-key .field-label { width: auto; }
+/* Moving through the sheet is a different job from changing how it is drawn, so
+   it does not stand in the same run of controls: pushed to the far end of the
+   toolbar with a rule between. The rule survives the row wrapping, which the gap
+   alone would not. */
+.chord-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  color: var(--sub);
+  font-size: 11px;
+}
+.chord-jump .field-label { width: auto; }
+.chord-jump input[type="text"] {
+  width: 52px;
+  padding: 4px 6px;
+  text-align: center;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+/* A number the sheet has no bar for. Said on the box, since the box is where the
+   number was typed. */
+.chord-jump input.bad { border-color: var(--red); color: var(--red); }
+.chord-jump button {
+  padding: 4px 9px;
+  font-size: 13px;
+  line-height: 1.15;
+}
 /* The key's own chord, on the way out to the fretboard viewer. A little air on
    its right so the ↗ is not read as part of the switch that follows it. */
 .key-chord {
