@@ -70,6 +70,48 @@ function loopRange() {
 // them, so there is nothing to push. The history list is deliberately not in
 // here either: it only changes when the stored data does, so renderHistory()
 // stays an explicit call.
+// Would this value put the two ends the wrong way round? Asked before the value
+// goes in, not after: a Start later than the End describes nothing, and the
+// cheapest place to keep that out is the door.
+// A value that is not a time at all is somebody else's business — the box holds
+// half-typed times all the time.
+function refusesRange(box, text) {
+  const t = parseTime(text);
+  if (t === null || isNaN(t)) return false;
+  const other = parseTime((box === startInput ? endInput : startInput).value);
+  if (other === null || isNaN(other)) return false;
+  return box === startInput ? t > other : t < other;
+}
+
+// Refused, said on the box that was aimed at. Red where an accepted value
+// flashes white, so the two never read as the same thing.
+function flashRefused(box) {
+  box.classList.remove('refused');
+  // Reading offsetWidth restarts the animation; without it a second refusal in a
+  // row is silent.
+  void box.offsetWidth;
+  box.classList.add('refused');
+}
+
+// The two ends the wrong way round. Nothing is corrected here — a stale End and
+// a fresh Start look exactly alike from the outside, and a range put right by
+// guessing is a range nobody asked for. What the app can say for certain is that
+// this pair describes nothing, and it says so on the button that was pressed.
+function rangeIsReversed() {
+  const s = parseTime(startInput.value);
+  const e = parseTime(endInput.value);
+  if (s === null || e === null || isNaN(s) || isNaN(e)) return false;
+  return s > e;
+}
+
+// Said on the button the finger is already on, since that is the one place on
+// screen being looked at. Everything else about the form is left alone.
+const REVERSED_MS = 1800;
+function refuseReversed(btn, restore) {
+  btn.textContent = '⚠ Start > End';
+  setTimeout(restore, REVERSED_MS);
+}
+
 function refreshUI() {
   updateDurationDisplay();
 }
@@ -740,6 +782,25 @@ function updateDurationDisplay() {
 }
 startInput.addEventListener('input', () => { refreshUI(); handleValueEdit(startInput); });
 endInput.addEventListener('input',   () => { refreshUI(); handleValueEdit(endInput); });
+
+// Typing is checked when it is finished rather than as it goes: a value passes
+// through halves of itself on the way in, and a box that fought every keystroke
+// could not be typed in at all. What was in it when the caret arrived is kept, so
+// a refused edit has somewhere to go back to.
+[startInput, endInput].forEach(box => {
+  box.addEventListener('focus', () => { box.dataset.was = box.value; });
+  const settle = () => {
+    if (!refusesRange(box, box.value)) { box.dataset.was = box.value; return; }
+    box.value = box.dataset.was || '';
+    refreshUI();
+    handleValueEdit(box);
+    flashRefused(box);
+  };
+  box.addEventListener('change', settle);
+  box.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); settle(); }
+  });
+});
 // Note changes nothing on screen, but it does go into the copied Markdown label,
 // so it flashes like the rest.
 noteInput.addEventListener('input',  () => { handleValueEdit(noteInput); });
@@ -786,21 +847,29 @@ speedRange.addEventListener('input', () => {
 });
 speedRange.addEventListener('change', () => setSpeed(speedRange.value));
 
-captureStart.addEventListener('click', () => {
+// Both 📍 drop the moment the video is at into their box — unless that moment is
+// on the wrong side of the other end, in which case there is nothing to put
+// there and the box says so instead.
+function captureInto(box) {
   if (!player || !player.getCurrentTime) return;
-  startInput.value = formatTime(player.getCurrentTime());
+  const text = formatTime(player.getCurrentTime());
+  if (refusesRange(box, text)) { flashRefused(box); return; }
+  box.value = text;
   refreshUI();
-  handleValueEdit(startInput);
-});
-captureEnd.addEventListener('click', () => {
-  if (!player || !player.getCurrentTime) return;
-  endInput.value = formatTime(player.getCurrentTime());
-  refreshUI();
-  handleValueEdit(endInput);
-});
+  handleValueEdit(box);
+}
+
+captureStart.addEventListener('click', () => captureInto(startInput));
+captureEnd.addEventListener('click', () => captureInto(endInput));
 
 playLoopBtn.addEventListener('click', () => {
   if (!player || !player.getPlayerState) return;
+  // Only with the toggle on: with looping off the two ends are not being used,
+  // and there is nothing to be wrong about.
+  if (loopToggle && loopToggle.checked && rangeIsReversed()) {
+    refuseReversed(playLoopBtn, updatePlayButton);
+    return;
+  }
   if (cancelPendingPlay()) { updatePlayButton(); return; }
   const state = safeState();
   if (state === (window.YT && YT.PlayerState.PLAYING)) {
@@ -958,11 +1027,21 @@ async function copyWithFeedback(btn, text, okLabel, restLabel) {
 shareBtn.addEventListener('click', () => {
   const url = buildShareUrl(currentVideoId, currentFormLoop());
   if (!url) { alert('Load a video first'); return; }
+  // A link carrying the two ends the wrong way round does not loop where it
+  // lands, and a bookmark is kept for years. So it is not handed out.
+  if (rangeIsReversed()) {
+    refuseReversed(shareBtn, () => { shareBtn.textContent = '🔗 URL'; });
+    return;
+  }
   copyWithFeedback(shareBtn, url, '✅ Copied!', '🔗 URL');
 });
 
 shareMdBtn.addEventListener('click', () => {
   if (!currentVideoId) { alert('Load a video first'); return; }
+  if (rangeIsReversed()) {
+    refuseReversed(shareMdBtn, () => { shareMdBtn.textContent = '📝 MD'; });
+    return;
+  }
   const md = buildShareMarkdown(currentVideoId, currentFormLoop());
   copyWithFeedback(shareMdBtn, md, '✅ Copied!', '📝 MD');
 });
@@ -1490,6 +1569,10 @@ function barTimePins(index, time) {
   pins.className = 'chord-time-pins';
   const row = document.createElement('span');
   row.className = 'chord-time-row';
+  // Why a press did nothing, in the panel it was pressed in.
+  const refused = document.createElement('span');
+  refused.className = 'chord-time-err';
+  refused.hidden = true;
   const pin = (text, title, input) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -1502,7 +1585,20 @@ function barTimePins(index, time) {
     b.addEventListener('click', e => {
       e.preventDefault();
       e.stopPropagation();
-      input.value = formatTime(time);
+      const value = formatTime(time);
+      // This bar is on the wrong side of the range's other end, so it cannot be
+      // this end of it. Nothing is written and the panel stays open — the other
+      // 📍 beside it may well be the one that was meant.
+      if (refusesRange(input, value)) {
+        const other = input === startInput ? endInput : startInput;
+        refused.textContent = input === startInput
+          ? `Later than End ${other.value.trim()}`
+          : `Earlier than Start ${other.value.trim()}`;
+        refused.hidden = false;
+        return;
+      }
+      input.value = value;
+      input.dataset.was = value;
       refreshUI();
       handleValueEdit(input);
       closeChordTimePins();
@@ -1511,6 +1607,7 @@ function barTimePins(index, time) {
   };
   pin('start📍', 'Set this time as the loop start', startInput);
   pin('end📍', 'Set this time as the loop end', endInput);
+  row.appendChild(refused);
   pins.appendChild(row);
   // Open whether or not the editor is. A time caught slightly late is found by
   // listening, not by editing, and having to open the sheet's text box first put
@@ -4404,7 +4501,11 @@ document.addEventListener('keydown', e => {
     const delta = e.key === 'ArrowLeft' ? -0.05 : 0.05;
     const cur = parseTime(target.value);
     const base = (cur === null || isNaN(cur)) ? 0 : cur;
-    target.value = formatTime(Math.max(0, roundTo(base + delta, 2)));
+    const next = formatTime(Math.max(0, roundTo(base + delta, 2)));
+    // The step that would cross the other end is the step that doesn't happen.
+    if (refusesRange(target, next)) { flashRefused(target); return; }
+    target.value = next;
+    target.dataset.was = next;
     refreshUI();
     handleValueEdit(target);
     return;

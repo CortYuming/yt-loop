@@ -833,6 +833,13 @@ button.chord-bar-no:focus-visible {
   white-space: normal;
 }
 .chord-time-pin.ok { color: var(--blue); }
+/* A value the field would not take — one that puts Start after End. Red, where
+   an accepted value flashes white, so a refusal never reads as a change. */
+@keyframes refused {
+  0%   { box-shadow: 0 0 0 2px rgba(255, 82, 82, 0.7); border-color: var(--red); }
+  100% { box-shadow: 0 0 0 2px rgba(255, 82, 82, 0);   border-color: var(--border); }
+}
+.nudge-group input[type="text"].refused { animation: refused 0.9s ease-out; }
 /* A value typed and not yet taken. The tick is the way to take it, so the tick
    is what says there is something waiting. */
 .chord-time-pin.ok.dirty { border-color: var(--blue); background: #22314f; }
