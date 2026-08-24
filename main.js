@@ -1506,8 +1506,22 @@ function askInsertBar(at) {
 // way a bar added at the end does, so there is something to write into.
 function insertBar(at, start) {
   const bars = chordCache.bars;
+  const time = start === null || start === undefined ? null : roundTo(start, 2);
+  // A new head is a new bar line, so the bar before it ends there. Left alone, a
+  // bar written `@0.50-5.20` keeps an end that reaches past the bar just made
+  // and swallows it: the row has no room in time for a bar inside another, so it
+  // draws it with none — a stretch the playhead crosses in a single frame and
+  // every drag settles at the far side of. Only where the written end actually
+  // reaches past the new head; one that stops short of it is a hole in the sheet
+  // and says so on purpose. setBarStart moves the same bar line from the other
+  // side, for the same reason.
+  const prev = bars[at - 1];
+  if (time !== null && prev && prev.end !== null && prev.end > time
+      && (prev.start === null || prev.start < time)) {
+    prev.end = time;
+  }
   bars.splice(at, 0, {
-    start: start === null || start === undefined ? null : roundTo(start, 2),
+    start: time,
     end: null,
     chords: [{ name: '', markers: null }],
   });

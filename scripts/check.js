@@ -711,6 +711,23 @@ const EDITED = [
     sheetText: '@0.00 Cm7 1/5:8\n@2.00\n@4.00 F7 1/9:8',
   },
   {
+    // A head is a bar line: the bar before it ends there. A written end that
+    // reaches past the new bar would swallow it — the row has no room in time
+    // for a bar inside another — so it is drawn back to the new head.
+    name: '小節を挟む: 前の小節の書かれた終わりが新しい頭まで詰まる',
+    sheet: '@0-8 Cm7 1/5:8|@8-12 F7 1/9:8',
+    run: ({ api }) => { api.insertBar(1, 4); },
+    sheetText: '@0.00-4.00 Cm7 1/5:8\n@4.00\n@8.00-12.00 F7 1/9:8',
+  },
+  {
+    // A bar left short of where the new one starts is a hole in the sheet, and
+    // it says so on purpose — the same reason setBarStart leaves one alone.
+    name: '小節を挟む: 空いている隙間は閉じない',
+    sheet: '@0-3 Cm7 1/5:8|@8-12 F7 1/9:8',
+    run: ({ api }) => { api.insertBar(1, 4); },
+    sheetText: '@0.00-3.00 Cm7 1/5:8\n@4.00\n@8.00-12.00 F7 1/9:8',
+  },
+  {
     // Straight into the bar just made: it was asked for in order to write in it.
     name: '小節を挟む: 板がその小節を向く',
     sheet: '@0 Cm7 1/5:8|@4 F7 1/9:8',
