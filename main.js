@@ -893,8 +893,40 @@ function buildShareUrl(vid, loop) {
   return `${location.origin}${location.pathname}?${params.toString()}`;
 }
 
-// Markdown link label: "<title> (start → end) <note>", dropping whichever
-// pieces aren't available.
+// Which bars a range covers, counted the way the sheet numbers them. A loop is
+// shared as a passage — "bars 5-8", which is how anyone talking about a
+// transcription says it — and seconds are no way to find that passage again in a
+// notes file a month later. So the label carries both.
+// A bar counts as covered when it actually sounds inside the range: taking bar
+// 5's time for the start and bar 9's for the end plays bars 5 to 8, and that is
+// what it says.
+// Null where the video has no sheet, none of its bars is timed, or the range
+// falls outside all of them — there is nothing to number then.
+function barRangeFor(vid, loop) {
+  if (typeof loop.start !== 'number' || isNaN(loop.start)) return null;
+  if (typeof loop.end !== 'number' || isNaN(loop.end)) return null;
+  const bars = Chords.parseSheet(getSheet(vid));
+  if (!bars.length) return null;
+  const spans = Chords.resolveSpans(bars);
+  let from = null;
+  let to = null;
+  spans.forEach((span, i) => {
+    if (span.start === null) return;
+    // A bar the sheet gives no end takes up no time here rather than the rest of
+    // the video: resolveSpans has already filled in every end it can work out,
+    // so what is left is the last bar of a sheet with nothing to measure it by.
+    const end = span.end === null ? span.start : span.end;
+    if (span.start >= loop.end - RANGE_EPS) return;
+    if (end <= loop.start + RANGE_EPS) return;
+    if (from === null) from = i;
+    to = i;
+  });
+  if (from === null) return null;
+  return from === to ? `bar ${from + 1}` : `bars ${from + 1}-${to + 1}`;
+}
+
+// Markdown link label: "<title> (start → end) bars 5-8 <note>", dropping
+// whichever pieces aren't available.
 function buildShareLabel(vid, loop) {
   const hasRange = typeof loop.start === 'number' && !isNaN(loop.start) &&
                    typeof loop.end === 'number' && !isNaN(loop.end);
@@ -902,7 +934,7 @@ function buildShareLabel(vid, loop) {
   const title = resolveVideoTitle(vid);
   const note  = (loop.note || '').trim();
   const base = (title && range) ? `${title} (${range})` : (title || range || vid || 'YT Loop');
-  return note ? `${base} ${note}` : base;
+  return [base, barRangeFor(vid, loop), note].filter(Boolean).join(' ');
 }
 
 function buildShareMarkdown(vid, loop) {

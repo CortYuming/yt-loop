@@ -808,19 +808,24 @@ const READ = [
 // The share link is the one piece of the app that leaves the machine, so what it
 // carries is checked to the character.
 const share = (() => {
-  const src = ['formatTime', 'buildShareUrl', 'buildShareLabel', 'buildShareMarkdown']
-    .map(liftOne).join('\n');
-  return new Function('shim', `
+  const src = ['formatTime', 'buildShareUrl', 'buildShareLabel', 'buildShareMarkdown',
+    'barRangeFor'].map(liftOne).join('\n');
+  // The real bar numbering rather than a stub of it: which bars a range covers is
+  // the part of the label that can be wrong, so it is run over a real sheet.
+  return new Function('shim', 'Chords', `
     const NOTE_MAX = 30;
+    const RANGE_EPS = 0.005;
     const location = shim.location;
-    // Reads the browser's storage in the app; a case says the title outright.
+    // Both read the browser's storage in the app; a case says them outright.
     function resolveVideoTitle() { return shim.title; }
+    function getSheet() { return shim.sheet; }
     ${src}
-    return { formatTime, buildShareUrl, buildShareLabel, buildShareMarkdown,
-      title(t) { shim.title = t; } };`)({
+    return { formatTime, buildShareUrl, buildShareLabel, buildShareMarkdown, barRangeFor,
+      title(t) { shim.title = t; }, sheet(t) { shim.sheet = t; } };`)({
     location: { origin: 'https://cortyuming.github.io', pathname: '/yt-loop/' },
     title: '',
-  });
+    sheet: '',
+  }, Chords);
 })();
 
 const LOOP = { start: 26.83, end: 29.25, speed: 0.75, note: 'F7 の E♭' };
@@ -871,8 +876,39 @@ const TIMES = [
     got: () => { share.title('Autumn Leaves'); return share.buildShareLabel('abc123', LOOP); },
     want: 'Autumn Leaves (0:26.83 → 0:29.25) F7 の E♭' },
   { name: '共有の見出し: 題名がなければ区間だけ',
-    got: () => { share.title(''); return share.buildShareLabel('abc123', LOOP); },
+    got: () => { share.title(''); share.sheet(''); return share.buildShareLabel('abc123', LOOP); },
     want: '0:26.83 → 0:29.25 F7 の E♭' },
+  // Which bars a loop covers. Bar 2 starts exactly where the loop ends, so it is
+  // not in it: taking one bar's time for the start and the next but one's for the
+  // end plays what lies between them.
+  { name: '共有の小節: 区間の中で鳴る小節だけ数える',
+    got: () => { share.sheet('@0-4 C7|@4-8 F7|@8-12 G7');
+      return share.barRangeFor('abc123', { start: 0, end: 4 }); },
+    want: 'bar 1' },
+  { name: '共有の小節: 複数なら bars で範囲',
+    got: () => { share.sheet('@0-4 C7|@4-8 F7|@8-12 G7');
+      return share.barRangeFor('abc123', { start: 0, end: 9 }); },
+    want: 'bars 1-3' },
+  // Starting mid-bar is the ordinary case — a loop caught by ear — and the bar it
+  // starts inside is one of the bars it plays.
+  { name: '共有の小節: 小節の途中から始まってもその小節から',
+    got: () => { share.sheet('@0-4 C7|@4-8 F7|@8-12 G7');
+      return share.barRangeFor('abc123', { start: 2, end: 6 }); },
+    want: 'bars 1-2' },
+  { name: '共有の小節: 譜面の外なら出さない',
+    got: () => { share.sheet('@0-4 C7');
+      return share.barRangeFor('abc123', { start: 20, end: 24 }); },
+    want: null },
+  { name: '共有の小節: 譜面がなければ出さない',
+    got: () => { share.sheet(''); return share.barRangeFor('abc123', LOOP); },
+    want: null },
+  { name: '共有の見出し: 小節の範囲も入る',
+    got: () => {
+      share.title('Autumn Leaves');
+      share.sheet('@24-26 C7|@26-28 F7|@28-30 G7');
+      return share.buildShareLabel('abc123', LOOP);
+    },
+    want: 'Autumn Leaves (0:26.83 → 0:29.25) bars 2-3 F7 の E♭' },
   // The count in a bar's head, and only where it is not four — see barBeatLabel.
   { name: '拍数: 4拍ぴったりなら出さない',
     got: () => open('@0 Cm7 1/5:4 1/7 1/9 1/10').api.beatLabel(), want: null },
@@ -897,7 +933,11 @@ const TIMES = [
   { name: '拍数: 区間をまたいで数える',
     got: () => open('@0 Cm7 1/5:8t F7 1/7:8t G7 1/9:8t').api.beats(), want: 1 },
   { name: '共有の markdown',
-    got: () => { share.title('Autumn Leaves'); return share.buildShareMarkdown('abc123', LOOP); },
+    got: () => {
+      share.title('Autumn Leaves');
+      share.sheet('');
+      return share.buildShareMarkdown('abc123', LOOP);
+    },
     want: '[Autumn Leaves (0:26.83 → 0:29.25) F7 の E♭]'
       + '(https://cortyuming.github.io/yt-loop/?v=abc123&s=26.83&e=29.25&r=0.75'
       + '&n=F7+%E3%81%AE+E%E2%99%AD)' },

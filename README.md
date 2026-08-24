@@ -155,10 +155,15 @@ Example: `?v=dQw4w9WgXcQ&s=12.50&e=24.80&r=0.75`
 The **📝 MD** button wraps this link in Markdown:
 
 ```
-[<video title> (<start> → <end>)](<share url>)
+[<video title> (<start> → <end>) <bars> <note>](<share url>)
 ```
 
-Example: `[My Song (0:12.50 → 0:24.80)](https://.../?v=dQw4w9WgXcQ&s=12.50&e=24.80&r=0.75)`
+Example: `[My Song (0:12.50 → 0:24.80) bars 5-8](https://.../?v=dQw4w9WgXcQ&s=12.50&e=24.80&r=0.75)`
+
+`<bars>` is only there where the video has a sheet with times in it, and reads
+`bar 5` for a single one. yt-loop reads its own links back — a line in a notes
+file holding one times the bars written above it — and a bar count in the label
+is ignored by that, so a link pasted back in still means what it said.
 
 A sheet travels in `k`, in the notation above:
 
