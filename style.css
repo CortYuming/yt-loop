@@ -758,7 +758,9 @@ button.chord-bar-no:focus-visible {
   left: 0;
   z-index: 6;
   display: none;
-  gap: 1px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
   padding: 2px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -766,9 +768,47 @@ button.chord-bar-no:focus-visible {
   white-space: nowrap;
 }
 .chord-bar-time.open .chord-time-pins { display: flex; }
+/* One line of the panel: the two 📍 on their own, and — while editing — the
+   time itself under them. A single row looks exactly as it did before the
+   second one existed. */
+.chord-time-row {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+/* The bar's own time, typed. Sized for the longest thing it can hold — an hour
+   and change, 1:02:03.50 — since a value clipped in the box it is checked in is
+   worse than a box wider than most of its contents. */
+.chord-time-box {
+  width: 96px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 20px;
+}
+.chord-time-box:focus { border-color: var(--blue); outline: none; }
+/* Why the value was refused, in the panel it was typed in. Allowed to wrap —
+   the panel is nowrap so its rows stay in line — since the message names two
+   times and a bar head is narrow. */
+.chord-time-err {
+  max-width: 150px;
+  padding: 0 2px;
+  color: var(--red);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: normal;
+}
+.chord-time-pin.ok { color: var(--blue); }
+/* A value typed and not yet taken. The tick is the way to take it, so the tick
+   is what says there is something waiting. */
+.chord-time-pin.ok.dirty { border-color: var(--blue); background: #22314f; }
 .chord-time-pin {
   flex: none;
-  padding: 0 4px;
+  padding: 2px 6px;
   border: 1px solid transparent;
   border-radius: 3px;
   background: none;

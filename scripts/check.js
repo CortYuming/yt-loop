@@ -109,6 +109,7 @@ const LIFTED = [
   'tripletGroupPlaces', 'noteCopy', 'noteCanDot',
   // bars
   'roundTo', 'addBar', 'insertBar', 'barBeats', 'barBeatLabel',
+  'setBarStart', 'barTimeBounds',
 ];
 // Read to the brace that closes the declaration rather than to the next line
 // holding one on its own: a function written on a single line — addNoteRest is
@@ -161,7 +162,10 @@ const LIFTED_SRC = LIFTED.map(liftOne).join('\n');
 // pointing; everything else is the stubs those functions call into.
 function open(sheet) {
   const bars = Chords.parseSheet(sheet);
-  const state = { Chords, chordCache: { bars }, writes: 0, carried: null, now: 0 };
+  const state = {
+    Chords, chordCache: { bars, spans: Chords.resolveSpans(bars) },
+    writes: 0, carried: null, now: 0,
+  };
   const api = new Function('state', `
     const Chords = state.Chords, chordCache = state.chordCache;
     let notePanelAt = { bar: 0, chord: 0 }, noteSel = null, noteAfter = null;
@@ -169,6 +173,7 @@ function open(sheet) {
     // same five values the panel holds; see the top of main.js's note panel.
     let noteDur = 0.5, noteDotted = false, noteTriplet = false, noteStack = false;
     const NO_DUR = 0;
+    const RANGE_EPS = 0.005;
     const noteValue = () => noteDur * (noteDotted ? 1.5 : 1) * (noteTriplet ? 2 / 3 : 1);
     const restValue = () => noteValue() || 1;
     function editingNote() {
@@ -227,6 +232,9 @@ function open(sheet) {
         return el.textContent + ' ' + (el.attrs.class.indexOf('over') < 0 ? '灰' : '赤');
       },
       insertBar: (at, start) => insertBar(at, start),
+      // The bar's own time, moved from its head, and how far it may go.
+      setBarStart: (at, t) => setBarStart(at, t),
+      bounds: at => barTimeBounds(at),
       rest: () => addNoteRest(),
       tie: () => addNoteTie(),
       dur: d => setNoteDur(d),
@@ -709,6 +717,37 @@ const EDITED = [
     run: ({ api }) => { api.insertBar(1, 2); },
     at: { bar: 1, stretch: 0 },
   },
+  {
+    // A sheet written by playing along is one unbroken chain: the bar before ends
+    // where this one starts. So the head is a bar line and both sides move.
+    name: '小節の頭を動かす: 前の小節の終わりも動く',
+    sheet: '@0-4 Cm7|@4-8 F7|@8-12 G7',
+    run: ({ api }) => { api.setBarStart(1, 4.8); },
+    sheetText: '@0.00-4.80 Cm7\n@4.80-8.00 F7\n@8.00-12.00 G7',
+  },
+  {
+    // A bar left short of the next one is a hole in the sheet, and it says so on
+    // purpose. Moving this head is no reason to close it.
+    name: '小節の頭を動かす: 空いている隙間は閉じない',
+    sheet: '@0-3 Cm7|@4-8 F7',
+    run: ({ api }) => { api.setBarStart(1, 4.8); },
+    sheetText: '@0.00-3.00 Cm7\n@4.80-8.00 F7',
+  },
+  {
+    // Past the head before it and it is out of order; past its own end and it has
+    // no length left.
+    name: '小節の頭を動かす: 動かせる範囲は前の頭と自分の終わり',
+    sheet: '@0-4 Cm7|@4-8 F7',
+    run: () => {},
+    bounds: { at: 1, after: 0, before: 8 },
+  },
+  {
+    // Nothing before the first bar, so that side is not a limit.
+    name: '小節の頭を動かす: 先頭の小節は前に限りがない',
+    sheet: '@2-4 Cm7|@4-8 F7',
+    run: () => {},
+    bounds: { at: 0, after: null, before: 4 },
+  },
 ];
 
 // A phrase read in and written straight back out. Everything the app saves goes
@@ -1027,6 +1066,16 @@ for (const c of EDITED) {
     if (got !== c.sheetText) {
       checks.push(`    譜面  got  ${got.replace(/\n/g, ' ⏎ ')}`
         + `\n          want ${c.sheetText.replace(/\n/g, ' ⏎ ')}`);
+    }
+  }
+  // How far a bar's head may move — the two limits, either of which can be
+  // absent where there is nothing on that side to be limited by.
+  if (c.bounds) {
+    const got = sheet.api.bounds(c.bounds.at);
+    for (const side of ['after', 'before']) {
+      if (!(got[side] === null && c.bounds[side] === null) && !near(got[side], c.bounds[side])) {
+        checks.push(`    小節${c.bounds.at + 1}の${side}  got ${got[side]}  want ${c.bounds[side]}`);
+      }
     }
   }
   // Where the board is pointing after the edit.

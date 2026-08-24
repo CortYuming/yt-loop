@@ -1207,7 +1207,7 @@ function drawChordStrip(fromCache) {
     head.appendChild(barNumber(i, spans[i].start));
     // A bar with a time on it carries the loop controls for that moment; one
     // without is just its number.
-    if (spans[i].start !== null) head.appendChild(barTimePins(spans[i].start));
+    if (spans[i].start !== null) head.appendChild(barTimePins(i, spans[i].start));
     const count = barBeatLabel(bar);
     if (count) head.appendChild(count);
     barEl.appendChild(head);
@@ -1474,7 +1474,7 @@ function barNumber(index, start) {
 // ends off it is the accurate way — click bar 5's time for the start, bar 9's
 // for the end. The buttons stay hidden until asked for because every bar has a
 // time, and a pair of them under each would bury the chords.
-function barTimePins(time) {
+function barTimePins(index, time) {
   const wrap = document.createElement('span');
   wrap.className = 'chord-bar-time';
 
@@ -1486,6 +1486,8 @@ function barTimePins(time) {
 
   const pins = document.createElement('span');
   pins.className = 'chord-time-pins';
+  const row = document.createElement('span');
+  row.className = 'chord-time-row';
   const pin = (text, title, input) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -1503,10 +1505,15 @@ function barTimePins(time) {
       handleValueEdit(input);
       closeChordTimePins();
     });
-    pins.appendChild(b);
+    row.appendChild(b);
   };
   pin('start📍', 'Set this time as the loop start', startInput);
   pin('end📍', 'Set this time as the loop end', endInput);
+  pins.appendChild(row);
+  // Open whether or not the editor is. A time caught slightly late is found by
+  // listening, not by editing, and having to open the sheet's text box first put
+  // the fix a long way from the noticing.
+  pins.appendChild(barTimeEditor(index, time));
 
   face.addEventListener('mousedown', e => e.preventDefault());
   face.addEventListener('click', e => {
@@ -1528,6 +1535,137 @@ function barTimePins(time) {
 function closeChordTimePins() {
   if (openTimePins) openTimePins.classList.remove('open');
   openTimePins = null;
+}
+
+// How far a bar's head can move: past the head of the bar before it and it is
+// out of order, past its own end and it has no length left. Either side can be
+// unknown — the first bar of a sheet has nothing before it, a bar whose end
+// nobody wrote and nothing to work it out from has no end — and then that side
+// is not a limit.
+function barTimeBounds(index) {
+  const spans = chordCache.spans;
+  const prev = spans[index - 1];
+  const own = spans[index];
+  return {
+    after: prev && prev.start !== null ? prev.start : null,
+    before: own && own.end !== null ? own.end : null,
+  };
+}
+
+// The bar's own `@`, moved. A time caught by ear is caught slightly late, which
+// is a bar line in the wrong place; putting it right meant opening the text box
+// and finding that bar among thirty others written the same way. The head knows
+// which bar it is.
+// Moving a head moves a bar line: the bar before ends where this one starts, and
+// a sheet written by playing along is one unbroken chain of them. So the pair
+// moves together and nothing after them is touched — what changes is the length
+// of the two bars either side of the line.
+function setBarStart(index, t) {
+  const bars = chordCache.bars;
+  const bar = bars[index];
+  if (!bar) return;
+  const start = roundTo(t, 2);
+  const was = bar.start;
+  const prev = bars[index - 1];
+  bar.start = start;
+  // Only where the two were the same moment. A bar deliberately left short of
+  // the next one — a hole in the sheet — says so on purpose, and moving this
+  // head is no reason to close it.
+  if (prev && prev.end !== null && was !== null && Math.abs(prev.end - was) <= RANGE_EPS) {
+    prev.end = start;
+  }
+  chordCache.spans = Chords.resolveSpans(bars);
+  writeSheetFromCache('bar-time');
+  renderChordStrip(true);
+}
+
+// The box the time is typed in, with the current playback position on a button
+// beside it: playing up to the bar line and taking the moment off the clock is
+// how the time was found in the first place.
+function barTimeEditor(index, time) {
+  const row = document.createElement('span');
+  row.className = 'chord-time-row';
+
+  const box = document.createElement('input');
+  box.type = 'text';
+  box.className = 'chord-time-box';
+  box.value = formatTime(time);
+  box.title = 'Where this bar starts — 10.80 or 0:10.80';
+  box.setAttribute('aria-label', `Start time of bar ${index + 1}`);
+
+  const err = document.createElement('span');
+  err.className = 'chord-time-err';
+  err.hidden = true;
+
+  // What is wrong with the value, where the value is — the panel is two lines
+  // over the music and an alert to dismiss on top of that is one thing too many.
+  const refuse = msg => { err.textContent = msg; err.hidden = false; };
+
+  const commit = () => {
+    const text = box.value.trim();
+    // Opened and nothing said: a way out, like Esc or a click on the music.
+    if (!text) { closeChordTimePins(); return; }
+    const t = parseTime(text);
+    if (t === null || isNaN(t)) { refuse(`"${text}" is not a time`); return; }
+    const { after, before } = barTimeBounds(index);
+    const low = after !== null && t <= after;
+    const high = before !== null && t >= before;
+    if (low || high) {
+      refuse(after !== null && before !== null
+        ? `Must fall between ${formatTime(after)} and ${formatTime(before)}`
+        : (low ? `Must be later than ${formatTime(after)}`
+               : `Must be earlier than ${formatTime(before)}`));
+      return;
+    }
+    setBarStart(index, t);
+  };
+
+  const now = document.createElement('button');
+  now.type = 'button';
+  now.className = 'chord-time-pin';
+  now.textContent = 'now📍';
+  now.title = 'Fill in the current playback time';
+  now.addEventListener('mousedown', e => e.preventDefault());
+  now.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Where the row is, not what the player says — the same reading the strip
+    // itself is drawn against. See askInsertBar.
+    box.value = formatTime(settledTime(currentPlaybackTime()));
+    err.hidden = true;
+    ok.classList.add('dirty');
+    box.focus();
+  });
+
+  const ok = document.createElement('button');
+  ok.type = 'button';
+  ok.className = 'chord-time-pin ok';
+  ok.textContent = '✓';
+  ok.title = 'Move this bar line here';
+  // Not mousedown-guarded like the rest: this one wants the box's value, and
+  // blurring it first is how the box gets read.
+  ok.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    commit();
+  });
+
+  box.addEventListener('input', () => {
+    err.hidden = true;
+    ok.classList.add('dirty');
+  });
+  box.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+  });
+
+  // now📍 fills the box, so it comes before it; ✓ takes what is in the box, so
+  // it comes after. The button that finishes the job is the one under the hand
+  // when the job is finished — at the far end of the row it was simply forgotten.
+  row.appendChild(now);
+  row.appendChild(box);
+  row.appendChild(ok);
+  row.appendChild(err);
+  return row;
 }
 
 // Anywhere else is a way out: the buttons are a question, and going back to the
