@@ -692,6 +692,29 @@ button.pin {
   color: var(--amber);
   font-weight: bold;
 }
+/* A bar with a time on it has its number as the way there, so the number is a
+   button. It reads as the text it replaced — the head has no room for anything
+   that looks like a button — and says what it is on hover, the way the time
+   beside it does. */
+button.chord-bar-no {
+  /* The padding is the hit area and the negative margin takes it back out of the
+     layout, so the number is reachable by thumb without the head growing or the
+     number moving by a pixel. Wider on the right than the left: that side is the
+     gap to the time beside it, which is the button it must not be mistaken for. */
+  padding: 7px 8px 7px 4px;
+  margin: -7px 0 -7px -4px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+button.chord-bar-no:hover,
+button.chord-bar-no:focus-visible {
+  color: var(--blue);
+  text-decoration: underline;
+}
 /* The number and the time stay together at the head's left edge; the auto
    margin is what keeps the + over on the right, where space-between had it
    back when the two were one label. */

@@ -1172,10 +1172,7 @@ function drawChordStrip(fromCache) {
       askInsertBar(i);
     });
     head.appendChild(insertBtn);
-    const label = document.createElement('span');
-    label.className = 'chord-bar-no';
-    label.textContent = String(i + 1);
-    head.appendChild(label);
+    head.appendChild(barNumber(i, spans[i].start));
     // A bar with a time on it carries the loop controls for that moment; one
     // without is just its number.
     if (spans[i].start !== null) head.appendChild(barTimePins(spans[i].start));
@@ -1408,6 +1405,36 @@ function insertBar(at, start) {
   openNotePanel(at, 0);
 }
 
+// The bar's number, which is also the way to the bar: click 9 and the video goes
+// to where bar 9 starts. Reading a transcription is jumping about in it — that
+// phrase again, then back four bars — and until now the only way there was
+// dragging the strip by hand, which is aiming at a time the sheet already knows
+// to the hundredth. A bar with no time on it is not a place to go, so that one
+// stays the plain number it always was.
+function barNumber(index, start) {
+  const text = String(index + 1);
+  if (start === null) {
+    const label = document.createElement('span');
+    label.className = 'chord-bar-no';
+    label.textContent = text;
+    return label;
+  }
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'chord-bar-no';
+  b.textContent = text;
+  b.title = `Jump to bar ${text} — ${formatTime(start)}`;
+  // Same reason as the chord ops: taking focus can blur an open box, which
+  // writes the sheet back and redraws the strip out from under this click.
+  b.addEventListener('mousedown', e => e.preventDefault());
+  b.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    seekToTime(start);
+  });
+  return b;
+}
+
 // The time in a bar head, which is also how a loop is marked out from the
 // sheet: click it and start📍 / end📍 appear, each dropping that bar's moment
 // into the box it names. Setting a range by ear means catching it twice as it
@@ -1586,7 +1613,15 @@ function chordDragX(drag, clientX) {
 }
 
 function seekFromStrip(x) {
-  const wanted = Math.max(0, chordTimeForX(x));
+  seekToTime(chordTimeForX(x));
+}
+
+// The same landing, asked for as a moment rather than as a place in the row —
+// which is what a bar head knows. Everything below is what dropping the strip
+// always did: clamp to the video, draw from the clamped time, and claim the
+// seek so the state handler doesn't read it as someone else pressing play.
+function seekToTime(t) {
+  const wanted = Math.max(0, t);
   let duration = 0;
   try {
     duration = player && typeof player.getDuration === 'function' ? player.getDuration() : 0;
@@ -1616,7 +1651,7 @@ chordViewport.addEventListener('pointerdown', e => {
   if (chordAnchors.length === 0) return;   // a sheet with no times has no timeline
   // A press on a box or a button is aiming at that, not at the strip: the caret
   // has to be placeable and a word has to be selectable by dragging over it.
-  if (e.target.closest && e.target.closest('.chord-bar-time, .chord-add')) return;
+  if (e.target.closest && e.target.closest('.chord-bar-time, .chord-add, button.chord-bar-no')) return;
   chordDrag = {
     pointerId: e.pointerId,
     fromX: e.clientX,
