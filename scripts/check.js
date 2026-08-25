@@ -334,6 +334,13 @@ const DRAWN = {
   'triplets-across-the-beat': '@0 Cm7 1/8:8 1/8:8t 1/10 1/12 1/8 1/10 1/12',
   // Quarter triplets and eighth triplets side by side are not one run.
   'two-triplet-values': '@0 Cm7 1/5:4t 1/7 1/8:8t 1/10 1/12 1/5 1/7',
+  // The figure the explicit-group work is for: a 3 bracket with two notes in it,
+  // the beat split 1:2 — an eighth and a quarter, which is how a swung beat is
+  // written. Read as values rather than as a bracket it is two triplets of one
+  // note each, so the staff draws two 3s at different heights and no bracket
+  // over either. The snapshot holds that wrong drawing until a triplet is a
+  // bracket over a range instead of a value on each note.
+  'one-to-two-inside-a-triplet': '@0 D7 4/4:8t 3/3+2/1:4t r:4 r:4 r:4',
   // A bar left longer than four beats — undoing a triplet does that, and the
   // notes past the end are still drawn where they sound.
   'bar-past-its-end':
@@ -399,6 +406,20 @@ const EDITED = [
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/8 1/10 1/12:8',
     run: ({ api, bars }) => { api.at(0, ...place(bars[0], 0)); },
     can: { triplet: false },
+  },
+  {
+    // The figure this piece of work is for: an eighth and a quarter in one 3
+    // bracket, which is how a swung beat is written. There is no way to reach it
+    // from the panel. The button writes three notes of one value, so the quarter
+    // is flattened to an eighth and the rest after it is pulled into the bracket
+    // to make up the three.
+    name: '3連ボタン: 1:2 に割った3連は作れない',
+    sheet: '@0 D7 4/4:8 3/3+2/1:4 r:4 r:4 r:4',
+    run: ({ api, bars }) => { api.at(0, ...place(bars[0], 0)); api.triplet(); },
+    text: 'D7 4/4:8t 3/3+2/1 r r:4 r',
+    beats: 3,
+    broken: '♩ が ♪ に潰され、次の休符まで括りに巻き込まれる。書きたいのは '
+      + '3/2{ 4/4:8 3/3+2/1:4 } で、1拍のまま 1:2 に割った形',
   },
   {
     name: '3連ボタン: 装飾音符では押せない',
