@@ -34,7 +34,7 @@ https://cortyuming.github.io/yt-loop/
 | `E` | Open / close the sheet editor (the strip's 🎼 Edit) |
 | `←` / `→` | Seek 0.05 seconds (move the caret when Start/End is focused) |
 | `Shift + ←` / `→` | Seek 1 second (nudge the value by 0.05s when Start/End is focused) |
-| While ♪ is open | The panel takes the keyboard: `← →` walk the note selection, `1`–`5` set the duration, `0` gives it no length, `.` dots it, `R` rest, `T` tie, `G` grace note, `S` stack, `Backspace` delete, `Esc` back to writing at the end and then closed. Seeking with `← →` comes back as soon as it is closed |
+| While ♪ is open | The panel takes the keyboard: `← →` walk the note selection, `1`–`5` set the duration, `0` gives it no length, `.` dots it, `,` brackets it and the two notes after it as a triplet (again to take the bracket off), `R` rest, `T` tie, `G` grace note, `S` stack, `I` opens room after it, `Backspace` delete, `Esc` back to writing at the end and then closed. Seeking with `← →` comes back as soon as it is closed |
 
 ## Sheet notation
 
@@ -59,6 +59,12 @@ https://cortyuming.github.io/yt-loop/
 | `r:4` | A rest, as long as it says |
 | `_:8` | Holds the note before it on for that much longer, without striking it again. Written at the head of a bar, this is a note carried over the bar line — the pitch is not written twice |
 | `1/3+2/3+3/2_` | The same for a chord: a tie with its strings written out holds those, so a chord carried over a bar line is drawn as the notes still ringing rather than as whatever happened to sound last |
+| `3/2{ 6/7:8 6/5:4 }` | A tuplet: a bracket over the notes between the braces, `3/2` reading "three in the time of two". What is inside is written at the value it has on paper, so a beat split 1:2 — an eighth and a quarter under one 3 — is written as it is played. The ratio is a fraction because the second number is not always guessable: `5/4{ }` and `5/6{ }` are both five. The brace belongs against the ratio, since `3/2` on its own is 3rd string, 2nd fret — written apart (`3/2 {`) it is joined back rather than read as that note. Brackets do not nest and do not cross a bar line |
+
+The older spelling for a triplet — a `t` on the duration, `8t 8t 8t` — is still
+read, and is rewritten as `3/2{ 8 8 8 }` when the sheet is saved. It said the
+same thing about three notes of one value and could say nothing about a bracket
+holding anything else, which is why the bracket is written out now.
 
 A bar with no end runs to the start of the next one; the last bar borrows the
 length of the one before it. **📍 Time** drops the current playback position in

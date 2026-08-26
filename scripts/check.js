@@ -106,7 +106,7 @@ const LIFTED = [
   'moveBlock', 'moveSelection', 'dropDanglingBeams', 'barHead', 'keepBarHeads',
   'selectedIsChord', 'canMoveSelection',
   // the triplet as one thing
-  'tripletGroupPlaces', 'noteCopy', 'noteCanDot', 'freeTripId',
+  'tripletGroupPlaces', 'noteCopy', 'freeTripId',
   // bars
   'roundTo', 'addBar', 'insertBar', 'barBeats', 'barBeatLabel',
   'setBarStart', 'barTimeBounds',
@@ -243,7 +243,6 @@ function open(sheet) {
       grace: () => toggleNoteGrace(),
       can: () => ({
         beam: noteCanBeam(), grace: noteCanGrace(), triplet: noteCanTriplet(),
-        dot: noteCanDot(),
       }),
       on: what => ({ beam: () => noteBeamOn(), grace: () => noteGraceOn() }[what]()),
       selection: () => ({ note: noteSel, gap: noteAfter }),
@@ -703,7 +702,6 @@ const EDITED = [
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.dot(); },
     text: 'Cm7 1/5:8 3/2{ 1/7 1/9:8. 1/10:8 } 1/12', beats: 13 / 6,
-    can: { dot: true },
   },
   {
     // The + opens its room where it was pressed, and a note written between two
@@ -712,6 +710,25 @@ const EDITED = [
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.board({ dur: 0.5 }); api.at(0, 0, 2); api.gap(); api.press(2, 9); },
     text: 'Cm7 1/5:8 3/2{ 1/7 1/9 2/9 1/10 } 1/12', beats: 7 / 3,
+  },
+  {
+    // The bracket already says the group is a triplet, so a note written into it
+    // with the board's triplet mark on is not two thirds of two thirds.
+    name: 'ギャップ: 板の3連マークが点いていても括弧の中では効かない',
+    sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
+    run: ({ api }) => {
+      api.board({ dur: 0.5, triplet: true });
+      api.at(0, 0, 2); api.gap(); api.press(2, 9);
+    },
+    text: 'Cm7 1/5:8 3/2{ 1/7 1/9 2/9 1/10 } 1/12', beats: 7 / 3,
+  },
+  {
+    // Pressing it again on a bracketed note takes the bracket off and leaves the
+    // values alone: three eighths that were a beat are a beat and a half again.
+    name: '3連ボタン: もう一度押すと括弧だけ外れる',
+    sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
+    run: ({ api }) => { api.at(0, 0, 2); api.triplet(); },
+    text: 'Cm7 1/5:8 1/7 1/9 1/10 1/12', beats: 2.5,
   },
 
   // ---- beams and grace notes ----

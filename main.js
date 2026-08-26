@@ -2567,7 +2567,13 @@ function putNote(ev) {
   // bracket grows. At either edge of one it stays outside, where inside and out
   // is not something the gap can say.
   const before = notes[at - 1], after = notes[at];
-  if (before && after && before.trip && before.trip === after.trip) ev.trip = before.trip;
+  if (before && after && before.trip && before.trip === after.trip) {
+    ev.trip = before.trip;
+    // The bracket already says the group is a triplet. A value written with the
+    // board's triplet mark on would say it a second time, and the note would be
+    // two thirds of two thirds of what it looks like.
+    ev.d = Chords.tripletBase(ev.d) || ev.d;
+  }
   notes.splice(at, 0, ev);
   noteSel = at;
   noteAfter = null;
@@ -2771,13 +2777,9 @@ function setNoteDur(d) {
 
 // A dot bends one note, and under a bracket it bends it the same way: a dotted
 // eighth inside a 3 is ordinary printed music once the bracket is what says the
-// group is a triplet, rather than the values inside it.
-function noteCanDot() {
-  return true;
-}
-
+// group is a triplet, rather than the values inside it. So there is nothing left
+// for the button to be down for, and it no longer has a rule of its own.
 function toggleNoteDot() {
-  if (!noteCanDot()) return;
   const ev = editingNote();
   if (ev) {
     ev.d = Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d * 1.5;
@@ -3448,16 +3450,16 @@ function renderNotePanel() {
     () => setNoteDur(NO_DUR), shown === NO_DUR, 'note-dur note-none');
   // The mark rather than the word, as the rest of the row is: the dot beside a
   // head, which is where it sits on a staff.
-  const dotBtn = button(lengthRow, Chords.dotGlyph(0.8),
-    'Half again as long (key .). Down on a note in a triplet, which has no dot '
-    + 'to give it',
+  button(lengthRow, Chords.dotGlyph(0.8),
+    'Half again as long (key .)',
     toggleNoteDot, shownDot, 'note-dur');
-  if (!noteCanDot()) dotBtn.disabled = true;
   // The mark itself rather than the number: three stems under the beam the chosen
   // value carries, so the button changes with the value it is about to bend.
   const tripBtn = button(lengthRow, Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
-    'Triplet — three of these in the time of two, marked on this note and the '
-    + 'two after it (key ,). Down where the bar has not three left to mark',
+    'Triplet — a bracket over this note and the two after it, three in the time '
+    + 'of two (key ,). What is inside keeps its own value, so the three can be '
+    + 'changed to an eighth and a quarter afterwards. Press again to take the '
+    + 'bracket off. Down where the bar has not three left to bracket',
     toggleNoteTriplet, shownTriplet, 'note-trip');
   if (!noteCanTriplet()) tripBtn.disabled = true;
   // Beaming, beside the triplet: both are about a run rather than a single note,
