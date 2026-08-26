@@ -3295,8 +3295,9 @@ function renderNotePanel() {
   const ev = editingNote();
   const beats = noteStretchBeats();
   // A grace note takes no time from the bar, so it is not part of what is
-  // written into it.
-  const used = notes.reduce((a, n) => a + (n.grace ? 0 : n.d), 0);
+  // written into it. A note under a tuplet bracket takes the bracket's share of
+  // its written value — see eventDur — so the count here says what the bar hears.
+  const used = notes.reduce((a, n) => a + (n.grace ? 0 : Chords.eventDur(n)), 0);
 
   notePanel.hidden = false;
   notePanel.textContent = '';

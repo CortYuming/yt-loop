@@ -408,6 +408,32 @@ const EDITED = [
     can: { triplet: false },
   },
   {
+    // The bracket's whole point is that the time it takes is the ratio's, not
+    // the values written inside it: an eighth and a quarter written under 3/2
+    // are two thirds of each, which is the one beat a swung beat is.
+    name: '連符: 1:2 に割った3連は1拍',
+    sheet: '@0 D7 3/2{ 4/4:8 3/3+2/1:4 } r:4 r:4 r:4',
+    run: () => {},
+    beats: 4,
+  },
+  {
+    // Five sixteenths in the time of four. Nothing has to know what a 5 means —
+    // the ratio is written out and the beats fall out of it.
+    name: '連符: 5連は分数のまま数えられる',
+    sheet: '@0 Cm7 5/4{ 1/5:16 1/7 1/8 1/10 1/12 } r:4 r:4 r:4',
+    run: () => {},
+    beats: 4,
+  },
+  {
+    // A bracket does not cross a bar line: a bar is parsed on its own, so one
+    // left open ends with the bar and the next bar starts outside it.
+    name: '連符: 閉じ忘れた括弧は小節で終わる',
+    sheet: '@0 Cm7 3/2{ 1/8:8 1/10 1/12|@2 Cm7 1/8:4 1/10 1/12 1/5',
+    run: () => {},
+    beats: 1,
+    then: [{ bar: 1, beats: 4 }],
+  },
+  {
     // The figure this piece of work is for: an eighth and a quarter in one 3
     // bracket, which is how a swung beat is written. There is no way to reach it
     // from the panel. The button writes three notes of one value, so the quarter
@@ -794,6 +820,42 @@ const EDITED = [
 // catches a form that reads back as something other than what it was written as,
 // which is the way a sheet quietly changes while nobody is editing it.
 const WRITTEN = [
+  {
+    // The figure the explicit bracket is for: one beat split 1:2, written as the
+    // eighth and the quarter that are on the paper.
+    name: '読み書き: 1:2 に割った3連',
+    sheet: '@0 D7 3/2{ 4/4:8 3/3+2/1:4 } r:4 r:4 r:4',
+    text: '@0.00 D7 3/2{ 4/4:8 3/3+2/1:4 } r r r',
+  },
+  {
+    // `3/2` on its own is a note, so the brace has to be written against the
+    // ratio. Written apart it is joined back rather than read as that note and a
+    // chord named `{`.
+    name: '読み書き: 3/2 { と空けて書いても連符になる',
+    sheet: '@0 D7 3/2 { 4/4:8 3/3+2/1:4 } r:4',
+    text: '@0.00 D7 3/2{ 4/4:8 3/3+2/1:4 } r',
+  },
+  {
+    // A bracket is always one deep: a second one opened inside leaves the first
+    // alone, and comes back written as the one bracket it was read as.
+    name: '読み書き: 入れ子の連符は1つに畳まれる',
+    sheet: '@0 Cm7 3/2{ 1/8:8 3/2{ 1/10 } 1/12 }',
+    text: '@0.00 Cm7 3/2{ 1/8:8 1/10 1/12 }',
+  },
+  {
+    // A bracket may run under a chord change, and comes back as one bracket
+    // rather than one per stretch.
+    name: '読み書き: コード変更をまたぐ連符',
+    sheet: '@0 Eb9 3/2{ 1/6:8 Bbm7 1/9 1/10 }',
+    text: '@0.00 Eb9 3/2{ 1/6:8 Bbm7 1/9:8 1/10 }',
+  },
+  {
+    // Five in the time of four. The ratio is written out, so nothing has to know
+    // what a 5 means.
+    name: '読み書き: 5連',
+    sheet: '@0 Cm7 5/4{ 1/5:16 1/7 1/8 1/10 1/12 }',
+    text: '@0.00 Cm7 5/4{ 1/5:16 1/7 1/8 1/10 1/12 }',
+  },
   {
     name: '読み書き: 付点・タイ・3連・押弦つきのコード名',
     sheet: '@5.07-7.60 Bb7:1.1.1.0.. 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 2/6+3/7:8t 3/6+4/7 3/6+4/7',

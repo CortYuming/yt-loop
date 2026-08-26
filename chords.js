@@ -352,6 +352,34 @@ const Chords = (() => {
   // on and taking no time of its own from the bar, which is why it is written as
   // a mark on the note rather than as a length.
   const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*_?)|r|_)(?:\(([^)]*)\))?(\*)?(?::(\d{1,2}[.t]?))?(-)?$/;
+
+  // A tuplet is a bracket over a range of notes with its ratio written out:
+  // `3/2{ 4/4:8 3/3+2/1:4 }` is three in the time of two, holding an eighth and
+  // a quarter. What it holds is whatever is written between the braces, which is
+  // what a bracket means on paper — two notes of different values as readily as
+  // three of one.
+  // The ratio is a fraction rather than a lone number because the denominator is
+  // not always guessable: five in the time of four and five in the time of six
+  // are both written 5, and a lone number would need a table that is wrong for
+  // one of them.
+  const TUPLET_OPEN = /^(\d{1,2})\/(\d{1,2})\{$/;
+  const TUPLET_RATIO = /^\d{1,2}\/\d{1,2}$/;
+  // The brace has to be written against the ratio, because `3/2` on its own is a
+  // note — third string, second fret. Written apart it is joined back here
+  // rather than read as that note followed by a chord named `{`, which is what
+  // it would otherwise silently become.
+  function joinTupletBraces(tokens) {
+    const out = [];
+    for (let i = 0; i < tokens.length; i++) {
+      if (tokens[i + 1] === '{' && TUPLET_RATIO.test(tokens[i])) {
+        out.push(`${tokens[i]}{`);
+        i++;
+        continue;
+      }
+      out.push(tokens[i]);
+    }
+    return out;
+  }
   // Long enough to be the whole of a bar, short enough to still be a note.
   const DEFAULT_DUR = 0.5;
 
@@ -456,13 +484,18 @@ const Chords = (() => {
 
   // The notes of one chord's stretch as text, leaving out every duration that
   // repeats the one before it.
-  function notesToText(notes) {
+  // `open` is the bracket standing open at this point in the bar. A tuplet is
+  // written where it opens and closes rather than marked on each note, and it
+  // may run under a chord change, so the state is handed in from the bar rather
+  // than kept here — see toCompact, which closes one left open at the end.
+  function notesToText(notes, open) {
+    const carry = open || { id: null };
     let last = null;
     // A stop left bare reads back as having no length only where it is the whole
     // of the stretch — see markFreeNotes. Anywhere else a bare stop takes the
     // duration of the run around it, so there the lack of one is written out.
     const alone = (notes || []).length === 1;
-    return (notes || []).map(ev => {
+    const word = ev => {
       const struck = (ev.stops || []).map(st => `${st.string}/${st.fret}`).join('+');
       const body = (ev.rest ? 'r'
         // A tie that knows which strings it holds says so — see parseNoteToken.
@@ -479,7 +512,15 @@ const Chords = (() => {
       if (ev.grace) return `${body}*:${durText(ev.d) || '8'}`;
       last = ev.d;
       return body + d + join;
-    }).join(' ');
+    };
+    const out = [];
+    for (const ev of notes || []) {
+      const trip = ev.trip || null;
+      if (carry.id && (!trip || trip.id !== carry.id)) { out.push('}'); carry.id = null; }
+      if (trip && !carry.id) { out.push(`${trip.num}/${trip.den}{`); carry.id = trip.id; }
+      out.push(word(ev));
+    }
+    return out.join(' ');
   }
 
   // A stop with more than one string in it is a shape — the same thing a chord
@@ -605,13 +646,22 @@ const Chords = (() => {
     return keys;
   }
 
+  // What a note takes from the bar. Inside a tuplet that is its written value
+  // times the bracket's share of it: `3/2{ 8 8 8 }` is three eighths written and
+  // one beat played. Every place a bar is measured comes through noteBeats, so
+  // this is the only place the ratio has to be applied.
+  function eventDur(ev) {
+    const t = ev && ev.trip;
+    return t ? ev.d * (t.den / t.num) : ev.d;
+  }
+
   function noteBeats(notes) {
     let at = 0;
     const out = (notes || []).map((ev, index) => {
       const b = at;
       // A grace note takes no time from the bar: it stands on the beat of the
       // note it leans on, and is only drawn ahead of it — see `back`.
-      if (!ev.grace) at += ev.free ? 0 : ev.d;
+      if (!ev.grace) at += ev.free ? 0 : eventDur(ev);
       return { ev, beat: b, index, back: 0, stack: 0 };
     });
     // Events with no length of their own all begin on the same beat — a
@@ -662,14 +712,37 @@ const Chords = (() => {
 
   function parseBar(barText) {
     const bar = { start: null, end: null, chords: [] };
-    const tokens = barText.match(TOKEN) || [];
+    const tokens = joinTupletBraces(barText.match(TOKEN) || []);
     // Durations carry across a chord change within a bar: a run of eighths
     // written over two chords is one run to whoever wrote it.
     let lastDur = null;
+    // The bracket open at this point in the bar, and how many have been opened,
+    // so each gets a name of its own to be grouped by. A bracket does not cross
+    // a bar line — a bar is parsed on its own here — and an unclosed one ends
+    // with the bar.
+    // `depth` counts the braces rather than the brackets: a `{` written inside
+    // an open bracket adds nothing to read, but its `}` must not be the one that
+    // closes the bracket around it.
+    let open = null, groups = 0, depth = 0;
     for (const token of tokens) {
       if (token[0] === '@') {
         const t = parseBarTime(token);
         if (t) { bar.start = t.start; bar.end = t.end; }
+        continue;
+      }
+      // Nesting is not read: a second `{` inside an open bracket leaves the one
+      // already open alone, so a bracket is always one deep and a note belongs
+      // to one of them.
+      const opened = TUPLET_OPEN.exec(token);
+      if (opened) {
+        if (open) { depth++; continue; }
+        const num = Number(opened[1]), den = Number(opened[2]);
+        if (num > 0 && den > 0) { open = { id: `g${++groups}`, num, den }; depth = 1; }
+        continue;
+      }
+      if (token === '}') {
+        if (depth > 0) depth--;
+        if (!depth) open = null;
         continue;
       }
       // Notes belong to the chord in front of them. A phrase written with no
@@ -678,8 +751,13 @@ const Chords = (() => {
       // ordinary thing to write down.
       const note = parseNoteToken(token, lastDur);
       if (note) {
+        // The bracket is carried on every note under it, ratio and all, so a
+        // stretch can be measured without being handed the bar it sits in.
+        if (open) note.trip = open;
         // A note with no length of its own is not what the run is measured by:
-        // the eighths on either side of a chord are one run.
+        // the eighths on either side of a chord are one run. It is the written
+        // value that carries, not the time it sounds for, so a run that begins
+        // inside a bracket and goes on outside it reads the same either side.
         if (!note.free && !note.grace) lastDur = note.d;
         let target = bar.chords[bar.chords.length - 1];
         if (!target) { target = { name: '', markers: null }; bar.chords.push(target); }
@@ -903,15 +981,21 @@ const Chords = (() => {
       const head = bar.start === null
         ? ''
         : `@${bar.start.toFixed(2)}${bar.end === null ? '' : `-${bar.end.toFixed(2)}`} `;
+      // One bracket state for the whole bar, so a tuplet under a chord change is
+      // written as one bracket rather than one per stretch.
+      const open = { id: null };
       const chords = bar.chords
         .map(c => {
           const head = c.markers ? `${c.name}:${markersToText(c.markers)}` : c.name;
           if (!c.notes || !c.notes.length) return head;
-          const played = notesToText(c.notes);
+          const played = notesToText(c.notes, open);
           return head ? `${head} ${played}` : played;
         })
         .join(' ');
-      return (head + chords).trim();
+      // A bracket that runs to the end of the bar is closed here: a bar is
+      // parsed on its own, so one left open would come back holding nothing.
+      const close = open.id ? ' }' : '';
+      return (head + chords + close).trim();
     }).join(sep);
     // First, so the sheet reads as what it is before it reads as where it goes.
     return key ? (body ? `key: ${key}${sep}${body}` : `key: ${key}`) : body;
@@ -2540,7 +2624,7 @@ const Chords = (() => {
     readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
     staffRange, staffBar, staffHead, staffHeadWidth,
     // single notes
-    parseNoteToken, parseDur, durText, notesToText, noteBeats, isDottedDur,
+    parseNoteToken, parseDur, durText, notesToText, noteBeats, eventDur, isDottedDur,
     tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, beatWeights,
     isTripletDur, tripletBase, tripletGroups, tripletGlyph, beamGlyph, graceGlyph,
     dotGlyph, tieGlyph,
