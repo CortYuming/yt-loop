@@ -2547,12 +2547,10 @@ function insertAfterNote() {
   const notes = noteEntries();
   if (!notes.length) return;
   const at = noteSel !== null ? noteSel : notes.length - 1;
-  // Room after a triplet rather than inside it: a fourth note among the three
-  // would be a fourth in the time of two — see tripletGroupPlaces.
-  const group = tripletGroupPlaces(notePanelAt.chord, at);
-  const last = group.length ? group[group.length - 1] : null;
-  if (last) notePanelAt = { bar: notePanelAt.bar, chord: last.cell };
-  noteAfter = last ? last.index : at;
+  // Room right where the + was pressed, inside a bracket as readily as outside
+  // one: a bracket holds whatever is written in it — see putNote for what the
+  // note written into the gap joins.
+  noteAfter = at;
   noteSel = null;
   renderChordStrip(true);
   renderNotePanel();
@@ -2565,6 +2563,17 @@ function putNote(ev) {
   const notes = noteEntries();
   if (noteAfter === null) { notes.push(ev); return; }
   const at = Math.min(noteAfter + 1, notes.length);
+  // Written between two notes of one bracket, it joins them — which is how a
+  // bracket grows. At either edge of one it stays outside, where inside and out
+  // is not something the gap can say.
+  const before = notes[at - 1], after = notes[at];
+  if (before && after && before.trip && before.trip === after.trip) {
+    ev.trip = before.trip;
+    // The bracket already says the group is a triplet. A value written with the
+    // board's triplet mark on would say it a second time, and the note would be
+    // two thirds of two thirds of what it looks like.
+    ev.d = Chords.tripletBase(ev.d) || ev.d;
+  }
   notes.splice(at, 0, ev);
   noteSel = at;
   noteAfter = null;
@@ -2588,7 +2597,11 @@ function pressStop(string, fret) {
       ev.stops = stackStop(ev.stops, string, fret);
       delete ev.rest;
     } else {
-      notes[noteSel] = { d: ev.d, stops: [{ string, fret }], free: ev.free };
+      // It keeps its place under a bracket: tapping the right string to correct
+      // a wrong one is not a reason to fall out of the triplet.
+      const put = { d: ev.d, stops: [{ string, fret }], free: ev.free };
+      if (ev.trip) put.trip = ev.trip;
+      notes[noteSel] = put;
     }
     commitNotes();
     return;
@@ -2599,6 +2612,16 @@ function pressStop(string, fret) {
   } else if (noteDur === NO_DUR) notes.push({ d: 1, stops: [{ string, fret }], free: true });
   else notes.push({ d: noteValue(), stops: [{ string, fret }] });
   commitNotes();
+}
+
+// A name for a new bracket that no bracket in the bar is using. The sheet is
+// written out and read back on every edit, and that is where the names are
+// really settled — this one only has to last until then.
+function freeTripId() {
+  const taken = new Set(barNoteEvents().map(p => p.ev.trip && p.ev.trip.id));
+  let n = 1;
+  while (taken.has(`g${n}`)) n++;
+  return `g${n}`;
 }
 
 // One more string in a shape. A string already in it moves to where it was just
@@ -2642,7 +2665,15 @@ function copyNote() {
   if (group.length) {
     const last = group[group.length - 1];
     const into = chordCache.bars[notePanelAt.bar].chords[last.cell].notes;
-    into.splice(last.index + 1, 0, ...group.map(p => noteCopy(p.ev)));
+    // A bracket of their own: the same figure struck again, rather than six
+    // notes crowded under the one bracket the three came from.
+    const from = group[0].ev.trip;
+    const trip = { id: freeTripId(), num: from.num, den: from.den };
+    into.splice(last.index + 1, 0, ...group.map(p => {
+      const copy = noteCopy(p.ev);
+      copy.trip = trip;
+      return copy;
+    }));
     notePanelAt = { bar: notePanelAt.bar, chord: last.cell };
     noteSel = last.index + 1;
     noteAfter = null;
@@ -2730,11 +2761,10 @@ function setNoteDur(d) {
   // markFreeNotes.
   if (ev) {
     if (d === NO_DUR) { ev.free = true; delete ev.grace; }
-    else if (Chords.isTripletDur(ev.d)) {
-      // Three notes of one value, so re-timing one re-times the three: an eighth
-      // triplet with a quarter triplet in the middle of it is not a triplet.
-      for (const n of tripletGroup()) { n.d = d * (2 / 3); delete n.free; }
-    } else {
+    else {
+      // A note under a bracket takes the new value on its own. The bracket says
+      // what the group is, so what it holds is free to be an eighth and a
+      // quarter — which is how a swung beat is written.
       ev.d = Chords.isDottedDur(ev.d) ? d * 1.5 : d;
       delete ev.free;
     }
@@ -2745,21 +2775,14 @@ function setNoteDur(d) {
   renderNotePanel();
 }
 
-// A dot bends one note. A note in a triplet is one of three filling the time of
-// two, and there is no dotted triplet in this notation — see toggleNoteTriplet —
-// so the button is down on one rather than dotting it and leaving the other two
-// a triplet of two.
-function noteCanDot() {
-  const ev = editingNote();
-  return !ev || !Chords.isTripletDur(ev.d);
-}
-
+// A dot bends one note, and under a bracket it bends it the same way: a dotted
+// eighth inside a 3 is ordinary printed music once the bracket is what says the
+// group is a triplet, rather than the values inside it. So there is nothing left
+// for the button to be down for, and it no longer has a rule of its own.
 function toggleNoteDot() {
-  if (!noteCanDot()) return;
   const ev = editingNote();
   if (ev) {
-    const base = Chords.tripletBase(ev.d) || ev.d;
-    ev.d = Chords.isDottedDur(ev.d) ? ev.d / 1.5 : base * 1.5;
+    ev.d = Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d * 1.5;
     delete ev.free;
     commitNotes();
     return;
@@ -2787,32 +2810,54 @@ function toggleNoteTriplet() {
     return;
   }
   if (!noteCanTriplet()) return;
-  const group = tripletGroup();
-  if (Chords.isTripletDur(ev.d)) {
-    for (const n of group) { n.d = Chords.tripletBase(n.d); delete n.free; }
+  if (ev.trip) {
+    // Pressing it again on a bracket lets the last note out of it, and pressing
+    // it on a bracket of two takes the bracket off. So the button counts down —
+    // three, two, none — and two notes under one 3, which is how a swung beat is
+    // written, is two presses rather than a bracket and a deletion.
+    // Nothing is deleted on the way: the note let out keeps its value and its
+    // place, and the bar goes back to the length it had.
+    const group = tripletGroupPlaces(notePanelAt.chord, noteSel);
+    if (group.filter(p => !p.ev.grace).length > 2) {
+      // The last note counted, and the grace notes leaning on it, which go with
+      // it rather than being left at the end of the bracket alone.
+      let last = group.length - 1;
+      while (last > 0 && group[last].ev.grace) last--;
+      for (let i = group.length - 1; i >= last; i--) delete group[i].ev.trip;
+      const out = group[last];
+      // The next press goes on counting down the same bracket, so the selection
+      // follows it in when the note it was on is the one let out.
+      const kept = last > 0 ? group[last - 1] : null;
+      if (kept && out.cell === notePanelAt.chord && out.index === noteSel) {
+        notePanelAt = { bar: notePanelAt.bar, chord: kept.cell };
+        noteSel = kept.index;
+      }
+    } else {
+      for (const p of group) delete p.ev.trip;
+    }
   } else {
-    const base = Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d;
-    for (const n of group) { n.d = base * (2 / 3); delete n.free; }
+    // A name of its own, so the bracket is not read as part of one beside it.
+    const trip = { id: freeTripId(), num: 3, den: 2 };
+    for (const note of tripletGroup()) note.trip = trip;
   }
   commitNotes();
 }
 
-// Three notes make a triplet, so the button is down where there are not three
-// to mark: the last two notes of a bar are not a triplet of their own, and
-// marking them left a 3 over two notes and a bar half a beat too long. Undoing
-// one is always allowed — whatever the staff brackets can be unbracketed. With
-// no note selected the button is the value the next one is written with, and
-// there is nothing yet for it to be wrong about.
+// Two notes under one 3 is a swung beat, which is ordinary printed music, so two
+// is enough to bracket. Three is what the button reaches for; two is what it
+// settles for at the end of a bar, or up against a bracket already there. One is
+// not a group, and that is the only place the button is down.
+// A grace note and a lengthless stop take no time from the bar, so neither is
+// one of the notes counted, and neither can be the note the bracket starts on.
+// Taking a bracket off is always allowed — whatever the staff brackets can be
+// unbracketed. With no note selected the button is the value the next one is
+// written with, and there is nothing yet for it to be wrong about.
 function noteCanTriplet() {
   const ev = editingNote();
   if (!ev) return true;
   if (ev.free || ev.grace) return false;
-  if (Chords.isTripletDur(ev.d)) return true;
-  const group = tripletGroup();
-  // Three, and three that are not already in a triplet: marking two of somebody
-  // else's three and one plain note left a run of four, which is a triplet and a
-  // spare note wherever the reader looks at it.
-  return group.length === 3 && !group.some(n => Chords.isTripletDur(n.d));
+  if (ev.trip) return true;
+  return tripletGroup().filter(n => !n.grace).length >= 2;
 }
 
 // Beaming a run by hand: this note and the next are drawn as one gesture,
@@ -2919,14 +2964,25 @@ function tripletGroup() {
   const all = barNoteEvents();
   const at = all.findIndex(p => p.cell === notePanelAt.chord && p.index === noteSel);
   if (at < 0) return [];
-  // Going in: the selected note and the two struck after it. A grace note takes
-  // no time from the bar, so it is not one of the three and is stepped over.
-  if (!Chords.isTripletDur(all[at].ev.d)) {
+  // Going in: the selected note and what follows it, up to three notes.
+  // The run stops at a note already under a bracket and at a stop written with
+  // no length: neither can be one of the notes a bracket is over, and reaching
+  // past one would bracket a note that is somebody else's or no note at all.
+  // A grace note takes no time from the bar, so it is not one of the three — but
+  // it stands among them and is kept inside the bracket. Left out, the bracket
+  // would be written as the two brackets its notes are no longer next to each
+  // other in.
+  if (!all[at].ev.trip) {
     const out = [];
-    for (let i = at; i < all.length && out.length < 3; i++) {
-      if (all[i].ev.grace) continue;
-      out.push(all[i].ev);
+    let counted = 0;
+    for (let i = at; i < all.length && counted < 3; i++) {
+      const ev = all[i].ev;
+      if (ev.trip || ev.free) break;
+      out.push(ev);
+      if (!ev.grace) counted++;
     }
+    // One leaning on the note after the bracket leans outside it.
+    while (out.length && out[out.length - 1].grace) out.pop();
     return out;
   }
   // Coming out: the notes the staff brackets with the selected one. A run of six
@@ -2961,24 +3017,9 @@ function deleteNote() {
   const notes = noteEntries();
   const at = noteSel !== null ? noteSel : notes.length - 1;
   if (at < 0 || at >= notes.length) return;
-  // The whole triplet goes: two of the three left behind are a triplet of two.
-  const group = tripletGroupPlaces(notePanelAt.chord, at);
-  if (group.length) {
-    const bar = chordCache.bars[notePanelAt.bar];
-    // From the end, so the places ahead of each one are still where they were.
-    for (let i = group.length - 1; i >= 0; i--) {
-      (bar.chords[group[i].cell].notes || []).splice(group[i].index, 1);
-    }
-    const head = group[0];
-    notePanelAt = { bar: notePanelAt.bar, chord: head.cell };
-    const left = bar.chords[head.cell].notes || [];
-    noteAfter = null;
-    if (noteSel !== null) {
-      noteSel = left.length ? Math.min(head.index, left.length - 1) : null;
-    }
-    commitNotes();
-    return;
-  }
+  // One note, whether or not it is under a bracket. The bracket is written over
+  // a range and says nothing about how many notes fill it, so the two left
+  // behind are a bracket over two — which is what a swung beat is.
   notes.splice(at, 1);
   noteAfter = null;
   if (noteSel !== null) noteSel = notes.length ? Math.min(at, notes.length - 1) : null;
@@ -3295,8 +3336,9 @@ function renderNotePanel() {
   const ev = editingNote();
   const beats = noteStretchBeats();
   // A grace note takes no time from the bar, so it is not part of what is
-  // written into it.
-  const used = notes.reduce((a, n) => a + (n.grace ? 0 : n.d), 0);
+  // written into it. A note under a tuplet bracket takes the bracket's share of
+  // its written value — see eventDur — so the count here says what the bar hears.
+  const used = notes.reduce((a, n) => a + (n.grace ? 0 : Chords.eventDur(n)), 0);
 
   notePanel.hidden = false;
   notePanel.textContent = '';
@@ -3416,10 +3458,10 @@ function renderNotePanel() {
   const lengthRow = row('Length');
   const shown = ev
     ? (ev.free ? NO_DUR
-      : (Chords.isDottedDur(ev.d) ? ev.d / 1.5 : Chords.tripletBase(ev.d) || ev.d))
+      : (Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d))
     : noteDur;
   const shownDot = ev ? (!ev.free && Chords.isDottedDur(ev.d)) : noteDotted;
-  const shownTriplet = ev ? (!ev.free && Chords.isTripletDur(ev.d)) : noteTriplet;
+  const shownTriplet = ev ? (!ev.free && !!ev.trip) : noteTriplet;
   NOTE_DURATIONS.forEach(([d, name], i) => {
     const b = button(
       lengthRow,
@@ -3440,16 +3482,18 @@ function renderNotePanel() {
     () => setNoteDur(NO_DUR), shown === NO_DUR, 'note-dur note-none');
   // The mark rather than the word, as the rest of the row is: the dot beside a
   // head, which is where it sits on a staff.
-  const dotBtn = button(lengthRow, Chords.dotGlyph(0.8),
-    'Half again as long (key .). Down on a note in a triplet, which has no dot '
-    + 'to give it',
+  button(lengthRow, Chords.dotGlyph(0.8),
+    'Half again as long (key .)',
     toggleNoteDot, shownDot, 'note-dur');
-  if (!noteCanDot()) dotBtn.disabled = true;
   // The mark itself rather than the number: three stems under the beam the chosen
   // value carries, so the button changes with the value it is about to bend.
   const tripBtn = button(lengthRow, Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
-    'Triplet — three of these in the time of two, marked on this note and the '
-    + 'two after it (key ,). Down where the bar has not three left to mark',
+    'Triplet — a bracket over this note and the two after it, three in the time '
+    + 'of two (key ,). Press again to let the last note out, and again to take '
+    + 'the bracket off, so two notes under one 3 is two presses. What is inside '
+    + 'keeps its own value, so an eighth and a quarter under one 3 — a swung '
+    + 'beat — is written as it is played. Down where the bar has not three left '
+    + 'to bracket',
     toggleNoteTriplet, shownTriplet, 'note-trip');
   if (!noteCanTriplet()) tripBtn.disabled = true;
   // Beaming, beside the triplet: both are about a run rather than a single note,
