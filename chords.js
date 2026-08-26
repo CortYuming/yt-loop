@@ -24,8 +24,13 @@ const Chords = (() => {
   // The same two tables guitar-chord-viewer uses, so a shape read in one app is
   // spelled the same in the other. Which one applies is the accidental question
   // again: a flat key gets the flat syllables.
-  const SOLFEGE_SHARP = ['do', 'di', 're', 'ri', 'mi', 'fa', 'fi', 'so', 'si', 'la', 'li', 'ti'];
-  const SOLFEGE_FLAT  = ['do', 'ro', 're', 'mo', 'mi', 'fa', 'swo', 'so', 'lo', 'la', 'to', 'ti'];
+  // Written a letter at a time: the naturals are one letter and the altered
+  // syllables two, so the length of a label says whether the note is bent
+  // before the letter is even read. Spelled out — `do`, `swo` — the words are
+  // wider than the dot they sit in, and a dot that has to shrink its label is a
+  // dot that cannot be read at all.
+  const SOLFEGE_SHARP = ['d', 'di', 'r', 'ri', 'm', 'f', 'fi', 's', 'si', 'l', 'li', 't'];
+  const SOLFEGE_FLAT  = ['d', 'ro', 'r', 'mo', 'm', 'f', 'sw', 's', 'lo', 'l', 'to', 't'];
   const NOTES_SHARP = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
   const NOTES_FLAT  = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
   // Open strings in semitones, 1st string first — the row order the viewer uses.
@@ -46,6 +51,11 @@ const Chords = (() => {
   // flipped colour as the shape moved up the neck, which is motion that means
   // nothing, and the dot's own hue is where the degree is said anyway.
   const DOT_INK = '#ffffff';
+
+  // A muted note is a knock, not a pitch: the string is stopped rather than
+  // sounded, so there is no degree for it to wear the colour of. Grey says that,
+  // and says it the same way on the staff and in the tab.
+  const DEAD_INK = '#9aa0a0';
 
   const AUG5 = [{ n: 5, sign: '♯', adjusted: 8 }];
   const ALT_TENSIONS = [
@@ -351,7 +361,12 @@ const Chords = (() => {
   // A `*` after the stop is a grace note: struck just before the note it leans
   // on and taking no time of its own from the bar, which is why it is written as
   // a mark on the note rather than as a length.
-  const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}(?:\+[1-6]\/\d{1,2})*_?)|r|_)(?:\(([^)]*)\))?(\*)?(?::(\d{1,2}[.t]?))?(-)?$/;
+  // An `x` on a string is a muted note — that string stopped with the left hand
+  // and struck anyway, a knock rather than a pitch. It is written on the string
+  // rather than on the whole stop, because that is how it is played: a chord
+  // with its top voice ringing over three muted courses is one stroke, and the
+  // page draws crosses under a note head. `2/6x+3/6x+4/6` is that stroke.
+  const NOTE_TOKEN = /^((?:[1-6]\/\d{1,2}x?(?:\+[1-6]\/\d{1,2}x?)*_?)|r|_)(?:\(([^)]*)\))?(\*)?(?::(\d{1,2}[.t]?))?(-)?$/;
 
   // A tuplet is a bracket over a range of notes with its ratio written out:
   // `3/2{ 4/4:8 3/3+2/1:4 }` is three in the time of two, holding an eighth and
@@ -443,7 +458,10 @@ const Chords = (() => {
     const tied = body.endsWith('_');
     const stops = (tied ? body.slice(0, -1) : body).split('+').map(part => {
       const [str, fret] = part.split('/');
-      return { string: Number(str), fret: Number(fret) };
+      const muted = fret.endsWith('x');
+      const stop = { string: Number(str), fret: Number(muted ? fret.slice(0, -1) : fret) };
+      if (muted) stop.dead = true;
+      return stop;
     });
     // A fret past the end of the neck is a typo, not a note.
     if (stops.some(st => st.fret > 22)) return null;
@@ -463,6 +481,9 @@ const Chords = (() => {
       delete ev.noDur;
       delete ev.free;
       delete ev.grace;
+      // A tie is what is still ringing, and a muted string is not ringing: the
+      // strings it names are the ones being held on.
+      for (const st of ev.stops) delete st.dead;
     }
     // A name on a rest or a tie has nothing to hold it, so only a struck note
     // carries one.
@@ -496,7 +517,8 @@ const Chords = (() => {
     // duration of the run around it, so there the lack of one is written out.
     const alone = (notes || []).length === 1;
     const word = ev => {
-      const struck = (ev.stops || []).map(st => `${st.string}/${st.fret}`).join('+');
+      const struck = (ev.stops || [])
+        .map(st => `${st.string}/${st.fret}${st.dead ? 'x' : ''}`).join('+');
       const body = (ev.rest ? 'r'
         // A tie that knows which strings it holds says so — see parseNoteToken.
         : ev.tie ? (struck ? `${struck}_` : '_')
@@ -560,7 +582,10 @@ const Chords = (() => {
   // Whether two stops name the same strings at the same frets — the test for
   // "nothing new sounds here", which is the whole of what a tie is meant to be.
   function sameStops(a, b) {
-    const key = st => `${st.string}/${st.fret}`;
+    // Muted or not is part of what a stop is here: a shape struck dead and the
+    // same shape ringing are not the same event, and a tie after the one cannot
+    // be holding the other on.
+    const key = st => `${st.string}/${st.fret}${st.dead ? 'x' : ''}`;
     return (a || []).map(key).sort().join(' ') === (b || []).map(key).sort().join(' ');
   }
 
@@ -1046,10 +1071,16 @@ const Chords = (() => {
       .replace(/#(\d)/g, '♯$1');
   }
 
-  function viewerUrl(chord) {
+  // `n=s` is how the viewer is asked to label its lower fretboard with solfège
+  // rather than degrees — its own switch writes the same thing into its URL.
+  // Only worth asking for where the chord being opened is the key itself: the
+  // viewer reads do from the chord's root, so on any other chord its do is that
+  // chord's root, which is not the reading a sheet with a key is written in.
+  function viewerUrl(chord, opts) {
     const params = new URLSearchParams();
     params.set('c', chord.name);
     if (chord.markers) params.set('m', markersToText(chord.markers));
+    if (opts && opts.solfege) params.set('n', 's');
     return `https://cortyuming.github.io/guitar-chord-viewer/?${params.toString()}`;
   }
 
@@ -1347,7 +1378,7 @@ const Chords = (() => {
     const midi = OPEN_MIDI[stop.string - 1] + stop.fret + WRITTEN_8VA;
     const note = staffNote(midi, spellsFlat(chordName, key), signedLetters(key));
     return { step: note.step, sign: note.sign, own: note.own, pc: note.pc,
-      string: stop.string, fret: stop.fret };
+      string: stop.string, fret: stop.fret, dead: !!stop.dead };
   }
 
   // Without a key the chord spells itself, the same rule the diagram's note
@@ -1826,7 +1857,7 @@ const Chords = (() => {
       for (const { n, x: nx } of placed) {
         for (let s = TOP_LINE + 2; s <= n.step; s += 2) ledger(s, nx, size);
         for (let s = BOTTOM_LINE - 2; s >= n.step; s -= 2) ledger(s, nx, size);
-        if (n.sign && signs) {
+        if (n.sign && signs && !n.dead) {
           // Two signs a step or two apart would collide, so the second of them
           // hangs further out.
           const near = lastSign !== null && n.step - lastSign <= 2;
@@ -1846,7 +1877,23 @@ const Chords = (() => {
         const degree = colourDegree(n.pc, chord, mode, key);
         const ink = degree === null ? '#dcdcdc' : DEGREE_HUE[degree];
         inked(y(n.step) - ry - 2);
-        add('ellipse', {
+        // A muted string is written as a cross where its head would be — the
+        // pitch it is fingered at, struck dead — in grey, since the note has no
+        // degree to colour it by. Per string, so a chord ringing on top of muted
+        // courses is drawn as it is played.
+        // Drawn inside the head's own width rather than out to it: two strokes
+        // reach further into the corners than an ellipse does, so a cross of the
+        // same measurements reads bigger than the heads around it and a column
+        // of them crowds the staff.
+        if (n.dead) {
+          const ax = rx * 0.72, ay = ry * 0.98, cy = y(n.step);
+          for (const dir of [1, -1]) {
+            add('line', {
+              x1: nx - ax, y1: cy - dir * ay, x2: nx + ax, y2: cy + dir * ay,
+              stroke: DEAD_INK, 'stroke-width': 1.9 * size, 'stroke-linecap': 'round',
+            });
+          }
+        } else add('ellipse', {
           cx: nx, cy: y(n.step), rx, ry,
           fill: hollow ? 'none' : ink,
           stroke: hollow ? ink : 'none', 'stroke-width': 1.8 * size,
@@ -1891,8 +1938,13 @@ const Chords = (() => {
     // thing on a staff that cannot be worked out a note at a time.
     const altered = new Map();
     const signed = signedLetters(key);
+    // A muted string sounds no pitch, so it is not what an accidental is about:
+    // it takes none of its own, and — this is the part that matters — it does not
+    // touch what the bar has in force either. Left in, a knocked E♮ printed the
+    // ♮ on a cross and then the E that really was played came out bare, which
+    // reads as E♭.
     const readSigns = notes => {
-      for (const n of notes) n.sign = barSign(altered, n, signed);
+      for (const n of notes) n.sign = n.dead ? '' : barSign(altered, n, signed);
       return notes;
     };
     // Which chord a note is read against: the one in force where it falls, kept
@@ -2345,7 +2397,9 @@ const Chords = (() => {
           : (p.ev.stops && p.ev.stops.length) ? p.ev.stops : carried || [];
         if (!stops.length) continue;
         for (const st of stops) {
-          if (stack && stops.length === 1 && !p.ev.tie) {
+          // A lone muted string has no pitch to label: a degree under a knock
+          // said a note was sounding that never was.
+          if (stack && stops.length === 1 && !p.ev.tie && !st.dead) {
             const one = stopNote(st, name, key);
             labels.push({
               x,
@@ -2355,7 +2409,12 @@ const Chords = (() => {
           }
           const note = stopNote(st, name, key);
           const degree = colourDegree(note.pc, chord, mode, key);
-          const ink = degree === null ? '#dcdcdc' : DEGREE_HUE[degree];
+          // A muted string keeps its fret — where the hand is is what a player
+          // reads, and it is the same shape as the strokes around it — and gives
+          // up its colour, which is what says the string is knocked rather than
+          // sounded.
+          const ink = st.dead ? DEAD_INK
+            : degree === null ? '#dcdcdc' : DEGREE_HUE[degree];
           // The fret is printed on a held note too, rather than a line standing
           // in for the number before it: what the arc joins is not always the
           // same shape twice — joined to another shape it is a slide, and the
@@ -2569,6 +2628,23 @@ const Chords = (() => {
     return svg;
   }
 
+  // A muted note, for the button that writes one: the cross the staff draws,
+  // with a stem, in the same box as noteGlyph so the row keeps one baseline.
+  function deadGlyph(scale) {
+    const k = scale || 1, w = 30 * k, h = 44 * k;
+    const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
+    const cx = 11 * k, cy = 32 * k, ax = 6.5 * k, ay = 6 * k;
+    for (const dir of [1, -1]) {
+      add('line', {
+        x1: cx - ax, y1: cy - dir * ay, x2: cx + ax, y2: cy + dir * ay,
+        stroke: 'currentColor', 'stroke-width': 2.2 * k, 'stroke-linecap': 'round',
+      });
+    }
+    add('line', { x1: cx + ax, y1: cy - ay, x2: cx + ax, y2: 8 * k,
+      stroke: 'currentColor', 'stroke-width': 1.8 * k });
+    return svg;
+  }
+
   function restGlyph(d, scale) {
     const k = scale || 1, w = 26 * k, h = 44 * k;
     const { svg, add } = svgCanvas(w, h, { 'aria-hidden': 'true' });
@@ -2646,6 +2722,25 @@ const Chords = (() => {
     return svg;
   }
 
+  // A string this note mutes, marked on the neck: a cross over the dot, where
+  // the staff draws one over the head. Read off the dot already in the cell, so
+  // the mark lands wherever the board put it.
+  function markDeadCell(cell) {
+    const dot = cell && cell.querySelector && cell.querySelector('.board-dot');
+    if (!dot) return;
+    const cx = Number(dot.getAttribute('cx')), cy = Number(dot.getAttribute('cy'));
+    const r = Number(dot.getAttribute('r')) * 0.9;
+    for (const dir of [1, -1]) {
+      const line = document.createElementNS(NS, 'line');
+      line.setAttribute('class', 'board-x');
+      line.setAttribute('x1', cx - r);
+      line.setAttribute('y1', cy - dir * r);
+      line.setAttribute('x2', cx + r);
+      line.setAttribute('y2', cy + dir * r);
+      cell.appendChild(line);
+    }
+  }
+
   return {
     parseSheet, resolveSpans, chordTimes, slotWeights, barWeights, toCompact, viewerUrl, diagram, fretWindows,
     readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
@@ -2653,9 +2748,9 @@ const Chords = (() => {
     // single notes
     parseNoteToken, parseDur, durText, notesToText, noteBeats, eventDur, isDottedDur,
     tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, beatWeights,
-    isTripletDur, tripletBase, tripletGroups, tripletGlyph, beamGlyph, graceGlyph,
+    isTripletDur, tripletBase, tripletGroups, tripletGlyph, beamGlyph, graceGlyph, deadGlyph,
     dotGlyph, tieGlyph,
     BEATS_PER_BAR,
-    stopsToMarkers, stopShapes, rulingNames, carriedStops, soundingBefore,
+    stopsToMarkers, stopShapes, rulingNames, carriedStops, soundingBefore, markDeadCell,
   };
 })();

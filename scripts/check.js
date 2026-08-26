@@ -101,6 +101,7 @@ const LIFTED = [
   'tripletGroup', 'barNoteEvents',
   'toggleNoteBeam', 'noteCanBeam', 'noteJoinable', 'noteBeamOn',
   'toggleNoteGrace', 'noteCanGrace', 'noteGraceOn',
+  'toggleNoteDeadMode', 'noteDeadOn',
   // moving one thing along the sheet
   'sheetEvents', 'pinnedNote', 'writeBarsFromEvents', 'selectedEventIndex',
   'moveBlock', 'moveSelection', 'dropDanglingBeams', 'barHead', 'keepBarHeads',
@@ -172,6 +173,7 @@ function open(sheet) {
     // The board's own state — what a tap writes when nothing is selected. The
     // same five values the panel holds; see the top of main.js's note panel.
     let noteDur = 0.5, noteDotted = false, noteTriplet = false, noteStack = false;
+    let noteDeadMode = false;
     const NO_DUR = 0;
     const RANGE_EPS = 0.005;
     const noteValue = () => noteDur * (noteDotted ? 1.5 : 1) * (noteTriplet ? 2 / 3 : 1);
@@ -202,6 +204,7 @@ function open(sheet) {
         if (o.dotted !== undefined) noteDotted = o.dotted;
         if (o.triplet !== undefined) noteTriplet = o.triplet;
         if (o.stack !== undefined) noteStack = o.stack;
+        if (o.dead !== undefined) noteDeadMode = o.dead;
       },
       at(bar, stretch, note) {
         notePanelAt = { bar, chord: stretch }; noteSel = note;
@@ -241,10 +244,13 @@ function open(sheet) {
       dot: () => toggleNoteDot(),
       beam: () => toggleNoteBeam(),
       grace: () => toggleNoteGrace(),
+      dead: () => toggleNoteDeadMode(),
       can: () => ({
         beam: noteCanBeam(), grace: noteCanGrace(), triplet: noteCanTriplet(),
       }),
-      on: what => ({ beam: () => noteBeamOn(), grace: () => noteGraceOn() }[what]()),
+      on: what => ({
+        beam: () => noteBeamOn(), grace: () => noteGraceOn(), dead: () => noteDeadOn(),
+      }[what]()),
       selection: () => ({ note: noteSel, gap: noteAfter }),
     };`)(state);
   return { api, bars, get carried() { return state.carried; } };
@@ -385,11 +391,59 @@ const DRAWN = {
   // is the one way a bar holds a triplet of one, and it is a phrase halfway
   // written rather than a phrase gone wrong.
   'four-triplets-in-a-row': '@0 Cm7 1/8:4 1/8:8t 1/10 1/12 1/5',
+  // Muted strings inside triplets, which is how a comped bar of them is written:
+  // the middle of the first two brackets keeps its top voice and knocks the
+  // three under it, the third bracket is played through. Crosses and heads stand
+  // in one column, and the beam and the bracket read across them as across any
+  // other note.
+  'muted-strings-in-triplets':
+    '@0 Eb9 1/6+2/8+3/8:4 Bbm7 3/2{ 2/6+3/6+4/6:8 2/6+3/6x+4/6x 2/8+3/8+4/8 } '
+    + 'Ebm9 3/2{ 1/6+2/8+3/8:8 1/6+2/8x+3/8x 1/8+2/10+3/10 } '
+    + 'Ebm7 3/2{ 2/6+3/6+4/6:8 2/6+3/6+4/6 2/8+3/8+4/8 }',
+  // A muted single note among plain ones, and a whole shape knocked — every
+  // string of it crossed, which is the other thing the mark is for.
+  'a-muted-note': '@0 C7 1/3+2/3+3/2+4/3:4 1/7x:8 1/8 2/8x+3/8x+4/7x 1/12',
 };
 
 // An editing case: open a sheet, do something, and say what the bar reads as
 // after. `beats` is checked where the point of the edit is the length it buys.
 const EDITED = [
+  {
+    name: '✕モード: タップした弦だけミュートになる',
+    sheet: '@0 Cm7 2/6+3/6+4/6:8 2/8+3/8+4/8',
+    run: ({ api, bars }) => {
+      api.at(0, ...place(bars[0], 0));
+      api.board({ dead: true });
+      api.press(3, 6); api.press(4, 6);
+    },
+    text: 'Cm7 2/6+3/6x+4/6x:8 2/8+3/8+4/8',
+  },
+  {
+    name: '✕モード: 同じ弦をもう一度タップすると鳴る音に戻る',
+    sheet: '@0 Cm7 2/6+3/6x+4/6x:8 2/8+3/8+4/8',
+    run: ({ api, bars }) => {
+      api.at(0, ...place(bars[0], 0));
+      api.board({ dead: true });
+      api.press(3, 6);
+    },
+    text: 'Cm7 2/6+3/6+4/6x:8 2/8+3/8+4/8',
+  },
+  {
+    name: '✕モード: コードにない弦はミュートの弦として足される',
+    sheet: '@0 Cm7 2/6+3/6:8 2/8+3/8',
+    run: ({ api, bars }) => {
+      api.at(0, ...place(bars[0], 0));
+      api.board({ dead: true });
+      api.press(4, 6);
+    },
+    text: 'Cm7 2/6+3/6+4/6x:8 2/8+3/8',
+  },
+  {
+    name: '✕モード: 何も選んでいなければミュートの音符が書かれる',
+    sheet: '@0 Cm7 1/5:8',
+    run: ({ api }) => { api.board({ dead: true }); api.press(1, 7); },
+    text: 'Cm7 1/5:8 1/7x',
+  },
   {
     name: '3連ボタン: 付点のあとの3音を3連にする',
     sheet: '@0 Bb7 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 2/6+3/7 3/6+4/7 3/6+4/7',

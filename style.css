@@ -1369,6 +1369,24 @@ footer {
 .board-cell.sel .board-dot { opacity: 1; stroke: #fff; stroke-width: 2; }
 .board-cell.sel .board-label { fill: #fff; font-weight: 700; }
 
+/* A string this note mutes. The dot gives up its degree colour — what is written
+   there is a knock, not a pitch — and takes the cross the staff draws over the
+   head, so the neck and the staff say the same thing. The label under it would
+   only name a note that never sounds, so it goes. */
+.board-cell.dead .board-dot {
+  opacity: 1;
+  fill: #363c3c;
+  stroke: #9aa0a0;
+  stroke-width: 2;
+}
+.board-cell.dead .board-label { display: none; }
+.board-x {
+  stroke: #e8ecec;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
 /* A bar that isn't there yet, at the end of the row. Only up while editing. */
 .chord-add-bar {
   flex: none;

@@ -1288,7 +1288,7 @@ function drawChordStrip(fromCache) {
     head.appendChild(barNumber(i, spans[i].start));
     // A bar with a time on it carries the loop controls for that moment; one
     // without is just its number.
-    if (spans[i].start !== null) head.appendChild(barTimePins(i, spans[i].start));
+    if (spans[i].start !== null) head.appendChild(barTimePins(i, spans[i]));
     const count = barBeatLabel(bar);
     if (count) head.appendChild(count);
     barEl.appendChild(head);
@@ -1563,13 +1563,21 @@ function barNumber(index, start) {
 }
 
 // The time in a bar head, which is also how a loop is marked out from the
-// sheet: click it and start📍 / end📍 appear, each dropping that bar's moment
-// into the box it names. Setting a range by ear means catching it twice as it
-// goes past; the sheet already knows where the bars are, so picking the two
-// ends off it is the accurate way — click bar 5's time for the start, bar 9's
-// for the end. The buttons stay hidden until asked for because every bar has a
-// time, and a pair of them under each would bury the chords.
-function barTimePins(index, time) {
+// sheet: click it and start📍 / end📍 appear, dropping that bar's two edges into
+// the boxes they name. Setting a range by ear means catching it twice as it goes
+// past; the sheet already knows where the bars are, so picking the ends off it is
+// the accurate way — click bar 5's time for the start, bar 9's for the end, and
+// the loop holds bars 5 to 9 with the whole of 9 in it. One bar on its own is the
+// same gesture twice: its time, then both pins.
+// end📍 takes the bar's end rather than its start, which is the moment a player
+// means by "the end of bar 9" — its start would cut the bar off before it is
+// played. A bar whose end is not known — the last one, with nothing after it to
+// borrow a length from — has nothing to offer that pin, and it says so rather
+// than writing the start into the End box.
+// The buttons stay hidden until asked for because every bar has a time, and a
+// pair of them under each would bury the chords.
+function barTimePins(index, span) {
+  const time = span.start;
   const wrap = document.createElement('span');
   wrap.className = 'chord-bar-time';
 
@@ -1587,19 +1595,22 @@ function barTimePins(index, time) {
   const refused = document.createElement('span');
   refused.className = 'chord-time-err';
   refused.hidden = true;
-  const pin = (text, title, input) => {
+  const pin = (text, title, input, at) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'chord-time-pin';
     b.textContent = text;
-    b.title = title;
+    b.title = at === null
+      ? 'This bar has no end yet — give the next bar a time, or write this one as @start-end'
+      : title;
+    b.disabled = at === null;
     // Same reason as the chord ops: taking focus can blur an open box, which
     // writes the sheet back and redraws the strip out from under this click.
     b.addEventListener('mousedown', e => e.preventDefault());
     b.addEventListener('click', e => {
       e.preventDefault();
       e.stopPropagation();
-      const value = formatTime(time);
+      const value = formatTime(at);
       // This bar is on the wrong side of the range's other end, so it cannot be
       // this end of it. Nothing is written and the panel stays open — the other
       // 📍 beside it may well be the one that was meant.
@@ -1619,8 +1630,9 @@ function barTimePins(index, time) {
     });
     row.appendChild(b);
   };
-  pin('start📍', 'Set this time as the loop start', startInput);
-  pin('end📍', 'Set this time as the loop end', endInput);
+  pin('start📍', 'Set this bar\'s start as the loop start', startInput, span.start);
+  pin('end📍', 'Set this bar\'s end as the loop end — this bar is played through',
+    endInput, span.end);
   row.appendChild(refused);
   pins.appendChild(row);
   // Open whether or not the editor is. A time caught slightly late is found by
@@ -2353,6 +2365,11 @@ let noteTriplet = false;
 // While on, a tap piles onto the last note instead of following it, which is how
 // a double stop gets written.
 let noteStack = false;
+// While on, a fret tapped says that string of the note is muted rather than
+// where the note is: the ✕ button, and the way a chord ringing on top of muted
+// courses is written — tap the strings the hand kills. Tapping one it already
+// mutes lets it ring again.
+let noteDeadMode = false;
 // Armed by the + between ← and →: the next thing written goes in just after this
 // note rather than at the end of the stretch. Which is how a note is put between
 // two others, and how the next chord is begun without letting go of stacking —
@@ -2584,22 +2601,39 @@ function putNote(ev) {
 // one after the last, or into the gap the + opened.
 function pressStop(string, fret) {
   const notes = noteEntries();
+  // What a tap writes: a stop, muted while the ✕ button is on.
+  const stop = () => (noteDeadMode ? { string, fret, dead: true } : { string, fret });
   if (noteAfter !== null) {
     putNote(noteDur === NO_DUR
-      ? { d: 1, stops: [{ string, fret }], free: true }
-      : { d: noteValue(), stops: [{ string, fret }] });
+      ? { d: 1, stops: [stop()], free: true }
+      : { d: noteValue(), stops: [stop()] });
     commitNotes();
     return;
   }
   const ev = editingNote();
   if (ev) {
+    // ✕ on: the tap is about this string of the note rather than about where the
+    // note is, so it lands on the shape instead of replacing it. A string it
+    // already mutes rings again.
+    if (noteDeadMode && !ev.tie) {
+      const was = (ev.stops || []).find(st => st.string === string && st.fret === fret);
+      if (was && was.dead) delete was.dead;
+      else {
+        ev.stops = stackStop(ev.stops, string, fret);
+        const now = ev.stops.find(st => st.string === string && st.fret === fret);
+        if (now) now.dead = true;
+        delete ev.rest;
+      }
+      commitNotes();
+      return;
+    }
     if (noteStack && !ev.tie) {
       ev.stops = stackStop(ev.stops, string, fret);
       delete ev.rest;
     } else {
       // It keeps its place under a bracket: tapping the right string to correct
       // a wrong one is not a reason to fall out of the triplet.
-      const put = { d: ev.d, stops: [{ string, fret }], free: ev.free };
+      const put = { d: ev.d, stops: [stop()], free: ev.free };
       if (ev.trip) put.trip = ev.trip;
       notes[noteSel] = put;
     }
@@ -2609,8 +2643,8 @@ function pressStop(string, fret) {
   const last = notes[notes.length - 1];
   if (noteStack && last && !last.rest && !last.tie) {
     last.stops = stackStop(last.stops, string, fret);
-  } else if (noteDur === NO_DUR) notes.push({ d: 1, stops: [{ string, fret }], free: true });
-  else notes.push({ d: noteValue(), stops: [{ string, fret }] });
+  } else if (noteDur === NO_DUR) notes.push({ d: 1, stops: [stop()], free: true });
+  else notes.push({ d: noteValue(), stops: [stop()] });
   commitNotes();
 }
 
@@ -2914,6 +2948,18 @@ function toggleNoteGrace() {
   delete ev.free;
   if (ev.d >= 1) ev.d = 0.5;
   commitNotes();
+}
+
+// The ✕ button is a mode rather than a mark on this note: which strings are
+// muted is picked on the neck, a tap at a time, because that is the question —
+// a chord is muted a course at a time and its top voice often rings.
+function toggleNoteDeadMode() {
+  noteDeadMode = !noteDeadMode;
+  renderNotePanel();
+}
+
+function noteDeadOn() {
+  return noteDeadMode;
 }
 
 // Only a struck note can be one: a rest is silence and has nothing to lean on
@@ -3529,6 +3575,11 @@ function renderNotePanel() {
     + 'the bar (key G)',
     toggleNoteGrace, noteGraceOn(), 'note-dur');
   if (!noteCanGrace()) graceBtn.disabled = true;
+  // The cross the staff draws, on the button that turns tapping into muting.
+  button(writeRow, Chords.deadGlyph(0.8),
+    'While on, a fret you tap mutes that string of the note — struck with the '
+    + 'string stopped, drawn as a cross. Tap it again to let it ring (key X)',
+    toggleNoteDeadMode, noteDeadMode, 'note-dur');
   // Three notes on one stem: the button wears what it writes, the way the
   // duration buttons do.
   button(writeRow, Chords.chordGlyph(1),
@@ -3605,7 +3656,9 @@ function renderNotePanel() {
     keys.className = 'note-keys';
     keys.textContent = '← → select · Shift + ← → move it one place · '
       + '1–5 duration (whole, half, quarter, eighth, sixteenth) · '
-      + '0 no length · . dot · , triplet · R rest · T tie · G grace · S stack · '
+      + '0 no length · . dot · , triplet · R rest · T tie · G grace · '
+      + 'X mute the strings you tap · '
+      + 'S stack · '
       + 'I room after this note · Backspace delete · '
       + 'Esc back to the end, then close';
     help.appendChild(keys);
@@ -3624,7 +3677,10 @@ function renderNotePanel() {
   for (const st of (ev && ev.stops) || []) {
     const cell = boardSvg.querySelector(
       `.board-cell[data-string="${st.string}"][data-fret="${st.fret}"]`);
-    if (cell) cell.classList.add('sel');
+    if (!cell) continue;
+    cell.classList.add('sel');
+    // A muted string wears the cross the staff draws over its head.
+    if (st.dead) { cell.classList.add('dead'); Chords.markDeadCell(cell); }
   }
   // One listener for the whole neck: every cell says which string and fret it is.
   boardWrap.addEventListener('mousedown', e => e.preventDefault());
@@ -3731,6 +3787,7 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'r' || e.key === 'R') addNoteRest();
   else if (e.key === 't' || e.key === 'T') addNoteTie();
   else if (e.key === 'g' || e.key === 'G') toggleNoteGrace();
+  else if (e.key === 'x' || e.key === 'X') toggleNoteDeadMode();
   else if (e.key === 'i' || e.key === 'I') insertAfterNote();
   else if (e.key === 's' || e.key === 'S') { noteStack = !noteStack; renderNotePanel(); }
   else if (e.key === 'Backspace' || e.key === 'Delete') deleteNote();
@@ -4032,7 +4089,10 @@ function updateKeyChordLink(key) {
     chordKeyChord.title = 'Set the key to open it as a chord';
     return;
   }
-  chordKeyChord.href = Chords.viewerUrl({ name });
+  // Labelled in solfège, since the chord being opened is the key: the viewer
+  // reads do from the chord's root, so here its do is the song's do — which is
+  // the reading the scale is being looked at for.
+  chordKeyChord.href = Chords.viewerUrl({ name }, { solfege: true });
   chordKeyChord.title = `Open ${Chords.displayName(name)} in Guitar Chord Viewer`;
 }
 
