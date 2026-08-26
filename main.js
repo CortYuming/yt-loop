@@ -2818,13 +2818,17 @@ function toggleNoteTriplet() {
     // Nothing is deleted on the way: the note let out keeps its value and its
     // place, and the bar goes back to the length it had.
     const group = tripletGroupPlaces(notePanelAt.chord, noteSel);
-    if (group.length > 2) {
-      const out = group[group.length - 1];
-      delete out.ev.trip;
+    if (group.filter(p => !p.ev.grace).length > 2) {
+      // The last note counted, and the grace notes leaning on it, which go with
+      // it rather than being left at the end of the bracket alone.
+      let last = group.length - 1;
+      while (last > 0 && group[last].ev.grace) last--;
+      for (let i = group.length - 1; i >= last; i--) delete group[i].ev.trip;
+      const out = group[last];
       // The next press goes on counting down the same bracket, so the selection
       // follows it in when the note it was on is the one let out.
-      if (out.cell === notePanelAt.chord && out.index === noteSel) {
-        const kept = group[group.length - 2];
+      const kept = last > 0 ? group[last - 1] : null;
+      if (kept && out.cell === notePanelAt.chord && out.index === noteSel) {
         notePanelAt = { bar: notePanelAt.bar, chord: kept.cell };
         noteSel = kept.index;
       }
@@ -2834,27 +2838,26 @@ function toggleNoteTriplet() {
   } else {
     // A name of its own, so the bracket is not read as part of one beside it.
     const trip = { id: freeTripId(), num: 3, den: 2 };
-    for (const note of tripletGroup()) { note.trip = trip; delete note.free; }
+    for (const note of tripletGroup()) note.trip = trip;
   }
   commitNotes();
 }
 
-// Three notes make a triplet, so the button is down where there are not three
-// to mark: the last two notes of a bar are not a triplet of their own, and
-// marking them left a 3 over two notes and a bar half a beat too long. Undoing
-// one is always allowed — whatever the staff brackets can be unbracketed. With
-// no note selected the button is the value the next one is written with, and
-// there is nothing yet for it to be wrong about.
+// Two notes under one 3 is a swung beat, which is ordinary printed music, so two
+// is enough to bracket. Three is what the button reaches for; two is what it
+// settles for at the end of a bar, or up against a bracket already there. One is
+// not a group, and that is the only place the button is down.
+// A grace note and a lengthless stop take no time from the bar, so neither is
+// one of the notes counted, and neither can be the note the bracket starts on.
+// Taking a bracket off is always allowed — whatever the staff brackets can be
+// unbracketed. With no note selected the button is the value the next one is
+// written with, and there is nothing yet for it to be wrong about.
 function noteCanTriplet() {
   const ev = editingNote();
   if (!ev) return true;
   if (ev.free || ev.grace) return false;
   if (ev.trip) return true;
-  const group = tripletGroup();
-  // Three, and three that are not already bracketed: bracketing two of somebody
-  // else's three and one plain note left a run of four, which is a triplet and a
-  // spare note wherever the reader looks at it.
-  return group.length === 3 && !group.some(n => n.trip);
+  return tripletGroup().filter(n => !n.grace).length >= 2;
 }
 
 // Beaming a run by hand: this note and the next are drawn as one gesture,
@@ -2961,14 +2964,25 @@ function tripletGroup() {
   const all = barNoteEvents();
   const at = all.findIndex(p => p.cell === notePanelAt.chord && p.index === noteSel);
   if (at < 0) return [];
-  // Going in: the selected note and the two struck after it. A grace note takes
-  // no time from the bar, so it is not one of the three and is stepped over.
+  // Going in: the selected note and what follows it, up to three notes.
+  // The run stops at a note already under a bracket and at a stop written with
+  // no length: neither can be one of the notes a bracket is over, and reaching
+  // past one would bracket a note that is somebody else's or no note at all.
+  // A grace note takes no time from the bar, so it is not one of the three — but
+  // it stands among them and is kept inside the bracket. Left out, the bracket
+  // would be written as the two brackets its notes are no longer next to each
+  // other in.
   if (!all[at].ev.trip) {
     const out = [];
-    for (let i = at; i < all.length && out.length < 3; i++) {
-      if (all[i].ev.grace) continue;
-      out.push(all[i].ev);
+    let counted = 0;
+    for (let i = at; i < all.length && counted < 3; i++) {
+      const ev = all[i].ev;
+      if (ev.trip || ev.free) break;
+      out.push(ev);
+      if (!ev.grace) counted++;
     }
+    // One leaning on the note after the bracket leans outside it.
+    while (out.length && out[out.length - 1].grace) out.pop();
     return out;
   }
   // Coming out: the notes the staff brackets with the selected one. A run of six

@@ -2230,10 +2230,11 @@ const Chords = (() => {
     for (const t of trips) {
       const run = runs[runs.length - 1];
       const prev = run && run[run.length - 1];
-      // One bracket per group, which is what the sheet says it is: notes next to
-      // each other under the same bracket are drawn under one, and a bracket
-      // holding two notes is drawn over the two it holds.
-      if (prev && t.ord === prev.ord + 1 && t.cell === prev.cell) run.push(t);
+      // One bracket per group, which is what the sheet says it is. The name is
+      // enough to go on — every bracket in a bar has one of its own — so a grace
+      // note standing among the notes does not break the run in two, the way it
+      // did while the run was worked out from what sat next to what.
+      if (prev && t.cell === prev.cell) run.push(t);
       else runs.push([t]);
     }
     for (const run of runs) drawTriplet(run);
