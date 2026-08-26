@@ -619,31 +619,50 @@ const Chords = (() => {
 
   // Where each note of a stretch begins, in beats from the start of it, and how
   // far the lot of them reach.
-  // Which triplet each note of a bar belongs to, given the bar's notes in playing
-  // order. A triplet is three notes of one value in a row, so that is what is
-  // read: runs of one triplet value, counted three at a time from where the run
-  // begins. Six triplet eighths in a row are two triplets; a run that begins off
-  // the beat is still a triplet, which matters because after a dotted note is
-  // exactly where one is most often written. A value of its own starts a run of
-  // its own, so a bar of quarter triplets followed by eighth triplets is not one
-  // long bracket over the lot.
-  // Null where there is no triplet: a plain value, a note with no length, and a
-  // grace note, which takes no time from the bar and so is not one of the three.
-  // One reading, shared by the bracket the staff draws, the beam it is drawn
-  // over, and the button that marks and unmarks it — so all three say the same
-  // three notes.
-  function tripletGroups(notes) {
-    const keys = (notes || []).map(() => null);
-    let val = null, count = 0, group = 0;
-    (notes || []).forEach((ev, i) => {
-      if (ev.grace || ev.free || !isTripletDur(ev.d)) { val = null; return; }
-      if (val === null || !sameDur(ev.d, val) || count % 3 === 0) {
-        group++; count = 0; val = ev.d;
+  // A triplet written the old way — `8t 8t 8t`, the bracket left to be worked
+  // out from the values — read as the bracket it always meant. Runs of one
+  // triplet value, counted three at a time from where the run begins: six in a
+  // row are two triplets, a run beginning off the beat is still a triplet (after
+  // a dotted note is where one is most often written), and a value of its own
+  // starts a run of its own, so quarter triplets followed by eighth triplets are
+  // not one bracket over the lot.
+  // Read once, here, as the sheet is parsed. Everything after this point sees
+  // one kind of triplet — a bracket with a ratio — whichever way it was written,
+  // and a sheet saved after being read comes back in the new spelling.
+  // A grace note takes no time from the bar and a lengthless stop takes none
+  // either, so neither is one of the three.
+  function foldWrittenTriplets(bar, from) {
+    let made = from;
+    const all = bar.chords.reduce((out, c) => out.concat(c.notes || []), []);
+    let val = null, count = 0, group = null;
+    for (const ev of all) {
+      // A bracket that was written out says what it holds; nothing is guessed
+      // about the values inside it.
+      if (ev.trip || ev.grace || ev.free || !isTripletDur(ev.d)) {
+        val = null; group = null;
+        continue;
       }
-      keys[i] = `t${group}`;
+      if (val === null || !sameDur(ev.d, val) || count % 3 === 0) {
+        group = { id: `g${++made}`, num: 3, den: 2 };
+        count = 0;
+        val = ev.d;
+      }
+      ev.trip = group;
+      // The value as it is written on paper: an eighth under a 3 bracket, not a
+      // third of a beat. What it sounds for is the bracket's business — see
+      // eventDur.
+      ev.d = tripletBase(ev.d);
       count++;
-    });
-    return keys;
+    }
+    return made;
+  }
+
+  // Which bracket each note of a bar belongs to, given the bar's notes in
+  // playing order, and null for a note under none. One reading, shared by the
+  // bracket the staff draws, the beam it is drawn over, and the button that
+  // marks and unmarks it — so all three say the same notes.
+  function tripletGroups(notes) {
+    return (notes || []).map(ev => (ev.trip ? ev.trip.id : null));
   }
 
   // What a note takes from the bar. Inside a tuplet that is its written value
@@ -768,6 +787,8 @@ const Chords = (() => {
       if (chord) bar.chords.push(chord);
     }
     markFreeNotes(bar);
+    // Last, so a bracket written out is already on its notes and is left alone.
+    groups = foldWrittenTriplets(bar, groups);
     // A bar of its own time and nothing else: one put between two others and not
     // written into yet. It keeps an empty stretch so there is somewhere to write.
     if (!bar.chords.length && bar.start !== null) bar.chords.push({ name: '', markers: null });
@@ -984,18 +1005,28 @@ const Chords = (() => {
       // One bracket state for the whole bar, so a tuplet under a chord change is
       // written as one bracket rather than one per stretch.
       const open = { id: null };
-      const chords = bar.chords
-        .map(c => {
-          const head = c.markers ? `${c.name}:${markersToText(c.markers)}` : c.name;
-          if (!c.notes || !c.notes.length) return head;
-          const played = notesToText(c.notes, open);
-          return head ? `${head} ${played}` : played;
-        })
-        .join(' ');
+      const parts = [];
+      for (const c of bar.chords) {
+        const name = c.markers ? `${c.name}:${markersToText(c.markers)}` : c.name;
+        const first = (c.notes || [])[0];
+        // A bracket that does not carry on into this stretch is closed before
+        // the chord's name, so the `}` reads as the end of the phrase before it
+        // rather than as something written on the new chord.
+        if (open.id && (!first || !first.trip || first.trip.id !== open.id)) {
+          parts.push('}');
+          open.id = null;
+        }
+        if (!c.notes || !c.notes.length) {
+          if (name) parts.push(name);
+          continue;
+        }
+        const played = notesToText(c.notes, open);
+        parts.push(name ? `${name} ${played}` : played);
+      }
       // A bracket that runs to the end of the bar is closed here: a bar is
       // parsed on its own, so one left open would come back holding nothing.
-      const close = open.id ? ' }' : '';
-      return (head + chords + close).trim();
+      if (open.id) parts.push('}');
+      return (head + parts.join(' ')).trim();
     }).join(sep);
     // First, so the sheet reads as what it is before it reads as where it goes.
     return key ? (body ? `key: ${key}${sep}${body}` : `key: ${key}`) : body;
@@ -1864,12 +1895,6 @@ const Chords = (() => {
       for (const n of notes) n.sign = barSign(altered, n, signed);
       return notes;
     };
-    // The triplets of the bar, read across the whole of it: three notes of one
-    // value in a row are one triplet however the stretches they sit in are
-    // divided, since a chord change inside a triplet is ordinary.
-    const tripKeys = tripletGroups(
-      items.reduce((all, it) => all.concat(it.notes || []), []));
-    let tripFrom = 0;
     // Which chord a note is read against: the one in force where it falls, kept
     // on the note, since a group can hold notes from either side of a cell edge.
     const chordAt = p => parseChord(p.ruling || 'C');
@@ -1922,8 +1947,6 @@ const Chords = (() => {
       const { items: placed, length: spans } = noteBeats(item.notes);
       const from = barBeat;
       barBeat += spans;
-      const tripBase = tripFrom;
-      tripFrom += item.notes.length;
       // Room held open after one note, for what is about to be written between it
       // and the next — see putNote. The notes after it move over to make it.
       const gapAt = item.gap === undefined ? null : item.gap;
@@ -1942,7 +1965,10 @@ const Chords = (() => {
         p.owner = item;
         p.ruling = ruling[p.index] || item.name;
         p.beatAt = from + p.beat;
-        p.trip = tripKeys[tripBase + p.index] || null;
+        // The bracket a note is under, carried on the note itself: one runs
+        // across a chord change as readily as inside a stretch, since a chord
+        // change inside a triplet is ordinary.
+        p.trip = p.ev.trip ? p.ev.trip.id : null;
         p.x = item.x + NOTE_INSET + p.beat * beat - p.back * GRACE_STEP
           + p.stack * STACK_W
           + (gapAt !== null && p.index > gapAt ? GAP_W : 0);
@@ -2018,9 +2044,9 @@ const Chords = (() => {
           hits.push({ x: h.x, chord: h.p.cell, note: h.p.index,
             on: h.p.owner.sel === h.p.index, after: h.p.owner.after === h.p.index });
           if (h.p.ev.rest) {
-            if (isTripletDur(h.p.ev.d)) {
+            if (h.p.ev.trip) {
               trips.push({ ord: h.p.ord, x: h.x, grp, up,
-                cell: h.p.trip,
+                cell: h.p.trip, num: h.p.ev.trip.num,
                 tip: y(MID_LINE) + (up ? -SP * 2 : SP * 2) });
             }
             drawRest(add, h.x, y(MID_LINE), h.p.ev.d);
@@ -2087,9 +2113,9 @@ const Chords = (() => {
               add('circle', { cx: h.x + NOTE_RX + 5, cy, r: 1.9, fill: '#dcdcdc' });
             }
           }
-          if (isTripletDur(h.p.ev.d)) {
+          if (h.p.ev.trip) {
             trips.push({ ord: h.p.ord, x: h.x, grp, up,
-              cell: h.p.trip,
+              cell: h.p.trip, num: h.p.ev.trip.num,
               tip: stemTip === null ? y(up ? hi : lo) + (up ? -SP : SP) : stemTip });
           }
           // What the next tie hangs on: the strings still ringing here. A tie
@@ -2107,7 +2133,8 @@ const Chords = (() => {
         // read as one gesture; the stems stretch to meet them.
         const flat = up ? Math.min(...tips.map(t => t.tip)) : Math.max(...tips.map(t => t.tip));
         const beams = Math.max(...tips.map(t => t.beams));
-        if (up) inked(flat - (isTripletDur(grp.d) ? 13 : 2));
+        // A number sits over a beamed bracket, so the ink reaches higher there.
+        if (up) inked(flat - (grp.items[0].ev.trip ? 13 : 2));
         for (const t of tips) {
           add('line', {
             x1: t.x, y1: t.tip, x2: t.x, y2: flat, stroke: '#dcdcdc', 'stroke-width': 1.4,
@@ -2163,31 +2190,31 @@ const Chords = (() => {
       }
     }
 
-    // Three in the time of two, said the way printed music says it. Under one
-    // beam the beam is the bracket and a 3 over it is the whole mark. With no
-    // beam to hang it on — quarter triplets, a chord change on each of the three
-    // — it is a bracket over the three notes, which is what tells the reader
-    // they are one triplet and not three notes that happen to be short. Read
-    // three at a time from the start of each run, so six triplet notes are two
-    // triplets rather than one bracket over the lot.
-    const three = (x, ty) => add('text', {
+    // The number said the way printed music says it: how many are written, and
+    // nothing about what they are written in the time of — a 3 over three in the
+    // time of two, a 5 over five in the time of four. Under one beam the beam is
+    // the bracket and the number over it is the whole mark. With no beam to hang
+    // it on — quarter triplets, a chord change on each note — it is a bracket
+    // over the range, which is what tells the reader they are one group and not
+    // notes that happen to be short.
+    const count = (x, ty, n) => add('text', {
       x, y: ty, fill: '#dcdcdc', 'font-size': 9, 'text-anchor': 'middle',
       'font-style': 'italic',
       'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
-    }, '3');
+    }, String(n || 3));
     const drawTriplet = chunk => {
       const first = chunk[0], last = chunk[chunk.length - 1];
-      const { up } = first;
+      const { up, num } = first;
       if (chunk.length > 1 && chunk.every(t => t.grp === first.grp && t.grp.beamed)) {
-        three((first.x + last.x) / 2,
-          first.grp.flat + (up ? -4 : (first.grp.beams * BEAM_GAP) + 11));
+        count((first.x + last.x) / 2,
+          first.grp.flat + (up ? -4 : (first.grp.beams * BEAM_GAP) + 11), num);
         return;
       }
       const tips = chunk.map(t => t.tip);
       const line = (up ? Math.min(...tips) - 8 : Math.max(...tips) + 8);
       const mid = (first.x + last.x) / 2;
       if (up) inked(line - 7);
-      if (chunk.length === 1) { three(first.x, line + (up ? 3.2 : 7)); return; }
+      if (chunk.length === 1) { count(first.x, line + (up ? 3.2 : 7), num); return; }
       // Two hooks turned back towards the heads, with the number in the break
       // between them.
       const hook = up ? 4 : -4;
@@ -2196,17 +2223,16 @@ const Chords = (() => {
         ...stroke });
       add('path', { d: `M${mid + 7} ${line} L${last.x} ${line} L${last.x} ${line + hook}`,
         ...stroke });
-      three(mid, line + (up ? 3.2 : 7));
+      count(mid, line + (up ? 3.2 : 7), num);
     };
     trips.sort((a, b) => a.ord - b.ord);
     const runs = [];
     for (const t of trips) {
       const run = runs[runs.length - 1];
       const prev = run && run[run.length - 1];
-      // One bracket per division, so a bar of six is two triplets however the
-      // notes in it were arrived at — and three that no longer fill their own
-      // division are bracketed as the two or the one they are, rather than
-      // quietly borrowing a note from the triplet after them.
+      // One bracket per group, which is what the sheet says it is: notes next to
+      // each other under the same bracket are drawn under one, and a bracket
+      // holding two notes is drawn over the two it holds.
       if (prev && t.ord === prev.ord + 1 && t.cell === prev.cell) run.push(t);
       else runs.push([t]);
     }

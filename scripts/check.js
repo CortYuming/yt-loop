@@ -106,7 +106,7 @@ const LIFTED = [
   'moveBlock', 'moveSelection', 'dropDanglingBeams', 'barHead', 'keepBarHeads',
   'selectedIsChord', 'canMoveSelection',
   // the triplet as one thing
-  'tripletGroupPlaces', 'noteCopy', 'noteCanDot',
+  'tripletGroupPlaces', 'noteCopy', 'noteCanDot', 'freeTripId',
   // bars
   'roundTo', 'addBar', 'insertBar', 'barBeats', 'barBeatLabel',
   'setBarStart', 'barTimeBounds',
@@ -334,13 +334,20 @@ const DRAWN = {
   'triplets-across-the-beat': '@0 Cm7 1/8:8 1/8:8t 1/10 1/12 1/8 1/10 1/12',
   // Quarter triplets and eighth triplets side by side are not one run.
   'two-triplet-values': '@0 Cm7 1/5:4t 1/7 1/8:8t 1/10 1/12 1/5 1/7',
-  // The figure the explicit-group work is for: a 3 bracket with two notes in it,
-  // the beat split 1:2 — an eighth and a quarter, which is how a swung beat is
-  // written. Read as values rather than as a bracket it is two triplets of one
-  // note each, so the staff draws two 3s at different heights and no bracket
-  // over either. The snapshot holds that wrong drawing until a triplet is a
-  // bracket over a range instead of a value on each note.
-  'one-to-two-inside-a-triplet': '@0 D7 4/4:8t 3/3+2/1:4t r:4 r:4 r:4',
+  // The figure the explicit bracket is for: one 3 over two notes, the beat split
+  // 1:2 — an eighth and a quarter, which is how a swung beat is written.
+  'one-to-two-inside-a-triplet': '@0 D7 3/2{ 4/4:8 3/3+2/1:4 } r:4 r:4 r:4',
+  // The same figure in the old spelling, where the bracket had to be worked out
+  // from the values: two notes of different triplet values are read as two
+  // brackets of one note each, which is the drawing the explicit bracket was
+  // written to replace.
+  'one-to-two-written-the-old-way': '@0 D7 4/4:8t 3/3+2/1:4t r:4 r:4 r:4',
+  // Five in the time of four, which the old spelling had no way to write at all.
+  // The number over the bracket is how many are written, so this one says 5.
+  'five-in-the-time-of-four': '@0 Cm7 5/4{ 1/5:16 1/7 1/8 1/10 1/12 } r:4 r:4 r:4',
+  // A bracket holding a rest and a dot, neither of which the old spelling could
+  // hold: the bracket says what the group is, so what is inside it is free.
+  'a-rest-and-a-dot-inside-a-bracket': '@0 Cm7 3/2{ 1/5:8. r:16 1/8:8 } r:4 r:4 r:4',
   // A bar left longer than four beats — undoing a triplet does that, and the
   // notes past the end are still drawn where they sound.
   'bar-past-its-end':
@@ -382,7 +389,7 @@ const EDITED = [
     name: '3連ボタン: 付点のあとの3音を3連にする',
     sheet: '@0 Bb7 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 2/6+3/7 3/6+4/7 3/6+4/7',
     run: ({ api, bars }) => { api.at(0, ...place(bars[0], 3)); api.triplet(); },
-    text: 'Bb7 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 2/6+3/7:8t 3/6+4/7 3/6+4/7',
+    text: 'Bb7 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 3/2{ 2/6+3/7 3/6+4/7 3/6+4/7 }',
     beats: 3.5,
   },
   {
@@ -435,17 +442,19 @@ const EDITED = [
   },
   {
     // The figure this piece of work is for: an eighth and a quarter in one 3
-    // bracket, which is how a swung beat is written. There is no way to reach it
-    // from the panel. The button writes three notes of one value, so the quarter
-    // is flattened to an eighth and the rest after it is pulled into the bracket
-    // to make up the three.
-    name: '3連ボタン: 1:2 に割った3連は作れない',
-    sheet: '@0 D7 4/4:8 3/3+2/1:4 r:4 r:4 r:4',
-    run: ({ api, bars }) => { api.at(0, ...place(bars[0], 0)); api.triplet(); },
-    text: 'D7 4/4:8t 3/3+2/1 r r:4 r',
-    beats: 3,
-    broken: '♩ が ♪ に潰され、次の休符まで括りに巻き込まれる。書きたいのは '
-      + '3/2{ 4/4:8 3/3+2/1:4 } で、1拍のまま 1:2 に割った形',
+    // bracket, which is how a swung beat is written. It is reached the way it is
+    // on paper — bracket three, then write what goes inside. The button brackets
+    // the note and the two after it, the quarter is written on the second, and
+    // the third is deleted, leaving the bracket over the two it holds.
+    name: '3連ボタン: 1:2 に割った3連を作る',
+    sheet: '@0 D7 4/4:8 3/3+2/1:8 r:8 r:4 r:4 r:4',
+    run: ({ api, bars }) => {
+      api.at(0, ...place(bars[0], 0)); api.triplet();
+      api.at(0, ...place(bars[0], 1)); api.dur(1);
+      api.at(0, ...place(bars[0], 2)); api.del();
+    },
+    text: 'D7 3/2{ 4/4:8 3/3+2/1:4 } r r r',
+    beats: 4,
   },
   {
     name: '3連ボタン: 装飾音符では押せない',
@@ -459,7 +468,7 @@ const EDITED = [
     name: '3連ボタン: 装飾音符は3音の数に入らない',
     sheet: '@0 Cm7 1/5:4 1/7*:8 1/8:8 1/10 1/12',
     run: ({ api, bars }) => { api.at(0, ...place(bars[0], 2)); api.triplet(); },
-    text: 'Cm7 1/5:4 1/7*:8 1/8:8t 1/10 1/12',
+    text: 'Cm7 1/5:4 1/7*:8 3/2{ 1/8:8 1/10 1/12 }',
     beats: 2,
   },
   {
@@ -469,7 +478,7 @@ const EDITED = [
     name: '移動: 4分音符が3連をまるごと越える',
     sheet: '@0 Cm7 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12 1/8 1/10 1/12',
     run: ({ api, bars }) => { api.at(0, ...place(bars[0], 0)); api.move(1); },
-    text: 'Cm7 1/8:8t 1/10 1/12 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12',
+    text: 'Cm7 3/2{ 1/8:8 1/10 1/12 } 1/8:4 3/2{ 1/8:8 1/10 1/12 } 3/2{ 1/8 1/10 1/12 }',
     beats: 4,
     carries: 'Note',
   },
@@ -477,7 +486,7 @@ const EDITED = [
     name: '移動: 3連の中では1音ずつ入れ替わる',
     sheet: '@0 Cm7 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12 1/8 1/10 1/12',
     run: ({ api, bars }) => { api.at(0, ...place(bars[0], 1)); api.move(1); },
-    text: 'Cm7 1/8:4 1/10:8t 1/8 1/12 1/8 1/10 1/12 1/8 1/10 1/12',
+    text: 'Cm7 1/8:4 3/2{ 1/10:8 1/8 1/12 } 3/2{ 1/8 1/10 1/12 } 3/2{ 1/8 1/10 1/12 }',
     beats: 4,
   },
   {
@@ -487,9 +496,9 @@ const EDITED = [
     name: '移動: 3連は小節線をまたいで割れない',
     sheet: '@0 Cm7 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12 1/8 1/10 1/12|@2 F7 1/5:4 1/7 1/9 1/10',
     run: ({ api, bars }) => { api.at(0, ...place(bars[0], 9)); api.move(1); },
-    text: 'Cm7 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12 1/5:4',
+    text: 'Cm7 1/8:4 3/2{ 1/8:8 1/10 1/12 } 3/2{ 1/8 1/10 1/12 } 1/5:4',
     beats: 4,
-    then: { bar: 1, text: 'F7 1/8:8t 1/10 1/12 1/7:4 1/9 1/10', beats: 4 },
+    then: { bar: 1, text: 'F7 3/2{ 1/8:8 1/10 1/12 } 1/7:4 1/9 1/10', beats: 4 },
   },
   {
     // A name written on a note is a chord starting there, so it goes where the
@@ -528,7 +537,7 @@ const EDITED = [
       api.at(0, ...place(bars[0], 0)); api.move(1);
       api.at(0, ...place(bars[0], 3)); api.move(-1);
     },
-    text: 'Cm7 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12 1/8 1/10 1/12',
+    text: 'Cm7 1/8:4 3/2{ 1/8:8 1/10 1/12 } 3/2{ 1/8 1/10 1/12 } 3/2{ 1/8 1/10 1/12 }',
     beats: 4,
   },
   // ---- the board: a tap writes, replaces, or piles on ----
@@ -571,7 +580,7 @@ const EDITED = [
     name: '板を叩く: 3連の1音を差し替えても3連のまま',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.press(2, 9); },
-    text: 'Cm7 1/5:8 1/7:8t 2/9 1/10 1/12:8', beats: 2,
+    text: 'Cm7 1/5:8 3/2{ 1/7 2/9 1/10 } 1/12', beats: 2,
   },
   {
     name: 'ギャップ: + で開けた場所に書く',
@@ -602,7 +611,7 @@ const EDITED = [
     name: 'コピー: 3連の1音をコピーすると3連まるごと増える',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.copy(); },
-    text: 'Cm7 1/5:8 1/7:8t 1/9 1/10 1/7 1/9 1/10 1/12:8', beats: 3,
+    text: 'Cm7 1/5:8 3/2{ 1/7 1/9 1/10 } 3/2{ 1/7 1/9 1/10 } 1/12', beats: 3,
   },
   {
     name: '削除: 選択した音を消す',
@@ -611,11 +620,12 @@ const EDITED = [
     text: 'Cm7 1/5:8 1/9', beats: 1,
   },
   {
-    // Two of the three left behind are a triplet of two, so the whole of it goes.
-    name: '削除: 3連の1音を消すと3連まるごと消える',
+    // The bracket stays over what is left of it: two notes under a 3 is a swung
+    // beat, not a mistake, so deleting one of three deletes one of three.
+    name: '削除: 3連の1音だけ消えて括弧は残る',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.del(); },
-    text: 'Cm7 1/5:8 1/12', beats: 1,
+    text: 'Cm7 1/5:8 3/2{ 1/7 1/10 } 1/12', beats: 5 / 3,
   },
 
   // ---- rest and tie: marks on a note, not notes of their own ----
@@ -639,7 +649,7 @@ const EDITED = [
     name: '休符: 3連の1音を休符にしても3連のまま',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.rest(); },
-    text: 'Cm7 1/5:8 1/7:8t r 1/10 1/12:8', beats: 2,
+    text: 'Cm7 1/5:8 3/2{ 1/7 r 1/10 } 1/12', beats: 2,
   },
   {
     name: 'タイ: 選択した音をタイにする',
@@ -679,27 +689,29 @@ const EDITED = [
     text: 'Cm7 1/5:8 1/7:8. 1/9:8', beats: 1.75,
   },
   {
-    // Three notes of one value, so re-timing one re-times the three.
-    name: '長さ: 3連の1音の長さを変えると3音そろって変わる',
+    // The bracket says what the group is, so what it holds is free to change:
+    // re-timing one note re-times that note, and the bracket keeps the rest.
+    name: '長さ: 3連の1音だけ長さを変えられる',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.dur(1); },
-    text: 'Cm7 1/5:8 1/7:4t 1/9 1/10 1/12:8', beats: 3,
+    text: 'Cm7 1/5:8 3/2{ 1/7 1/9:4 1/10:8 } 1/12', beats: 7 / 3,
   },
   {
-    // There is no dotted triplet in this notation, and dotting one of three
-    // leaves the other two a triplet of two.
-    name: '付点: 3連の1音には付点をつけられない',
+    // A dotted eighth under a 3 is ordinary printed music: the bracket is what
+    // says the group is a triplet, so a dot inside it bends one note as usual.
+    name: '付点: 3連の1音に付点をつけられる',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.dot(); },
-    text: 'Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8', beats: 2,
-    can: { dot: false },
+    text: 'Cm7 1/5:8 3/2{ 1/7 1/9:8. 1/10:8 } 1/12', beats: 13 / 6,
+    can: { dot: true },
   },
   {
-    // The + opens its room after the triplet, not among its three.
-    name: 'ギャップ: 3連の中で + を押すと3連の後ろに開く',
+    // The + opens its room where it was pressed, and a note written between two
+    // under one bracket joins them — which is how a bracket grows.
+    name: 'ギャップ: 3連の中で + を押すと括弧の中に開く',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.board({ dur: 0.5 }); api.at(0, 0, 2); api.gap(); api.press(2, 9); },
-    text: 'Cm7 1/5:8 1/7:8t 1/9 1/10 2/9:8 1/12', beats: 2.5,
+    text: 'Cm7 1/5:8 3/2{ 1/7 1/9 2/9 1/10 } 1/12', beats: 7 / 3,
   },
 
   // ---- beams and grace notes ----
@@ -859,7 +871,7 @@ const WRITTEN = [
   {
     name: '読み書き: 付点・タイ・3連・押弦つきのコード名',
     sheet: '@5.07-7.60 Bb7:1.1.1.0.. 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 2/6+3/7:8t 3/6+4/7 3/6+4/7',
-    text: '@5.07-7.60 Bb7:1.1.1.0.. 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 2/6+3/7:8t 3/6+4/7 3/6+4/7',
+    text: '@5.07-7.60 Bb7:1.1.1.0.. 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 3/2{ 2/6+3/7 3/6+4/7 3/6+4/7 }',
   },
   {
     name: '読み書き: 休符・装飾音符・手書きビーム・16分',
