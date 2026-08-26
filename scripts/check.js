@@ -392,9 +392,12 @@ const EDITED = [
     beats: 3.5,
   },
   {
-    name: '3連ボタン: もう一度押すと元に戻る',
+    // The button counts down — three, two, none — so three presses is where it
+    // started, and nothing was deleted on the way.
+    name: '3連ボタン: 3回押すと元に戻る',
     sheet: '@0 Bb7 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 2/6+3/7 3/6+4/7 3/6+4/7',
     run: ({ api, bars }) => {
+      api.at(0, ...place(bars[0], 3)); api.triplet();
       api.at(0, ...place(bars[0], 3)); api.triplet();
       api.at(0, ...place(bars[0], 3)); api.triplet();
     },
@@ -723,12 +726,24 @@ const EDITED = [
     text: 'Cm7 1/5:8 3/2{ 1/7 1/9 2/9 1/10 } 1/12', beats: 7 / 3,
   },
   {
-    // Pressing it again on a bracketed note takes the bracket off and leaves the
-    // values alone: three eighths that were a beat are a beat and a half again.
-    name: '3連ボタン: もう一度押すと括弧だけ外れる',
+    // Pressing it on a bracket of three lets the last note out: the bracket is
+    // over two and the note let out keeps its value where it stands.
+    name: '3連ボタン: もう一度押すと括弧が2音に縮む',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.triplet(); },
-    text: 'Cm7 1/5:8 1/7 1/9 1/10 1/12', beats: 2.5,
+    text: 'Cm7 1/5:8 3/2{ 1/7 1/9 } 1/10 1/12', beats: 13 / 6,
+  },
+  {
+    // The figure the whole change is for, made the short way: bracket the note
+    // and the two after it, then press again to let the rest back out. Two
+    // presses, nothing deleted, and the bar counts four again.
+    name: '3連ボタン: 2回押して2音の3連にする',
+    sheet: '@0 D7 4/4:8 3/3+2/1:4 r:4 r:4 r:4',
+    run: ({ api, bars }) => {
+      api.at(0, ...place(bars[0], 0)); api.triplet();
+      api.at(0, ...place(bars[0], 0)); api.triplet();
+    },
+    text: 'D7 3/2{ 4/4:8 3/3+2/1:4 } r r r', beats: 4,
   },
 
   // ---- beams and grace notes ----

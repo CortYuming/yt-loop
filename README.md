@@ -34,7 +34,7 @@ https://cortyuming.github.io/yt-loop/
 | `E` | Open / close the sheet editor (the strip's 🎼 Edit) |
 | `←` / `→` | Seek 0.05 seconds (move the caret when Start/End is focused) |
 | `Shift + ←` / `→` | Seek 1 second (nudge the value by 0.05s when Start/End is focused) |
-| While ♪ is open | The panel takes the keyboard: `← →` walk the note selection, `1`–`5` set the duration, `0` gives it no length, `.` dots it, `,` brackets it and the two notes after it as a triplet (again to take the bracket off), `R` rest, `T` tie, `G` grace note, `S` stack, `I` opens room after it, `Backspace` delete, `Esc` back to writing at the end and then closed. Seeking with `← →` comes back as soon as it is closed |
+| While ♪ is open | The panel takes the keyboard: `← →` walk the note selection, `1`–`5` set the duration, `0` gives it no length, `.` dots it, `,` brackets it and the two notes after it as a triplet — press again to let the last note out, again to take the bracket off, so two notes under one 3 is two presses, `R` rest, `T` tie, `G` grace note, `S` stack, `I` opens room after it, `Backspace` delete, `Esc` back to writing at the end and then closed. Seeking with `← →` comes back as soon as it is closed |
 
 ## Sheet notation
 

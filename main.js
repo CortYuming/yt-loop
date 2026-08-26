@@ -2810,13 +2810,31 @@ function toggleNoteTriplet() {
     return;
   }
   if (!noteCanTriplet()) return;
-  const group = tripletGroup();
   if (ev.trip) {
-    for (const n of group) delete n.trip;
+    // Pressing it again on a bracket lets the last note out of it, and pressing
+    // it on a bracket of two takes the bracket off. So the button counts down —
+    // three, two, none — and two notes under one 3, which is how a swung beat is
+    // written, is two presses rather than a bracket and a deletion.
+    // Nothing is deleted on the way: the note let out keeps its value and its
+    // place, and the bar goes back to the length it had.
+    const group = tripletGroupPlaces(notePanelAt.chord, noteSel);
+    if (group.length > 2) {
+      const out = group[group.length - 1];
+      delete out.ev.trip;
+      // The next press goes on counting down the same bracket, so the selection
+      // follows it in when the note it was on is the one let out.
+      if (out.cell === notePanelAt.chord && out.index === noteSel) {
+        const kept = group[group.length - 2];
+        notePanelAt = { bar: notePanelAt.bar, chord: kept.cell };
+        noteSel = kept.index;
+      }
+    } else {
+      for (const p of group) delete p.ev.trip;
+    }
   } else {
     // A name of its own, so the bracket is not read as part of one beside it.
     const trip = { id: freeTripId(), num: 3, den: 2 };
-    for (const note of group) { note.trip = trip; delete note.free; }
+    for (const note of tripletGroup()) { note.trip = trip; delete note.free; }
   }
   commitNotes();
 }
@@ -3457,9 +3475,11 @@ function renderNotePanel() {
   // value carries, so the button changes with the value it is about to bend.
   const tripBtn = button(lengthRow, Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
     'Triplet — a bracket over this note and the two after it, three in the time '
-    + 'of two (key ,). What is inside keeps its own value, so the three can be '
-    + 'changed to an eighth and a quarter afterwards. Press again to take the '
-    + 'bracket off. Down where the bar has not three left to bracket',
+    + 'of two (key ,). Press again to let the last note out, and again to take '
+    + 'the bracket off, so two notes under one 3 is two presses. What is inside '
+    + 'keeps its own value, so an eighth and a quarter under one 3 — a swung '
+    + 'beat — is written as it is played. Down where the bar has not three left '
+    + 'to bracket',
     toggleNoteTriplet, shownTriplet, 'note-trip');
   if (!noteCanTriplet()) tripBtn.disabled = true;
   // Beaming, beside the triplet: both are about a run rather than a single note,
