@@ -1408,6 +1408,10 @@ function drawChordStrip(fromCache) {
   // Built in the order they are drawn and clamped as they go, so the list is
   // already ascending — sorting it would only shuffle bars the sheet overlapped.
   updateChordScroll(currentPlaybackTime());
+  // A redraw builds the marks itself rather than going through markNoteSelection,
+  // so the caret is brought back into view here too — writing a note can move it
+  // as surely as stepping to one does.
+  keepCaretInView();
   // The panel is drawn against the same parse, so it follows the strip rather
   // than keeping whatever it said before the sheet changed.
   if (notePanelAt) renderNotePanel();
@@ -1905,6 +1909,17 @@ function placeChordStrip(x) {
   chordStrip.style.transform = `translateX(${playhead - x}px)`;
 }
 
+// The inverse, read off the row itself rather than off a number kept beside it.
+// A redraw clears the transform and only then asks the clock to place the row —
+// and the clock declines on a sheet with no times in it, which leaves the row at
+// nought with a remembered x that says otherwise. Measured, there is nothing to
+// disagree with.
+function chordStripX() {
+  const vp = chordViewport.getBoundingClientRect();
+  const at = chordStrip.getBoundingClientRect().left - vp.left;
+  return chordViewport.clientWidth * PLAYHEAD_RATIO - at;
+}
+
 // A seek takes tens of milliseconds to land, and until it does the player still
 // reports the old time. Read literally that snaps the strip back to where the
 // drag started for a few frames before it jumps forward, which looks like the
@@ -1914,6 +1929,16 @@ let pendingSeek = null;   // { time, until }
 // Declared up here because updateChordScroll below reads it, and the strip can
 // be drawn before this file has finished evaluating.
 let chordDrag = null;     // { pointerId, fromX, baseX, moved }
+// The row, held where the caret put it. Editing walks the selection along a
+// stopped video, and the clock — which is what places the row — has nothing to
+// say while it is stopped, so a note stepped past the edge would stay past it.
+// Released the moment the clock moves again: the music is then what the row is
+// following, and it is following it from where it actually is.
+let caretHold = null;     // { x, time }
+// How far inside the edge the caret is brought back to — declared up here for
+// the same reason caretHold is: keepCaretInView reads it, and a redraw can call
+// that before this file has finished evaluating.
+const CARET_MARGIN = 80;
 
 function settledTime(t) {
   if (!pendingSeek) return t;
@@ -1942,6 +1967,13 @@ function updateChordScroll(t) {
   // The cell holding the caret stays where it is: sliding a box out from under
   // a word being typed is the one thing worse than not scrolling.
   if (chordStrip.contains(document.activeElement)) return;
+  if (caretHold) {
+    // Still the same moment, so nothing has happened that the row should follow
+    // instead. Placed again rather than left alone, since a redraw resets the
+    // transform and this is what puts it back.
+    if (Math.abs(t - caretHold.time) < 0.05) { placeChordStrip(caretHold.x); return; }
+    caretHold = null;
+  }
   placeChordStrip(chordXForTime(settledTime(t)));
 }
 
@@ -1966,6 +1998,7 @@ function seekFromStrip(x) {
 // always did: clamp to the video, draw from the clamped time, and claim the
 // seek so the state handler doesn't read it as someone else pressing play.
 function seekToTime(t) {
+  caretHold = null;   // sent somewhere: that is where the row belongs now
   const wanted = Math.max(0, t);
   let duration = 0;
   try {
@@ -1997,6 +2030,7 @@ chordViewport.addEventListener('pointerdown', e => {
   // A press on a box or a button is aiming at that, not at the strip: the caret
   // has to be placeable and a word has to be selectable by dragging over it.
   if (e.target.closest && e.target.closest('.chord-bar-time, .chord-add, button.chord-bar-no')) return;
+  caretHold = null;   // the hand takes the row from the caret
   chordDrag = {
     pointerId: e.pointerId,
     fromX: e.clientX,
@@ -2532,6 +2566,47 @@ function markNoteSelection() {
       && Number(caret.dataset.caret) === notePanelAt.chord;
     caret.classList.toggle('on', on);
   }
+  // The marks are what the caret is, so this is the one place that knows it just
+  // moved — every path that moves the selection ends here.
+  keepCaretInView();
+}
+
+// The caret, kept where it can be seen. Walking the selection with ← → runs it
+// off whichever edge it was heading for, and the row does not follow: the row is
+// placed from the clock, and the clock is stopped while a phrase is being
+// written. So the row is moved by however far it takes to bring the caret back
+// inside, and no further — a caret one note past the edge should come back one
+// note, not land in the middle of the row and take the whole bar with it.
+// Only while the video is stopped. Playing, the row is following the music, and
+// two things sliding it at once is neither.
+function keepCaretInView() {
+  if (!notePanelAt || chordEditor.hidden || !getChordsVisible()) return;
+  if (chordViewport.hidden || chordDrag) return;
+  if (safeState() === (window.YT && YT.PlayerState.PLAYING)) return;
+  // What is being written on, in the order the marks mean: the note selected,
+  // the empty stretch's caret, then the place after the last note — which is
+  // where writing sits when nothing is selected.
+  const el = chordStrip.querySelector('.staff-hit.on')
+    || chordStrip.querySelector('.staff-caret.on')
+    || chordStrip.querySelector('.staff-hit.after');
+  if (!el) return;
+  const box = el.getBoundingClientRect();
+  if (!box.width && !box.height) return;   // drawn but not shown
+  const vp = chordViewport.getBoundingClientRect();
+  if (!vp.width) return;
+  // Never more than a quarter of the row, so a narrow window still has somewhere
+  // to put the note it is bringing back.
+  const margin = Math.min(CARET_MARGIN, vp.width / 4);
+  const left = box.left - vp.left;
+  const right = box.right - vp.left;
+  let shift = 0;
+  if (left < margin) shift = margin - left;
+  else if (right > vp.width - margin) shift = (vp.width - margin) - right;
+  if (!shift) return;
+  // The transform reads `playhead - x`, so moving the row right by `shift` is
+  // taking that much off x.
+  caretHold = { x: chordStripX() - shift, time: currentPlaybackTime() };
+  placeChordStrip(caretHold.x);
 }
 
 function focusNotePanel() {
@@ -2542,6 +2617,10 @@ function focusNotePanel() {
 
 function closeNotePanel() {
   const wasOpen = noteAfter !== null;
+  // Nothing is being written on any more, so the row goes back to following the
+  // clock. Left held, it stayed parked wherever the last caret took it, with
+  // nothing on screen to say why.
+  caretHold = null;
   notePanelAt = null;
   noteSel = null;
   noteAfter = null;
