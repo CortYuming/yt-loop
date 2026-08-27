@@ -737,6 +737,56 @@ const EDITED = [
     text: 'Cm7 1/5:8 1/7 2/9:0', beats: 1,
   },
   {
+    // Pressing what is already lit takes it off. The press that plainly means
+    // "not this string" used to filter it out and put the same fret straight
+    // back, which drew the same shape and read as a dead board.
+    name: '板を叩く: 光っている弦を押すと外れる（スタックON）',
+    sheet: '@0 Cm7 1/5+2/7:8 1/7',
+    run: ({ api }) => { api.board({ stack: true }); api.at(0, 0, 0); api.press(2, 7); },
+    text: 'Cm7 1/5:8 1/7', beats: 1,
+  },
+  {
+    // The same press, with the board replacing rather than stacking: taking a
+    // string off is about that string either way.
+    name: '板を叩く: 光っている弦を押すと外れる（差し替えモード）',
+    sheet: '@0 Cm7 1/5+2/7:8 1/7',
+    run: ({ api }) => { api.at(0, 0, 0); api.press(2, 7); },
+    text: 'Cm7 1/5:8 1/7', beats: 1,
+  },
+  {
+    // The last string off leaves the beat where it was: a rest, not a hole the
+    // notes after it slide into.
+    name: '板を叩く: 最後の1本を外すと長さを保った休符になる',
+    sheet: '@0 Cm7 1/5:8 1/7',
+    run: ({ api }) => { api.at(0, 0, 0); api.press(1, 5); },
+    text: 'Cm7 r:8 1/7', beats: 1,
+  },
+  {
+    // On a rest a lit cell is the shape it remembers, so pressing it is that
+    // note struck again rather than a string taken off something with none.
+    name: '板を叩く: 休符の光っている弦を押すと音符に戻る',
+    sheet: '@0 Cm7 1/5:8 1/7',
+    run: ({ api }) => { api.at(0, 0, 0); api.press(1, 5); api.press(1, 5); },
+    text: 'Cm7 1/5:8 1/7', beats: 1,
+  },
+  {
+    // A stop written with no length of its own. Emptied it can no longer sound
+    // until the next note — there is nothing to sound — so it takes the run's
+    // duration and rests for it, which is what the R button does to one.
+    name: '板を叩く: 長さなしの音を空にすると長さのある休符になる',
+    sheet: '@0 Cm7 1/5:8 2/9:0',
+    run: ({ api }) => { api.at(0, 0, 1); api.press(2, 9); },
+    text: 'Cm7 1/5:8 r', beats: 1,
+  },
+  {
+    // Taking a string off a note under a bracket is not a reason to fall out of
+    // the triplet.
+    name: '板を叩く: 3連の中で弦を外しても3連のまま',
+    sheet: '@0 Cm7 1/5:8 1/7+2/9:8t 1/9 1/10 1/12:8',
+    run: ({ api }) => { api.at(0, 0, 1); api.press(2, 9); },
+    text: 'Cm7 1/5:8 3/2{ 1/7 1/9 1/10 } 1/12', beats: 2,
+  },
+  {
     name: '板を叩く: 3連の1音を差し替えても3連のまま',
     sheet: '@0 Cm7 1/5:8 1/7:8t 1/9 1/10 1/12:8',
     run: ({ api }) => { api.at(0, 0, 2); api.press(2, 9); },

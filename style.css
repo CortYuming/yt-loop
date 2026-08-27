@@ -124,6 +124,18 @@ button.primary:hover {
 .start-end-row {
   gap: 12px;
 }
+/* Right-aligned so the word sits against its own box whatever its length: left
+   aligned in a fixed 44px, "End" left a gap the eye read as the duration drifting
+   towards Start. */
+.start-end-row .field-label { text-align: right; }
+/* Either side of the duration. It is a reading, not a field, and without the
+   rules it looked like a stray part of whichever field it happened to sit
+   nearer. */
+.start-end-rule {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+}
 .field-group {
   display: flex;
   align-items: center;

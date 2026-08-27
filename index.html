@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=f89d72d4">
+<link rel="stylesheet" href="style.css?v=1a716fb7">
 </head>
 <body>
 <main>
@@ -61,20 +61,28 @@
       </label>
     </div>
 
+    <!-- The jumps sit at the outer ends of the row, so the pair of buttons stands
+         for the pair of edges: ⏮ at the head of Start, ⏭ at the tail of End. The
+         rules either side of the duration keep the row reading as two fields and a
+         reading between them, rather than one run of controls. -->
     <div class="row start-end-row">
       <div class="field-group">
+        <button id="startJumpBtn" class="pin" title="Jump to start">⏮</button>
         <span class="field-label">Start</span>
         <div class="nudge-group">
           <input type="text" id="startInput" placeholder="0:00.00" size="10" value="0:00.00" />
           <button id="captureStart" class="pin" title="Capture current time">📍</button>
         </div>
       </div>
+      <div class="start-end-rule"></div>
       <label class="duration-field" title="Loop duration (end − start)">⏱ <span id="durationDisplay" class="time">—</span></label>
+      <div class="start-end-rule"></div>
       <div class="field-group">
         <span class="field-label">End</span>
         <div class="nudge-group">
           <input type="text" id="endInput" placeholder="0:00.00" size="10" />
           <button id="captureEnd" class="pin" title="Capture current time">📍</button>
+          <button id="endJumpBtn" class="pin" title="Jump to end">⏭</button>
         </div>
       </div>
     </div>
@@ -244,6 +252,6 @@
      scripts/bump-cache-buster.sh to refresh them locally. A hand-kept counter used to get
      reused across changes, which left the browser on stale files while they were tested. -->
 <script src="chords.js?v=c6ff7673"></script>
-<script src="main.js?v=5e86a2ac"></script>
+<script src="main.js?v=28aca20b"></script>
 </body>
 </html>

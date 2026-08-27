@@ -159,6 +159,8 @@ const rampToggle      = document.getElementById('rampToggle');
 const rampFrom        = document.getElementById('rampFrom');
 const playLoopBtn     = document.getElementById('playLoopBtn');
 const toStartBtn      = document.getElementById('toStartBtn');
+const startJumpBtn    = document.getElementById('startJumpBtn');
+const endJumpBtn      = document.getElementById('endJumpBtn');
 const shareBtn        = document.getElementById('shareBtn');
 const shareMdBtn      = document.getElementById('shareMdBtn');
 const loopList        = document.getElementById('loopList');
@@ -890,7 +892,21 @@ function seekToStart() {
   player.seekTo(s, true);
 }
 
+// The far edge of the loop, reached the same way. Hearing what the range runs
+// into is how you tell whether the end lands on the beat or a hair past it, and
+// until now that meant dragging the player's own bar to somewhere near it.
+function seekToEnd() {
+  if (!player || !player.seekTo) return;
+  const e = parseTime(endInput.value);
+  if (e === null || isNaN(e)) return;
+  player.seekTo(e, true);
+}
+
 toStartBtn.addEventListener('click', seekToStart);
+// The same jump as ⏮ above, offered again beside the value it jumps to: reading
+// a time and going to it are one thought, and they were two rows apart.
+startJumpBtn.addEventListener('click', seekToStart);
+endJumpBtn.addEventListener('click', seekToEnd);
 
 // Confirm, then drop one history entry — for the odd range you don't want
 // suggested back at you. A video left with nothing goes too, so no empty groups
@@ -2048,6 +2064,12 @@ chordStrip.addEventListener('click', e => {
     const bar = Number(barEl.dataset.bar);
     const chord = Number(shut.dataset.chord);
     const note = Number(shut.dataset.note);
+    // Opened on a shape, the board opens ready to write one. Correcting a chord
+    // starts with a tap on one of its strings, and with stacking off that first
+    // tap threw the rest of the shape away — the one press that meant "this
+    // string, not that one" wiped the four that were right. A single note opens
+    // as it always did, replacing.
+    noteStack = stopCountAt(bar, chord, note) >= 2;
     // Opening the editor puts the box and the versions list above the strip, and
     // everything under them moves down by their height — the note just pressed
     // included, which walks out from under the finger that pressed it. So the
@@ -2626,6 +2648,33 @@ function pressStop(string, fret) {
       }
       commitNotes();
       return;
+    }
+    // A stop already lit is a stop taken off: pressing what is on is how you
+    // unwrite it, stacking or replacing alike. It used to filter that string out
+    // and put the same fret straight back, so the one press that plainly meant
+    // "not this one" was the one press that did nothing. Emptied of every string
+    // the note keeps its place and its length and becomes a rest — what was
+    // being corrected is the fingering, not the beat — written the way the R
+    // button writes one.
+    // A rest and a tie are both let through to the branches below, because on
+    // them a lit cell means something else: a rest keeps the shape it was made
+    // from so that pressing it again brings the note back, and a tie's lit cells
+    // are the strings it is holding on from before it. On either, a press is
+    // that note struck again, which is what the stack and replace branches do.
+    if (!ev.tie && !ev.rest) {
+      const stops = ev.stops || [];
+      const lit = stops.findIndex(st => st.string === string && st.fret === fret);
+      if (lit >= 0) {
+        stops.splice(lit, 1);
+        ev.stops = stops;
+        if (!stops.length) {
+          delete ev.free;
+          delete ev.grace;
+          ev.rest = true;
+        }
+        commitNotes();
+        return;
+      }
     }
     if (noteStack && !ev.tie) {
       ev.stops = stackStop(ev.stops, string, fret);
@@ -3355,6 +3404,17 @@ function stepNote(by) {
   else if (!moveNoteStretch(by)) return;
   renderNotePanel();
   markNoteSelection();
+}
+
+// How many strings a note in the sheet strikes at once. A rest strikes none, and
+// a tie's strings are the ones before it still ringing rather than anything
+// struck here, so neither counts as a shape.
+function stopCountAt(barIndex, chordIndex, index) {
+  const bar = chordCache.bars[barIndex];
+  const stretch = bar && bar.chords[chordIndex];
+  const ev = stretch && (stretch.notes || [])[index];
+  if (!ev || ev.rest || ev.tie) return 0;
+  return (ev.stops || []).length;
 }
 
 // Clicking a note in the strip selects it — see the staff's own click handler.
