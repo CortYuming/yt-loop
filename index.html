@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>YT Loop — Loop any part of a YouTube video</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%81%3C/text%3E%3C/svg%3E" />
-<link rel="stylesheet" href="style.css?v=1a716fb7">
+<link rel="stylesheet" href="style.css?v=d0483460">
 </head>
 <body>
 <main>
@@ -63,8 +63,9 @@
 
     <!-- The jumps sit at the outer ends of the row, so the pair of buttons stands
          for the pair of edges: ⏮ at the head of Start, ⏭ at the tail of End. The
-         rules either side of the duration keep the row reading as two fields and a
-         reading between them, rather than one run of controls. -->
+         duration between them wears a rule down each side — see style.css — so the
+         row reads as two fields with a reading between, rather than one run of
+         controls. -->
     <div class="row start-end-row">
       <div class="field-group">
         <button id="startJumpBtn" class="pin" title="Jump to start">⏮</button>
@@ -74,9 +75,7 @@
           <button id="captureStart" class="pin" title="Capture current time">📍</button>
         </div>
       </div>
-      <div class="start-end-rule"></div>
       <label class="duration-field" title="Loop duration (end − start)">⏱ <span id="durationDisplay" class="time">—</span></label>
-      <div class="start-end-rule"></div>
       <div class="field-group">
         <span class="field-label">End</span>
         <div class="nudge-group">
