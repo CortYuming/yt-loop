@@ -1492,9 +1492,9 @@ const Chords = (() => {
         for (const n of staffChord(chord.name, chord.markers, key).notes) reach(n.step);
         for (const ev of chord.notes || []) {
           for (const st of ev.stops) reach(stopNote(st, chord.name, key).step);
-          // Only single notes are counted: a stop of two or more is a voicing,
-          // and the diagram above it already says every one of its notes.
-          if (!ev.rest && !ev.tie && ev.stops.length === 1) stack = 1;
+          // Anything struck is counted, a voicing included — it gets a dot for
+          // its top voice. One dot deep either way, so this is on or off.
+          if (!ev.rest && !ev.tie && ev.stops.some(st => !st.dead)) stack = 1;
         }
       }
     }
@@ -2349,8 +2349,8 @@ const Chords = (() => {
   const TAB_NUM = 11.5;
 
   // Room under the six lines for the row of dots — see tabBar. Only where the
-  // sheet has single notes in it at all: `stack` is staffRange's count of them,
-  // and with none the row is height taken for nothing.
+  // sheet has something struck in it at all: `stack` is staffRange's word on
+  // that, and with nothing struck the row is height taken for nothing.
   const TAB_LABEL_PAD = SP * 0.9;
   function tabHeight(stack) {
     // The pad under the six lines is what the dots stand in: kept as well as
@@ -2372,9 +2372,9 @@ const Chords = (() => {
     const beat = paced * beatFit(items, width, paced);
     let carried = (carryIn && carryIn.length) ? carryIn : null;
     const hits = [];
-    // The dots read under the tab, where the words under a tune go. They name
-    // single notes only: a shape has its own diagram, which names every note in
-    // it in these very dots, and saying it again here is the same thing twice.
+    // The dots read under the tab, where the words under a tune go. One per
+    // event: the note struck, or the top of the voicing struck. See the push
+    // below for why a shape gets one dot rather than all of its notes.
     const labels = [];
     const labelCy = TAB_PAD + 5 * TAB_SP + TAB_LABEL_PAD + LABEL_R;
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
@@ -2396,17 +2396,30 @@ const Chords = (() => {
         const stops = !p.ev.tie ? p.ev.stops
           : (p.ev.stops && p.ev.stops.length) ? p.ev.stops : carried || [];
         if (!stops.length) continue;
-        for (const st of stops) {
-          // A lone muted string has no pitch to label: a degree under a knock
-          // said a note was sounding that never was.
-          if (stack && stops.length === 1 && !p.ev.tie && !st.dead) {
-            const one = stopNote(st, name, key);
+        // The top voice of what is struck, named under the tab — the one note in
+        // a voicing the ear follows, and the one a chord-melody is written for.
+        // Only one dot per event, whether one string was struck or four: the
+        // rest of the shape is in the diagram above, and printing all of it here
+        // would be the same thing twice as well as a row four dots deep.
+        // A knocked string has no pitch to label — a degree under a knock said a
+        // note was sounding that never was — so the top is the top of what rings.
+        if (stack && !p.ev.tie) {
+          const pitch = st => OPEN_MIDI[st.string - 1] + st.fret;
+          let top = null;
+          for (const st of stops) {
+            if (st.dead) continue;
+            if (top === null || pitch(st) > pitch(top)) top = st;
+          }
+          if (top) {
+            const one = stopNote(top, name, key);
             labels.push({
               x,
               hue: colourDegree(one.pc, chord, mode, key),
               label: pitchLabel(one.pc, chord, mode, key),
             });
           }
+        }
+        for (const st of stops) {
           const note = stopNote(st, name, key);
           const degree = colourDegree(note.pc, chord, mode, key);
           // A muted string keeps its fret — where the hand is is what a player

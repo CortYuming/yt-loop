@@ -89,6 +89,14 @@
   <text x="618.6666666666667" y="36.5" fill="#edbde6" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">7</text>
   <circle class="staff-label-dot" cx="302" cy="73.3" r="8.8" fill="#e57672"></circle>
   <text x="302" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">R</text>
+  <circle class="staff-label-dot" cx="397" cy="73.3" r="8.8" fill="#6ec6c1"></circle>
+  <text x="397" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">4</text>
+  <circle class="staff-label-dot" cx="492" cy="73.3" r="8.8" fill="#6ea6de"></circle>
+  <text x="492" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
+  <circle class="staff-label-dot" cx="555.3333333333334" cy="73.3" r="8.8" fill="#6d8f45"></circle>
+  <text x="555.3333333333334" y="77.56" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭3</text>
+  <circle class="staff-label-dot" cx="618.6666666666667" cy="73.3" r="8.8" fill="#6d8f45"></circle>
+  <text x="618.6666666666667" y="77.56" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭3</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="83.6" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="83.6" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>

@@ -73,6 +73,8 @@
   <text x="397" y="36.5" fill="#9aa0a0" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">7</text>
   <rect x="484" y="2" width="16" height="12" fill="#000"></rect>
   <text x="492" y="8" fill="#9cc267" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">12</text>
+  <circle class="staff-label-dot" cx="17" cy="73.3" r="8.8" fill="#6ea6de"></circle>
+  <text x="17" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
   <circle class="staff-label-dot" cx="302" cy="73.3" r="8.8" fill="#e57672"></circle>
   <text x="302" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">R</text>
   <circle class="staff-label-dot" cx="492" cy="73.3" r="8.8" fill="#9cc267"></circle>

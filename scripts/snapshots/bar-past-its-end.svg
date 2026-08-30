@@ -179,12 +179,26 @@
   <text x="665.3416454622561" y="27" fill="#6ea6de" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">10</text>
   <rect x="657.3416454622561" y="30.5" width="16" height="12" fill="#000"></rect>
   <text x="665.3416454622561" y="36.5" fill="#e57672" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <circle class="staff-label-dot" cx="17" cy="73.3" r="8.8" fill="#6ea6de"></circle>
+  <text x="17" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
+  <circle class="staff-label-dot" cx="193.78541136556404" cy="73.3" r="8.8" fill="#6d8f45"></circle>
+  <text x="193.78541136556404" y="77.56" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭3</text>
   <circle class="staff-label-dot" cx="242.91388182075207" cy="73.3" r="8.8" fill="#e6a45c"></circle>
   <text x="242.91388182075207" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">9</text>
+  <circle class="staff-label-dot" cx="292.04235227594006" cy="73.3" r="8.8" fill="#6d8f45"></circle>
+  <text x="292.04235227594006" y="77.56" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭3</text>
+  <circle class="staff-label-dot" cx="370.5708227311281" cy="73.3" r="8.8" fill="#6ea6de"></circle>
+  <text x="370.5708227311281" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
   <circle class="staff-label-dot" cx="419.6992931863161" cy="73.3" r="8.8" fill="#98c9c4"></circle>
   <text x="419.6992931863161" y="77.56" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭5</text>
+  <circle class="staff-label-dot" cx="468.82776364150413" cy="73.3" r="8.8" fill="#6ea6de"></circle>
+  <text x="468.82776364150413" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
+  <circle class="staff-label-dot" cx="517.9562340966921" cy="73.3" r="8.8" fill="#6d8f45"></circle>
+  <text x="517.9562340966921" y="77.56" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭3</text>
   <circle class="staff-label-dot" cx="591.6489397794742" cy="73.3" r="8.8" fill="#e6a45c"></circle>
   <text x="591.6489397794742" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">9</text>
+  <circle class="staff-label-dot" cx="665.3416454622561" cy="73.3" r="8.8" fill="#6d8f45"></circle>
+  <text x="665.3416454622561" y="77.56" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭3</text>
   <rect class="staff-slot" x="0" y="0" width="176.78541136556404" height="83.6" fill="transparent" data-slot="0"></rect>
   <rect class="staff-slot" x="176.78541136556404" y="0" width="176.78541136556404" height="83.6" fill="transparent" data-slot="1"></rect>
   <rect class="staff-slot" x="353.5708227311281" y="0" width="406.4291772688719" height="83.6" fill="transparent" data-slot="2"></rect>
