@@ -3929,6 +3929,10 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'x' || e.key === 'X') toggleNoteDeadMode();
   else if (e.key === 'i' || e.key === 'I') insertAfterNote();
   else if (e.key === 's' || e.key === 'S') { noteStack = !noteStack; renderNotePanel(); }
+  // The one player key the panel hands back: writing a phrase is playing it
+  // again from the top over and over, and closing the panel to do it lost the
+  // selection you were writing at.
+  else if (e.key === 'a' || e.key === 'A') seekToStart();
   else if (e.key === 'Backspace' || e.key === 'Delete') deleteNote();
   else if (e.key === 'Escape') {
     if (noteSel !== null || noteAfter !== null) endNoteWriting();
@@ -4778,7 +4782,10 @@ document.addEventListener('keydown', e => {
     const state = safeState();
     if (state === (window.YT && YT.PlayerState.PLAYING)) player.pauseVideo();
     else startPlaybackWithDelay();
-  } else if (e.key === 's' || e.key === 'S') {
+  } else if (e.key === 'a' || e.key === 'A') {
+    // Not S, which is stack while the note panel is open: one key doing two
+    // unrelated things depending on a mode is a key you have to stop and think
+    // about, and going back to the start is the press you make without thinking.
     e.preventDefault();
     seekToStart();
   } else if (e.key === 'l' || e.key === 'L') {
