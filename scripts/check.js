@@ -1339,7 +1339,7 @@ const rangeModule = (() => {
       shim.flashed.push(...els.filter(Boolean).map(el => el.id));
     }
     ${src}
-    return { refusesRange, nextBarEdge, endForStart, takesRange };`);
+    return { formatTime, refusesRange, nextBarEdge, endForStart, takesRange };`);
   return shim => make(shim);
 })();
 
@@ -1412,6 +1412,28 @@ const RANGE = [
   { name: '門: 入れる先がなければ従来どおり断る',
     got: () => outrun({ sheet: '', start: '0:11.00', end: '0:12.00', set: '0:15.00' }),
     want: { taken: false, end: '0:12.00', flashed: [] } },
+  // What lands in the box is text at two decimals, and everything downstream reads
+  // it back through parseTime — so what has to clear the Start is the value that
+  // survives that round trip, not the number endForStart picked. Two decimals lose
+  // at most 0.005 and the margin endForStart insists on is more than 0.005, so it
+  // clears by a hair. That is a coincidence between two constants that do not look
+  // related: take formatTime to one decimal, or shrink RANGE_EPS, and a Start could
+  // be left with an End equal to it — which reverses nothing, so no warning fires,
+  // and the loop simply never runs. Here so that change fails out loud.
+  { name: '追従: 丸めを通しても End は Start を必ず越える',
+    got: () => {
+      // Times whose third decimal is a 5 that rounds away, which is where two
+      // decimals lose the most.
+      const tight = [1.005, 2.005, 8.005, 16.005, 27.955, 1.045, 2.675, 300.005, 0.005];
+      return tight.filter(at => {
+        const edge = at + 0.005 + 1e-6;
+        const { api } = rangeCase({ sheet: `@${at} C7|@${edge} F7` });
+        const end = api.endForStart(at);
+        if (end === null) return false;
+        return !(parseTime(api.formatTime(end)) > at);
+      });
+    },
+    want: [] },
   // The mirror image is left alone on purpose: someone placing an End is saying
   // where to stop, and moving their Start for them is a longer guess.
   { name: '門: Start より前の End は直さない',
