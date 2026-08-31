@@ -71,8 +71,9 @@ function loopRange() {
 // here either: it only changes when the stored data does, so renderHistory()
 // stays an explicit call.
 // Would this value put the two ends the wrong way round? Asked before the value
-// goes in, not after: a Start later than the End describes nothing, and the
-// cheapest place to keep that out is the door.
+// goes in, not after: a Start later than the End describes nothing, and the door
+// is the cheapest place to deal with it. Dealing with it is not always refusing —
+// see takesRange, which is what the door actually calls.
 // A value that is not a time at all is somebody else's business — the box holds
 // half-typed times all the time.
 function refusesRange(box, text) {
@@ -93,10 +94,71 @@ function flashRefused(box) {
   box.classList.add('refused');
 }
 
-// The two ends the wrong way round. Nothing is corrected here — a stale End and
-// a fresh Start look exactly alike from the outside, and a range put right by
-// guessing is a range nobody asked for. What the app can say for certain is that
-// this pair describes nothing, and it says so on the button that was pressed.
+// The first bar line after `time`: the end of the bar it falls in, or the head of
+// the next bar where it falls between two timed runs. resolveSpans makes a bar's
+// end the next bar's start wherever both are known, so those are one boundary
+// read from either side and looking at both costs nothing.
+function nextBarEdge(time) {
+  const spans = chordCache.vid === currentVideoId
+    ? chordCache.spans
+    : refreshChordCache().spans;
+  let best = null;
+  for (const span of spans) {
+    for (const at of [span.start, span.end]) {
+      if (at === null || at === undefined || isNaN(at)) continue;
+      if (at > time + RANGE_EPS && (best === null || at < best)) best = at;
+    }
+  }
+  return best;
+}
+
+// The End a Start that has outrun it needs. The bar the new Start falls in ends
+// where the next one begins, so filling that in leaves a loop of the bar just
+// aimed at — which is what walking Start down the sheet is for in the first
+// place. With no sheet, or none with times on it, the video's own end is what is
+// left. Null when even that is unknown, and the value is refused as it was.
+function endForStart(start) {
+  const edge = nextBarEdge(start);
+  if (edge !== null) return edge;
+  const duration = player && player.getDuration ? player.getDuration() : null;
+  if (duration && !isNaN(duration) && duration > start + RANGE_EPS) return duration;
+  return null;
+}
+
+// Take a value the range would otherwise refuse, by moving the end it has
+// outrun. Only a Start does this: which box was aimed at is known here, so the
+// other one is stale by construction — which is exactly the thing rangeIsReversed
+// cannot work out from two boxes alone, and the reason it does not try.
+// An End put in front of the Start is left refused. It is the mirror image and
+// not the same act: someone placing an End is saying where to stop, and moving
+// their Start for them is a longer guess than moving a stale End.
+// True when the pair is now in order, false when there was nothing to move the
+// End to and the caller should refuse the value the way it always did.
+function takesRange(box, text) {
+  if (!refusesRange(box, text)) return true;
+  if (box !== startInput) return false;
+  const start = parseTime(text);
+  if (start === null || isNaN(start)) return false;
+  const end = endForStart(start);
+  if (end === null) return false;
+  endInput.value = formatTime(end);
+  // Kept in step with the box's own idea of what it held, or the next blur reads
+  // the filled End as an edit to be revert-checked.
+  endInput.dataset.was = endInput.value;
+  refreshUI();
+  // Said where it happened, in the white an accepted value flashes: the End did
+  // move, and a range that rearranges itself in silence is the guess this is
+  // trying not to be. The history row is left to the caller's own edit, which is
+  // one debounced write covering both ends.
+  flashElements([endInput]);
+  return true;
+}
+
+// The two ends the wrong way round, found after the fact rather than at the door.
+// Nothing is corrected here — by this point a stale End and a fresh Start look
+// exactly alike from the outside, and a range put right by guessing is a range
+// nobody asked for. What the app can say for certain is that this pair describes
+// nothing, and it says so on the button that was pressed.
 function rangeIsReversed() {
   const s = parseTime(startInput.value);
   const e = parseTime(endInput.value);
@@ -792,7 +854,7 @@ endInput.addEventListener('input',   () => { refreshUI(); handleValueEdit(endInp
 [startInput, endInput].forEach(box => {
   box.addEventListener('focus', () => { box.dataset.was = box.value; });
   const settle = () => {
-    if (!refusesRange(box, box.value)) { box.dataset.was = box.value; return; }
+    if (takesRange(box, box.value)) { box.dataset.was = box.value; return; }
     box.value = box.dataset.was || '';
     refreshUI();
     handleValueEdit(box);
@@ -849,13 +911,13 @@ speedRange.addEventListener('input', () => {
 });
 speedRange.addEventListener('change', () => setSpeed(speedRange.value));
 
-// Both 📍 drop the moment the video is at into their box — unless that moment is
-// on the wrong side of the other end, in which case there is nothing to put
-// there and the box says so instead.
+// Both 📍 drop the moment the video is at into their box. A Start caught past the
+// old End takes the End with it — see takesRange; an End caught in front of the
+// Start has nothing to put there, and the box says so instead.
 function captureInto(box) {
   if (!player || !player.getCurrentTime) return;
   const text = formatTime(player.getCurrentTime());
-  if (refusesRange(box, text)) { flashRefused(box); return; }
+  if (!takesRange(box, text)) { flashRefused(box); return; }
   box.value = text;
   refreshUI();
   handleValueEdit(box);
@@ -1635,10 +1697,12 @@ function barTimePins(index, span) {
       e.preventDefault();
       e.stopPropagation();
       const value = formatTime(at);
-      // This bar is on the wrong side of the range's other end, so it cannot be
-      // this end of it. Nothing is written and the panel stays open — the other
-      // 📍 beside it may well be the one that was meant.
-      if (refusesRange(input, value)) {
+      // A bar picked as the Start after the range's End brings the End along —
+      // walking Start down the sheet is the whole point of these — and only an
+      // End picked in front of the Start is left with nowhere to go. Nothing is
+      // written then and the panel stays open: the other 📍 beside it may well be
+      // the one that was meant. See takesRange.
+      if (!takesRange(input, value)) {
         const other = input === startInput ? endInput : startInput;
         refused.textContent = input === startInput
           ? `Later than End ${other.value.trim()}`
@@ -4780,7 +4844,10 @@ document.addEventListener('keydown', e => {
     const cur = parseTime(target.value);
     const base = (cur === null || isNaN(cur)) ? 0 : cur;
     const next = formatTime(Math.max(0, roundTo(base + delta, 2)));
-    // The step that would cross the other end is the step that doesn't happen.
+    // The step that would cross the other end is the step that doesn't happen —
+    // refused outright rather than taken by moving the other end, the way the 📍
+    // and the boxes do it. A nudge is a hair's adjustment, and sending the End to
+    // the next bar line off one keypress is a jump nobody pressing this wanted.
     if (refusesRange(target, next)) { flashRefused(target); return; }
     target.value = next;
     target.dataset.was = next;

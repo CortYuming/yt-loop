@@ -1315,6 +1315,115 @@ const BASS = [
     want: [['E7#9', 'E7#9'], ['', ''], ['/C#', 'E7#9']] },
 ];
 
+// ---------- a Start that outruns the End ----------
+// Walking Start down the sheet used to be refused whenever it passed the End the
+// range already held — the pair describes nothing, so the door kept it out. At
+// the door, though, it is known which box was aimed at, so the other one is stale
+// by construction and there is nothing left to guess: the End follows to the
+// first bar line after the new Start. These run the real functions over stub
+// boxes, because which box moved is the whole of the rule.
+const rangeModule = (() => {
+  const src = ['formatTime', 'parseTime', 'refusesRange', 'nextBarEdge', 'endForStart',
+    'takesRange'].map(liftOne).join('\n');
+  const make = new Function('shim', `
+    const RANGE_EPS = 0.005;
+    const startInput = shim.startInput;
+    const endInput = shim.endInput;
+    const player = shim.player;
+    const currentVideoId = 'v';
+    const chordCache = shim.chordCache;
+    // The sheet never changes under a case, so the cache is always the fresh one.
+    function refreshChordCache() { return chordCache; }
+    function refreshUI() { shim.refreshed++; }
+    function flashElements(els) {
+      shim.flashed.push(...els.filter(Boolean).map(el => el.id));
+    }
+    ${src}
+    return { refusesRange, nextBarEdge, endForStart, takesRange };`);
+  return shim => make(shim);
+})();
+
+// One case's boxes and sheet, built fresh so no case inherits the End another
+// one moved.
+function rangeCase(opts) {
+  const box = id => ({ id, value: '', dataset: {} });
+  const bars = Chords.parseSheet(opts.sheet || '');
+  const shim = {
+    startInput: box('start'),
+    endInput: box('end'),
+    player: opts.duration === undefined ? null : { getDuration: () => opts.duration },
+    chordCache: { vid: 'v', bars, spans: Chords.resolveSpans(bars) },
+    flashed: [],
+    refreshed: 0,
+  };
+  shim.startInput.value = opts.start || '';
+  shim.endInput.value = opts.end || '';
+  return { shim, api: rangeModule(shim) };
+}
+
+// Four bars of two seconds each, so every boundary is easy to name: heads at
+// 10, 12, 14 and 16, and the last bar ends at 18 by borrowing the length of the
+// one before it — see Chords.resolveSpans.
+const FOUR_BARS = '@10 C7|@12 F7|@14 C7|@16 G7';
+
+// What the End becomes for a Start dropped at `at`.
+function endFor(at, opts) {
+  const { api } = rangeCase(opts || { sheet: FOUR_BARS });
+  return api.endForStart(at);
+}
+
+// Put `start` into Start against a range that already ends at `end`, and report
+// what the pair became. `taken` is what the door answered.
+function outrun(opts) {
+  const { shim, api } = rangeCase(opts);
+  const taken = api.takesRange(shim.startInput, opts.set);
+  return { taken, end: shim.endInput.value, flashed: shim.flashed };
+}
+
+const RANGE = [
+  { name: '追従: 新しい Start が入る小節の終わり（＝次の小節の頭）',
+    got: () => endFor(12.5), want: 14 },
+  { name: '追従: 小節の頭ぴったりならその小節を1つ鳴らす長さ',
+    got: () => endFor(12), want: 14 },
+  { name: '追従: 最後の小節なら借りた終わり',
+    got: () => endFor(16.5), want: 18 },
+  // Past every bar there is no bar line left to find, so the video's end is what
+  // is left.
+  { name: '追従: 小節を全部過ぎたら動画の終わり',
+    got: () => endFor(20, { sheet: FOUR_BARS, duration: 30 }), want: 30 },
+  { name: '追従: 譜面がなければ動画の終わり',
+    got: () => endFor(20, { sheet: '', duration: 30 }), want: 30 },
+  // A sheet whose bars carry no times has no boundaries to offer either.
+  { name: '追従: 時刻のない譜面は動画の終わり',
+    got: () => endFor(20, { sheet: 'C7|F7', duration: 30 }), want: 30 },
+  { name: '追従: 動画の終わりも Start より前なら諦める',
+    got: () => endFor(40, { sheet: FOUR_BARS, duration: 30 }), want: null },
+  { name: '追従: 動画も譜面もなければ諦める',
+    got: () => endFor(20, { sheet: '' }), want: null },
+
+  // The door itself.
+  { name: '門: End を追い越した Start は End を連れていく',
+    got: () => outrun({ sheet: FOUR_BARS, start: '0:11.00', end: '0:12.00', set: '0:15.00' }),
+    want: { taken: true, end: '0:16.00', flashed: ['end'] } },
+  { name: '門: 順番どおりの値は何も動かさない',
+    got: () => outrun({ sheet: FOUR_BARS, start: '0:11.00', end: '0:16.00', set: '0:13.00' }),
+    want: { taken: true, end: '0:16.00', flashed: [] } },
+  // Nothing to move the End to, so the value is refused the way it always was.
+  { name: '門: 入れる先がなければ従来どおり断る',
+    got: () => outrun({ sheet: '', start: '0:11.00', end: '0:12.00', set: '0:15.00' }),
+    want: { taken: false, end: '0:12.00', flashed: [] } },
+  // The mirror image is left alone on purpose: someone placing an End is saying
+  // where to stop, and moving their Start for them is a longer guess.
+  { name: '門: Start より前の End は直さない',
+    got: () => {
+      const { shim, api } = rangeCase(
+        { sheet: FOUR_BARS, start: '0:15.00', end: '0:16.00' });
+      const taken = api.takesRange(shim.endInput, '0:11.00');
+      return { taken, start: shim.startInput.value, flashed: shim.flashed };
+    },
+    want: { taken: false, start: '0:15.00', flashed: [] } },
+];
+
 const LOOP = { start: 26.83, end: 29.25, speed: 0.75, note: 'F7 の E♭' };
 const TIMES = [
   // A bar with no end takes the next bar's start, and the last one — with
@@ -1588,12 +1697,14 @@ const answers = (title, list) => {
 };
 answers('箱に貼る', READ);
 answers('ベース移動', BASS);
+answers('範囲の追従', RANGE);
 answers('時間と共有', TIMES);
 
 const drawnCount = Object.keys(DRAWN).length;
 console.log(`\n描画 ${drawnCount} 件 / 編集 ${EDITED.length} 件`
   + ` / テキスト ${WRITTEN.length} 件 / 箱 ${READ.length} 件`
-  + ` / ベース移動 ${BASS.length} 件 / 時間と共有 ${TIMES.length} 件`
+  + ` / ベース移動 ${BASS.length} 件 / 範囲の追従 ${RANGE.length} 件`
+  + ` / 時間と共有 ${TIMES.length} 件`
   + `${known ? ` / 既知の壊れ方 ${known} 件` : ''}`
   + `${updated ? ` / snapshot ${updated} 件を書きました` : ''}`);
 if (failed) {
