@@ -70,10 +70,13 @@ function loopRange() {
 // them, so there is nothing to push. The history list is deliberately not in
 // here either: it only changes when the stored data does, so renderHistory()
 // stays an explicit call.
-// Would this value put the two ends the wrong way round? Asked before the value
-// goes in, not after: a Start later than the End describes nothing, and the door
-// is the cheapest place to deal with it. Dealing with it is not always refusing —
-// see takesRange, which is what the door actually calls.
+// Would this value leave no range to play? Asked before the value goes in, not
+// after: a Start at or past the End describes nothing, and the door is the
+// cheapest place to deal with it. Dealing with it is not always refusing — see
+// takesRange, which is what the door actually calls.
+// Landing exactly on the other end counts. loopRange gives up on `s >= e`, so an
+// End set to the Start is a Loop toggle lit over nothing — and nothing is
+// reversed there, so no warning was ever going to fire either.
 // A value that is not a time at all is somebody else's business — the box holds
 // half-typed times all the time.
 function refusesRange(box, text) {
@@ -81,7 +84,7 @@ function refusesRange(box, text) {
   if (t === null || isNaN(t)) return false;
   const other = parseTime((box === startInput ? endInput : startInput).value);
   if (other === null || isNaN(other)) return false;
-  return box === startInput ? t > other : t < other;
+  return box === startInput ? t >= other : t <= other;
 }
 
 // Refused, said on the box that was aimed at. Red where an accepted value
@@ -127,7 +130,7 @@ function endForStart(start) {
 
 // Take a value the range would otherwise refuse, by moving the end it has
 // outrun. Only a Start does this: which box was aimed at is known here, so the
-// other one is stale by construction — which is exactly the thing rangeIsReversed
+// other one is stale by construction — which is exactly the thing rangeIsEmpty
 // cannot work out from two boxes alone, and the reason it does not try.
 // An End put in front of the Start is left refused. It is the mirror image and
 // not the same act: someone placing an End is saying where to stop, and moving
@@ -154,24 +157,30 @@ function takesRange(box, text) {
   return true;
 }
 
-// The two ends the wrong way round, found after the fact rather than at the door.
-// Nothing is corrected here — by this point a stale End and a fresh Start look
-// exactly alike from the outside, and a range put right by guessing is a range
-// nobody asked for. What the app can say for certain is that this pair describes
+// A pair with nothing between its ends, found after the fact rather than at the
+// door. The same `s >= e` loopRange gives up on, so the two never disagree about
+// whether there is a range: equal ends are as unplayable as crossed ones, and
+// used to slip through here because only crossing was looked for.
+// Nothing is corrected — by this point a stale End and a fresh Start look exactly
+// alike from the outside, and a range put right by guessing is a range nobody
+// asked for. What the app can say for certain is that this pair describes
 // nothing, and it says so on the button that was pressed.
-function rangeIsReversed() {
+// Reachable now only from a link written by hand: every door the form has either
+// takes the value or turns it away. See the share-link landing, which drops an
+// End it cannot use rather than carrying it in.
+function rangeIsEmpty() {
   const s = parseTime(startInput.value);
   const e = parseTime(endInput.value);
   if (s === null || e === null || isNaN(s) || isNaN(e)) return false;
-  return s > e;
+  return s >= e;
 }
 
 // Said on the button the finger is already on, since that is the one place on
 // screen being looked at. Everything else about the form is left alone.
-const REVERSED_MS = 1800;
-function refuseReversed(btn, restore) {
-  btn.textContent = '⚠ Start > End';
-  setTimeout(restore, REVERSED_MS);
+const EMPTY_RANGE_MS = 1800;
+function refuseEmptyRange(btn, restore) {
+  btn.textContent = '⚠ Start ≥ End';
+  setTimeout(restore, EMPTY_RANGE_MS);
 }
 
 function refreshUI() {
@@ -189,6 +198,22 @@ function applyLoopToForm(loop) {
   if (loop.speed != null && !isNaN(loop.speed)) setSpeed(loop.speed);
   if (loop.note  !== undefined)                 noteInput.value  = loop.note || '';
   refreshUI();
+}
+
+// A link's End, or nothing where there is no range to be had from it.
+// buildShareUrl never writes an End at or before its Start, so a link carrying one
+// was edited by hand or cut short — and half a range is worth more than a broken
+// one: dropped, the End is as good as absent, and fillDefaultEnd below covers the
+// clip the way it does for any fresh session.
+// A link is the one way into the form that is not a door — see takesRange for the
+// ones that are — which makes it the only way the ⚠ on Play could still be
+// reached. Kept out here rather than warned about there.
+// An End with no Start beside it is left alone: there is nothing for it to be on
+// the wrong side of.
+function linkEndFor(start, end) {
+  if (typeof end !== 'number' || isNaN(end)) return undefined;
+  if (typeof start !== 'number' || isNaN(start)) return end;
+  return end > start ? end : undefined;
 }
 
 // Fill End with the video duration if it's still empty. Called once the player
@@ -381,11 +406,12 @@ window.onYouTubeIframeAPIReady = () => {
       const e = params.get('e');
       const r = params.get('r');
       const n = params.get('n');
+      const linkStart = s !== null ? parseFloat(s) : undefined;
       // Note is deliberately left out here so the two sources below can be tried
       // in order.
       applyLoopToForm({
-        start: s !== null ? parseFloat(s) : undefined,
-        end:   e !== null ? parseFloat(e) : undefined,
+        start: linkStart,
+        end:   linkEndFor(linkStart, e !== null ? parseFloat(e) : undefined),
         speed: r !== null ? parseFloat(r) : undefined
       });
       // Local history wins over the link's note, and the link only speaks up when
@@ -930,8 +956,8 @@ playLoopBtn.addEventListener('click', () => {
   if (!player || !player.getPlayerState) return;
   // Only with the toggle on: with looping off the two ends are not being used,
   // and there is nothing to be wrong about.
-  if (loopToggle && loopToggle.checked && rangeIsReversed()) {
-    refuseReversed(playLoopBtn, updatePlayButton);
+  if (loopToggle && loopToggle.checked && rangeIsEmpty()) {
+    refuseEmptyRange(playLoopBtn, updatePlayButton);
     return;
   }
   if (cancelPendingPlay()) { updatePlayButton(); return; }
@@ -1107,8 +1133,8 @@ shareBtn.addEventListener('click', () => {
   if (!url) { alert('Load a video first'); return; }
   // A link carrying the two ends the wrong way round does not loop where it
   // lands, and a bookmark is kept for years. So it is not handed out.
-  if (rangeIsReversed()) {
-    refuseReversed(shareBtn, () => { shareBtn.textContent = '🔗 URL'; });
+  if (rangeIsEmpty()) {
+    refuseEmptyRange(shareBtn, () => { shareBtn.textContent = '🔗 URL'; });
     return;
   }
   copyWithFeedback(shareBtn, url, '✅ Copied!', '🔗 URL');
@@ -1116,8 +1142,8 @@ shareBtn.addEventListener('click', () => {
 
 shareMdBtn.addEventListener('click', () => {
   if (!currentVideoId) { alert('Load a video first'); return; }
-  if (rangeIsReversed()) {
-    refuseReversed(shareMdBtn, () => { shareMdBtn.textContent = '📝 MD'; });
+  if (rangeIsEmpty()) {
+    refuseEmptyRange(shareMdBtn, () => { shareMdBtn.textContent = '📝 MD'; });
     return;
   }
   const md = buildShareMarkdown(currentVideoId, currentFormLoop());

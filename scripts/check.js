@@ -1323,8 +1323,8 @@ const BASS = [
 // first bar line after the new Start. These run the real functions over stub
 // boxes, because which box moved is the whole of the rule.
 const rangeModule = (() => {
-  const src = ['formatTime', 'parseTime', 'refusesRange', 'nextBarEdge', 'endForStart',
-    'takesRange'].map(liftOne).join('\n');
+  const src = ['formatTime', 'parseTime', 'refusesRange', 'rangeIsEmpty', 'linkEndFor',
+    'nextBarEdge', 'endForStart', 'takesRange'].map(liftOne).join('\n');
   const make = new Function('shim', `
     const RANGE_EPS = 0.005;
     const startInput = shim.startInput;
@@ -1339,7 +1339,8 @@ const rangeModule = (() => {
       shim.flashed.push(...els.filter(Boolean).map(el => el.id));
     }
     ${src}
-    return { formatTime, refusesRange, nextBarEdge, endForStart, takesRange };`);
+    return { formatTime, refusesRange, rangeIsEmpty, linkEndFor,
+      nextBarEdge, endForStart, takesRange };`);
   return shim => make(shim);
 })();
 
@@ -1434,6 +1435,37 @@ const RANGE = [
       });
     },
     want: [] },
+  // Ends that land exactly on the other one. loopRange gives up on `s >= e`, so a
+  // pair like that is a Loop toggle lit over nothing — and nothing is reversed
+  // there, so the ⚠ never fired either. Both halves now agree it is no range.
+  { name: '門: Start と同じ End は断る',
+    got: () => {
+      const { shim, api } = rangeCase(
+        { sheet: FOUR_BARS, start: '0:13.00', end: '0:16.00' });
+      return { taken: api.takesRange(shim.endInput, '0:13.00'),
+        empty: (() => { shim.endInput.value = '0:13.00'; return api.rangeIsEmpty(); })() };
+    },
+    want: { taken: false, empty: true } },
+  // The same value from the other side takes the End along rather than being
+  // turned away, since a Start is what these doors are for.
+  { name: '門: End と同じ Start は End を連れていく',
+    got: () => outrun({ sheet: FOUR_BARS, start: '0:11.00', end: '0:13.00', set: '0:13.00' }),
+    want: { taken: true, end: '0:14.00', flashed: ['end'] } },
+
+  // A share link is the one way into the form that is not a door, so an End it
+  // cannot make a range of is dropped on the way in — see linkEndFor. Left in, it
+  // was the only remaining way to reach the ⚠ on Play.
+  { name: 'リンク: End が Start より後ならそのまま',
+    got: () => rangeCase({}).api.linkEndFor(10, 14), want: 14 },
+  { name: 'リンク: End が Start と同じなら捨てる',
+    got: () => rangeCase({}).api.linkEndFor(10, 10), want: undefined },
+  { name: 'リンク: End が Start より前なら捨てる',
+    got: () => rangeCase({}).api.linkEndFor(10, 4), want: undefined },
+  { name: 'リンク: Start がなければ End はそのまま',
+    got: () => rangeCase({}).api.linkEndFor(undefined, 14), want: 14 },
+  { name: 'リンク: End がなければ何も返さない',
+    got: () => rangeCase({}).api.linkEndFor(10, undefined), want: undefined },
+
   // The mirror image is left alone on purpose: someone placing an End is saying
   // where to stop, and moving their Start for them is a longer guess.
   { name: '門: Start より前の End は直さない',
