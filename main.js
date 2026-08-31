@@ -1345,17 +1345,21 @@ function drawChordStrip(fromCache) {
       // A bar can open on a tie — a note held over the bar line — and then what
       // it is holding was struck in the bar before it.
       const carryIn = Chords.carriedStops(bars, i);
+      // And on a bass move — `/Bb` on a downbeat — and then the harmony it says
+      // has not changed was named in the bar before it. See Chords.rulingBefore.
+      const heldName = Chords.rulingBefore(bars, i);
       // And a bar can end on one: the arc crossing the bar line is drawn as two
       // halves, one in each bar, since each bar is a staff of its own.
       const carryOut = barOpensOnTie(bars[i + 1])
         && Chords.carriedStops(bars, i + 1).length > 0;
       const staff = Chords.staffBar(
-        items, width, staffReach, key, effectiveChordMode(), slot, carryIn, carryOut);
+        items, width, staffReach, key, effectiveChordMode(), slot, carryIn, carryOut,
+        heldName);
       staff.setAttribute('class', 'chord-staff');
       barEl.appendChild(staff);
       if (showTab) {
         const tab = Chords.tabBar(items, width, key, effectiveChordMode(), slot, carryIn,
-          staffReach && staffReach.stack);
+          staffReach && staffReach.stack, heldName);
         tab.setAttribute('class', 'chord-tab');
         barEl.appendChild(tab);
       }
@@ -2168,20 +2172,26 @@ window.addEventListener('resize', () => {
 function barShapes(bars, barIndex) {
   const chords = (bars[barIndex] && bars[barIndex].chords) || [];
   const all = [];
+  // The harmony each shape is read against, walked across the bar: `/Bb` is a
+  // bass move and names no chord, so what a shape under one counts from is the
+  // chord still in force above it. `name` stays what the sheet wrote either way
+  // — that is what a player reads the bass off — so the two are kept apart.
+  const walk = Chords.rulingWalk(Chords.rulingBefore(bars, barIndex));
   chords.forEach((chord, j) => {
     const picked = chord.markers && chord.markers.some(f => f !== null);
+    const ruling = walk(chord.name);
     if (picked) {
-      all.push({ markers: chord.markers, name: chord.name || '', chord: j });
+      all.push({ markers: chord.markers, name: chord.name || '', ruling, chord: j });
     }
     for (const sh of Chords.stopShapes(chord.notes, chord.name,
-      Chords.soundingBefore(bars, barIndex, j))) {
-      all.push({ markers: sh.markers, name: sh.name, chord: j });
+      Chords.soundingBefore(bars, barIndex, j), walk)) {
+      all.push({ markers: sh.markers, name: sh.name, ruling: sh.ruling, chord: j });
     }
     // A chord written as a name and nothing else still says what it is. A stretch
     // with notes in it does not: its name would be printed a second time directly
     // above the one the staff already carries.
     if (!picked && chord.name && !(chord.notes && chord.notes.length)) {
-      all.push({ markers: null, name: chord.name, chord: j });
+      all.push({ markers: null, name: chord.name, ruling, chord: j });
     }
   });
   const keep = [];
@@ -2226,7 +2236,8 @@ function renderBarLane(bars, barIndex, slot) {
       // and the tab above it already do — a shape whose dots went plain while the
       // tab numbers under it kept their colours read as two pictures of one thing.
       const dia = Chords.diagram(
-        shape.markers, shape.name || 'C', effectiveChordMode(), currentChordKey(),
+        shape.markers, shape.ruling || shape.name || 'C',
+        effectiveChordMode(), currentChordKey(),
         (chordWindows[barIndex] || [])[shape.chord],
       );
       // The shape is the way out to the fretboard viewer — this shape, not
@@ -3581,9 +3592,15 @@ function renderNotePanel() {
   // starts a chord there, and the notes from it on are read against that.
   // Worked out here rather than at the board, because the switch that labels the
   // board has to say the same thing it does.
-  const names = Chords.rulingNames(chord);
-  const ruling = (noteSel !== null && names[noteSel]) || chord.name;
-  const boardMode = ruling ? effectiveChordMode() : 'note';
+  // Against the harmony rather than the name written there: a bass move names no
+  // chord, and a board labelled from one showed twenty-two frets of blank dots.
+  const ruling = Chords.rulingAt(chordCache.bars, notePanelAt.bar, notePanelAt.chord,
+    noteSel === null ? null : noteSel);
+  // A bass move is a name and still no chord, so it counts as nothing to read
+  // against: degrees from it would be counted from C, which is the number this
+  // falls back to note names to avoid.
+  const boardMode = ruling && !Chords.isBassOnly(ruling)
+    ? effectiveChordMode() : 'note';
 
   // The tools, grouped by what they do to the music: how long a thing is, what
   // to write, and what to fix. One row of fifteen buttons said nothing about

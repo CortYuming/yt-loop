@@ -176,8 +176,13 @@ const Chords = (() => {
   // chord's own root moving do from bar to bar is a different reading of the
   // same word and not the one a sheet is for. With no key there is nothing to
   // be relative to, so the dots go back to degrees rather than inventing one.
+  // A name the parser makes nothing of leaves the dot with its note name rather
+  // than empty. Blank said the board had nothing to say about the fret, which is
+  // never true — a fret always sounds a note — and a name that names no chord is
+  // a real thing to be handed: a bass move on its own, a name half typed. Note
+  // names are what there is to read then, which is what the panel does with the
+  // same case; see renderNotePanel.
   function dotLabel(stringIdx, fret, chord, mode, key) {
-    if (!chord) return '';
     return pitchLabel((OPEN_STRINGS[stringIdx] + fret) % 12, chord, mode, key);
   }
 
@@ -186,13 +191,18 @@ const Chords = (() => {
   // chord to count from there is only its name, which is what the board falls
   // back to as well.
   function pitchLabel(semi, chord, mode, key) {
-    if (!chord) return NOTES_SHARP[semi];
-    if (mode === 'note') {
-      return accidentalFor(chord) === '♭' ? NOTES_FLAT[semi] : NOTES_SHARP[semi];
-    }
+    // Solfège is counted from the key and from nothing else, so it is read
+    // before the chord is looked at — a name the parser could not make a chord
+    // of takes nothing away from a reading the key already settles. colourDegree
+    // counts from the key here too, and the two have to agree: a dot wearing the
+    // li hue with A♯ written inside it says the note is two things at once.
     if (mode === 'solfa' && key) {
       const table = key.accidental === '♭' ? SOLFEGE_FLAT : SOLFEGE_SHARP;
       return table[(semi - key.tonic + 12) % 12];
+    }
+    if (!chord) return NOTES_SHARP[semi];
+    if (mode === 'note') {
+      return accidentalFor(chord) === '♭' ? NOTES_FLAT[semi] : NOTES_SHARP[semi];
     }
     return contextualName((semi - chord.root + 12) % 12, chord);
   }
@@ -503,6 +513,79 @@ const Chords = (() => {
     });
   }
 
+  // A name that says only where the bass went: `/Bb`, the way a lead sheet
+  // writes a bass walking under a harmony that has not moved. It is a name a
+  // sheet wants printed — a player reads the bass off it — and no chord at all,
+  // which is the whole of the difference the walk below is for.
+  const BASS_ONLY = /^\/\s*[A-Ga-g][#♯b♭]?$/;
+  function isBassOnly(name) { return BASS_ONLY.test(String(name || '').trim()); }
+
+  // Written names are what the sheet prints. This is what its labels and colours
+  // count from, and the two part company the moment a bass moves: `/Bb` names no
+  // chord, so the chord it is read against is the one still in force above it.
+  // Read on its own it named nothing, and every label under it fell back to a
+  // plain note name — a dot wearing the li hue with A♯ written inside it.
+  //
+  // `held` is what the bar carried in — see rulingBefore. With nothing to hold,
+  // the name is handed back as it was written rather than as no name at all, and
+  // that distinction is the whole point: a name that names no chord reads as
+  // plain note names, which is honestly what it is, while no name at all is read
+  // against C. Counted from C a bass move gets ♭7 and 9 where it should get ♭5
+  // and ♭7 — a number that means nothing, and no way to see that it means
+  // nothing. The panel says the same in as many words; see renderNotePanel.
+  function rulingWalk(held) {
+    let last = held || '';
+    return written => {
+      const name = written || '';
+      if (!isBassOnly(name)) { last = name; return name; }
+      return last || name;
+    };
+  }
+
+  // The chord in force as a bar opens: the last chord actually named before it.
+  // A bass move landing on a downbeat — `| E7♯9 … | /Bb … |`, which is how a bass
+  // walking into the next bar is written — says the harmony did not change, so
+  // what it did not change has to be findable in the bars above. A tie reaches
+  // back across a bar line for the strings it is holding and this is the same
+  // kind of reach; see carriedStops, which is this walk for strings.
+  // Past a bar naming no chord at all as well: that is not a chord statement but
+  // the lack of one, and a sheet whose harmony is written every few bars is
+  // ordinary — see the untimed run in any transcription.
+  function rulingBefore(bars, barIndex) {
+    for (let b = (barIndex || 0) - 1; b >= 0; b--) {
+      const chords = (bars[b] && bars[b].chords) || [];
+      for (let c = chords.length - 1; c >= 0; c--) {
+        const names = rulingNames(chords[c]);
+        for (let i = names.length - 1; i >= 0; i--) {
+          if (names[i] && !isBassOnly(names[i])) return names[i];
+        }
+        const own = (chords[c] && chords[c].name) || '';
+        if (own && !isBassOnly(own)) return own;
+      }
+    }
+    return '';
+  }
+
+  // The name one note is read against, worked out from the sheet alone. The row
+  // and the tab each walk their own bar as they draw it; the panel has only a
+  // caret, so it asks for the one name it needs.
+  function rulingAt(bars, barIndex, chordIndex, noteIndex) {
+    const chords = ((bars && bars[barIndex]) || {}).chords || [];
+    const walk = rulingWalk(rulingBefore(bars, barIndex));
+    for (let c = 0; c < chords.length; c++) {
+      const item = chords[c];
+      let held = walk(item.name);
+      if (c === chordIndex) {
+        if (typeof noteIndex !== 'number') return held;
+        const names = rulingNames(item);
+        for (let i = 0; i <= noteIndex && i < names.length; i++) held = walk(names[i]);
+        return held;
+      }
+      rulingNames(item).forEach(name => walk(name));
+    }
+    return '';
+  }
+
   // The notes of one chord's stretch as text, leaving out every duration that
   // repeats the one before it.
   // `open` is the bracket standing open at this point in the bar. A tuplet is
@@ -615,8 +698,18 @@ const Chords = (() => {
   // strikes more than one string at once. `heldStops` is what was ringing as the
   // stretch opened — see soundingBefore — which is what its first event, if that
   // is a tie, is read against.
-  function stopShapes(notes, stretchName, heldStops) {
+  // `walk` is the bar's harmony walk, handed in so the carry crosses the
+  // stretches of a bar — see rulingWalk. Without one a stretch is read on its
+  // own, which is all the viewer's own lookup needs.
+  function stopShapes(notes, stretchName, heldStops, walk) {
     const ruling = rulingNames({ name: stretchName, notes });
+    const step = walk || rulingWalk();
+    // The stretch's name rules from its head, and then every name written on a
+    // note moves the walk on — the ones that struck a single string included,
+    // since those leave no shape here but still change what follows is read
+    // against.
+    step(stretchName);
+    const harmony = ruling.map(name => step(name));
     let sounding = heldStops || [];
     const out = [];
     for (const it of noteBeats(notes).items) {
@@ -637,6 +730,9 @@ const Chords = (() => {
         // The name this shape is read against, and whether it is the shape that
         // names it — a diagram writes its name only where the name changes.
         name: ruling[it.index] || '', names: !!ev.name,
+        // What its dots count from, which is not its name where the name is a
+        // bass move and names no chord of its own.
+        ruling: harmony[it.index] || '',
       });
     }
     return out;
@@ -1744,7 +1840,11 @@ const Chords = (() => {
     });
   }
 
-  function staffBar(items, width, range, key, mode, beatWidth, carryIn, carryOut) {
+  // `heldName` is the chord in force as the bar opens, the way `carryIn` is the
+  // strings still ringing — see rulingBefore. Both are worked out from the bars
+  // rather than from this one, since a bar drawn on its own cannot see them.
+  function staffBar(items, width, range, key, mode, beatWidth, carryIn, carryOut,
+    heldName) {
     if (!range || width <= 0) {
       const empty = document.createElementNS(NS, 'svg');
       empty.setAttribute('width', '0');
@@ -1978,12 +2078,16 @@ const Chords = (() => {
       inked(tip - 2);
     };
 
+    // What a note is read against as the bar is walked, which is not always the
+    // name written over it — see rulingWalk.
+    const walk = rulingWalk(heldName);
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
       const item = items[itemIndex];
-      const chord = parseChord(item.name || 'C');
-      const ruling = rulingNames(item);
+      const stretchName = walk(item.name);
+      const chord = parseChord(stretchName || 'C');
+      const ruling = rulingNames(item).map(name => walk(name));
       if (!item.notes || !item.notes.length) {
-        const { notes } = staffChord(item.name, item.markers, key);
+        const { notes } = staffChord(stretchName, item.markers, key);
         readSigns(notes);
         if (notes.length) {
           drawHeads(notes, item.x + NOTE_INSET, chord, false, true);
@@ -2015,7 +2119,7 @@ const Chords = (() => {
         p.fresh = !struck;
         if (!p.ev.tie && !p.ev.rest && p.ev.stops && p.ev.stops.length) struck = true;
         p.owner = item;
-        p.ruling = ruling[p.index] || item.name;
+        p.ruling = ruling[p.index] || stretchName;
         p.beatAt = from + p.beat;
         // The bracket a note is under, carried on the note itself: one runs
         // across a chord change as readily as inside a stretch, since a chord
@@ -2360,7 +2464,7 @@ const Chords = (() => {
     return lines + (stack ? TAB_LABEL_PAD + labelBandHeight(stack) : TAB_PAD);
   }
 
-  function tabBar(items, width, key, mode, beatWidth, carryIn, stack) {
+  function tabBar(items, width, key, mode, beatWidth, carryIn, stack, heldName) {
     const h = tabHeight(stack);
     const { svg, add } = svgCanvas(Math.max(0, width), h, { 'aria-hidden': 'true' });
     if (width <= 0) return svg;
@@ -2377,10 +2481,14 @@ const Chords = (() => {
     // below for why a shape gets one dot rather than all of its notes.
     const labels = [];
     const labelCy = TAB_PAD + 5 * TAB_SP + TAB_LABEL_PAD + LABEL_R;
+    const walk = rulingWalk(heldName);
     for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
       const item = items[itemIndex];
+      // A stretch with nothing struck under it still moves the harmony on, so
+      // its name is walked before the row has any reason to skip it.
+      walk(item.name);
       if (!item.notes || !item.notes.length) continue;
-      const ruling = rulingNames(item);
+      const ruling = rulingNames(item).map(name => walk(name));
       const gapAt = item.gap === undefined ? null : item.gap;
       for (const p of noteBeats(item.notes).items) {
         const name = ruling[p.index] || 'C';
@@ -2764,6 +2872,7 @@ const Chords = (() => {
     isTripletDur, tripletBase, tripletGroups, tripletGlyph, beamGlyph, graceGlyph, deadGlyph,
     dotGlyph, tieGlyph,
     BEATS_PER_BAR,
-    stopsToMarkers, stopShapes, rulingNames, carriedStops, soundingBefore, markDeadCell,
+    stopsToMarkers, stopShapes, rulingNames, rulingWalk, rulingBefore, rulingAt,
+    isBassOnly, carriedStops, soundingBefore, markDeadCell,
   };
 })();

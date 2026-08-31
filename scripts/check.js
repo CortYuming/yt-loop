@@ -291,7 +291,7 @@ function place(bar, n) {
 // the widths barWeights hands them. See renderChordStrip in main.js — this is
 // that call with the numbers pinned so a snapshot means something.
 const SLOT = 190, SLOTS = 4, WIDTH = SLOT * SLOTS;
-function draw(sheet) {
+function draw(sheet, mode) {
   const bars = Chords.parseSheet(sheet);
   // A `key:` line decides how everything after it is spelled and which letters
   // the signature has already altered, so a case can set one.
@@ -309,9 +309,12 @@ function draw(sheet) {
         sel: null, after: null, caret: false, gap: null,
       };
     });
-    const mode = 'degrees';
-    const staff = Chords.staffBar(items, WIDTH, reach, key, mode, SLOT, [], false);
-    const tab = Chords.tabBar(items, WIDTH, key, mode, SLOT, [], reach.stack);
+    // What the bar carried in: the harmony named before it, which a bass move on
+    // its first beat holds. renderChordStrip hands the real thing over the same
+    // way — a bar cannot see the bars around it.
+    const held = Chords.rulingBefore(bars, i);
+    const staff = Chords.staffBar(items, WIDTH, reach, key, mode, SLOT, [], false, held);
+    const tab = Chords.tabBar(items, WIDTH, key, mode, SLOT, [], reach.stack, held);
     return [`<!-- bar ${i + 1}: ${textOf(bars, i)} -->`,
       `<!-- ${beatsOf(bar).toFixed(4)} beats -->`,
       staff.serialize(), tab.serialize()].join('\n');
@@ -380,6 +383,26 @@ const DRAWN = {
   // an octave down carries none either, since nothing touched that line.
   'a-natural-then-a-flat': 'key: Bb\n@26.83-29.25 C7 2/5_:8 4/5- 2/5+3/3 4/5 '
     + 'F7 2/4+3/2:8 4/3 F7+ 2/2+3/2+4/1:4',
+  // Two bars of a transcription where the bass walks under held harmony: `/Bb`
+  // under E7♯9, `/C#` under A7♯5♭9. A name like that is a bass move and not a
+  // chord, so the parser makes nothing of it — and every label under it fell
+  // back to a plain note name while the dot went on wearing the hue the key gave
+  // it, which is the note saying it is two things at once.
+  // Solfège is read from the key, so the key alone settles these.
+  'solfege-under-a-bass-move': { mode: 'solfa', sheet: 'key: C\n@27.95 E7#9 6/0:8 2/8+3/7+4/6- 6/6(/Bb) 5/5 6/5(A7#5b9) 1/6+2/6+3/6+4/5- 5/4(/C#) 4/4\n@30.10-32.10 D9 5/5:8 1/5+2/5+3/5+4/4 6/4(/Ab):4 6/3(G7#5b9):8 1/4+2/4+3/4+4/3- 5/2(/B) 4/2' },
+  // Degrees are read from the chord, so these are what says the bass move keeps
+  // the harmony above it rather than breaking the count: the dots under `/Bb`
+  // count from E7♯9 and not from nothing.
+  'degrees-under-a-bass-move': { mode: 'number', sheet: 'key: C\n@27.95 E7#9 6/0:8 2/8+3/7+4/6- 6/6(/Bb) 5/5 6/5(A7#5b9) 1/6+2/6+3/6+4/5- 5/4(/C#) 4/4\n@30.10-32.10 D9 5/5:8 1/5+2/5+3/5+4/4 6/4(/Ab):4 6/3(G7#5b9):8 1/4+2/4+3/4+4/3- 5/2(/B) 4/2' },
+  // The bass walking into the next bar, which is where the harmony has to reach
+  // across a bar line to be found — see Chords.rulingBefore. Read against
+  // nothing these came out ♭7 and 9, counted from C: numbers that look like an
+  // answer, where the plain note names they used to show at least said the sheet
+  // could not read the name.
+  'degrees-across-a-bar-line': {
+    mode: 'number',
+    sheet: 'key: C\n@0 E7#9 6/0:8 2/8+3/7+4/6:8\n@2-4 /Bb 6/6:8 5/5:8',
+  },
   // The same rule the other way: an A♭ written at the head of the bar makes the
   // A after it need a ♮.
   'a-flat-then-a-natural':
@@ -1226,6 +1249,72 @@ const share = (() => {
   }, Chords);
 })();
 
+// ---------- a bass move under held harmony ----------
+// `/Bb` is where the bass went, not a chord — the way a lead sheet writes a bass
+// walking under harmony that has not moved. It names nothing the parser can
+// count from, so what the labels and the diagram dots under one read against is
+// the chord still in force above it; see rulingWalk. The row's walk is what
+// carries that, so these run it the way barShapes in main.js does — the pair is
+// the name the sheet prints and the harmony it is read against.
+function shapeRuling(sheet) {
+  const out = [];
+  const bars = Chords.parseSheet(sheet);
+  bars.forEach((bar, barIndex) => {
+    const walk = Chords.rulingWalk(Chords.rulingBefore(bars, barIndex));
+    bar.chords.forEach(chord => {
+      const ruling = walk(chord.name);
+      if (chord.markers && chord.markers.some(f => f !== null)) {
+        out.push([chord.name || '', ruling]);
+      }
+      for (const sh of Chords.stopShapes(chord.notes, chord.name, [], walk)) {
+        out.push([sh.name, sh.ruling]);
+      }
+    });
+  });
+  return out;
+}
+
+const BASS = [
+  { name: 'ベース移動: 和音でない名前を見分ける',
+    got: () => ['/Bb', '/C#', '/ab', 'Bb', 'Bbm7', 'C/Bb', '/Bb9', '']
+      .map(n => Chords.isBassOnly(n)),
+    want: [true, true, true, false, false, false, false, false] },
+  { name: 'ベース移動: 音符に書かれたベース名は上の和音を保つ',
+    got: () => shapeRuling('key: C\n@0 E7#9 2/8+3/7+4/6:8 1/6+2/6+3/6+4/5(/Bb) '
+      + '1/9+2/9+3/10+4/8(A7) 1/6+2/6+3/6+4/5(/C#)'),
+    want: [['E7#9', 'E7#9'], ['/Bb', 'E7#9'], ['A7', 'A7'], ['/C#', 'A7']] },
+  { name: 'ベース移動: コード欄に書かれてもストレッチをまたいで保つ',
+    got: () => shapeRuling('key: C\n@0 E7#9 2/8+3/7+4/6:8 /Bb 1/6+2/6+3/6+4/5:8'),
+    want: [['E7#9', 'E7#9'], ['/Bb', 'E7#9']] },
+  // The walk has to see every name, not only the ones a shape carries: a chord
+  // written on a note that struck one string leaves no diagram behind and still
+  // moves the harmony on.
+  { name: 'ベース移動: グリップの間の単音に書かれた和音を飛ばさない',
+    got: () => shapeRuling('key: C\n@0 E7#9 2/8+3/7+4/6:8 5/5(A7) 1/6+2/6+3/6+4/5(/C#)'),
+    want: [['E7#9', 'E7#9'], ['/C#', 'A7']] },
+  // The first bar of a sheet opening on a bass move has nothing above it to hold.
+  // The name is handed back as it was written rather than as no name at all: it
+  // names no chord, so the labels under it are plain note names — which is what
+  // it honestly is. Handed back as no name it would have been read against C,
+  // and ♭5 would have printed as ♭7.
+  { name: 'ベース移動: 保つものがなければ書かれたまま返す',
+    got: () => shapeRuling('key: C\n@0 /Bb 1/6+2/6+3/6+4/5:8'),
+    want: [['/Bb', '/Bb']] },
+  // The reach that matters most: a bass walking into the next bar. Ties reach
+  // back across a bar line for the strings they hold and this is the same kind
+  // of reach — see Chords.carriedStops.
+  { name: 'ベース移動: 小節線をまたいで和音を保つ',
+    got: () => shapeRuling('key: C\n@0 E7#9 2/8+3/7+4/6:8\n'
+      + '@2 /Bb 1/6+2/6+3/6+4/5:8'),
+    want: [['E7#9', 'E7#9'], ['/Bb', 'E7#9']] },
+  // Past a bar that names no chord at all, which is an absence rather than a
+  // chord statement — a transcription writes its harmony every few bars.
+  { name: 'ベース移動: 名前のない小節を越えて和音を保つ',
+    got: () => shapeRuling('key: C\n@0 E7#9 2/8+3/7+4/6:8\n@2 1/6+2/6+3/6+4/5:8\n'
+      + '@4 /C# 1/9+2/9+3/10+4/8:8'),
+    want: [['E7#9', 'E7#9'], ['', ''], ['/C#', 'E7#9']] },
+];
+
 const LOOP = { start: 26.83, end: 29.25, speed: 0.75, note: 'F7 の E♭' };
 const TIMES = [
   // A bar with no end takes the next bar's start, and the last one — with
@@ -1367,11 +1456,15 @@ function firstDiff(got, want) {
 }
 
 console.log('譜面の描画');
-for (const [name, sheet] of Object.entries(DRAWN)) {
+for (const [name, entry] of Object.entries(DRAWN)) {
+  // A case is the sheet on its own, or the sheet with the dot mode it is about
+  // — 'number' being what the strip opens in and so what a bare case means.
+  const sheet = typeof entry === 'string' ? entry : entry.sheet;
+  const mode = typeof entry === 'string' ? 'number' : entry.mode;
   const file = path.join(SNAPS, `${name}.svg`);
   let drawn;
   try {
-    drawn = `${draw(sheet)}\n`;
+    drawn = `${draw(sheet, mode)}\n`;
   } catch (err) {
     say(false, name, `    例外 ${err.message}`);
     continue;
@@ -1494,12 +1587,13 @@ const answers = (title, list) => {
   }
 };
 answers('箱に貼る', READ);
+answers('ベース移動', BASS);
 answers('時間と共有', TIMES);
 
 const drawnCount = Object.keys(DRAWN).length;
 console.log(`\n描画 ${drawnCount} 件 / 編集 ${EDITED.length} 件`
   + ` / テキスト ${WRITTEN.length} 件 / 箱 ${READ.length} 件`
-  + ` / 時間と共有 ${TIMES.length} 件`
+  + ` / ベース移動 ${BASS.length} 件 / 時間と共有 ${TIMES.length} 件`
   + `${known ? ` / 既知の壊れ方 ${known} 件` : ''}`
   + `${updated ? ` / snapshot ${updated} 件を書きました` : ''}`);
 if (failed) {
