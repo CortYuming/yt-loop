@@ -2077,6 +2077,13 @@ function updateChordScroll(t) {
 // music back a phrase. A press that barely moves is left alone — that is a
 // click on a chord, and a chord opens the fretboard viewer.
 const CHORD_DRAG_SLOP = 6;
+// Six pixels is enough once a press has settled, and too little while it is
+// still being aimed: a click meant for a note slides that far on a trackpad, and
+// taken as a drag it seeks the video and swallows the click, leaving the note
+// unselected with nothing on screen to say why. So a young press has to travel
+// further to be read as a drag — see the pointermove below.
+const CHORD_TAP_MS = 250;
+const CHORD_TAP_SLOP = 12;
 let suppressChordClick = false;
 
 function chordDragX(drag, clientX) {
@@ -2119,6 +2126,13 @@ function seekToTime(t) {
 }
 
 chordViewport.addEventListener('pointerdown', e => {
+  // Whatever the last gesture left armed is stale the moment a new press starts.
+  // It used to be cleared only by a click reaching the viewport, so a gesture the
+  // browser took away — a pointercancel, with the button coming up somewhere else
+  // — left it armed with no click to spend it on, and the next press on a note
+  // was swallowed instead. Cleared here, the leftover can only ever outlive the
+  // gesture it came from by nothing at all.
+  suppressChordClick = false;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   if (chordAnchors.length === 0) return;   // a sheet with no times has no timeline
   // A press on a box or a button is aiming at that, not at the strip: the caret
@@ -2130,13 +2144,22 @@ chordViewport.addEventListener('pointerdown', e => {
     fromX: e.clientX,
     baseX: chordXForTime(settledTime(currentPlaybackTime())),
     moved: false,
+    at: performance.now(),
   };
 });
 
 chordViewport.addEventListener('pointermove', e => {
   if (!chordDrag || e.pointerId !== chordDrag.pointerId) return;
   if (!chordDrag.moved) {
-    if (Math.abs(e.clientX - chordDrag.fromX) < CHORD_DRAG_SLOP) return;
+    // How far the hand has to go to mean it, which is further while the press is
+    // young. Taking the row at six pixels took it from presses aimed at a note:
+    // the capture below sends the click to the viewport instead of the note, so
+    // the note was never selected and nothing said why. A press still in its
+    // first quarter second is being aimed, not dragged, so it is given room to
+    // shake; one held past that and then moved is a hand winding the music.
+    const slop = performance.now() - chordDrag.at < CHORD_TAP_MS
+      ? CHORD_TAP_SLOP : CHORD_DRAG_SLOP;
+    if (Math.abs(e.clientX - chordDrag.fromX) < slop) return;
     chordDrag.moved = true;
     chordViewport.classList.add('dragging');
     // Capture, so a fast drag that leaves the strip keeps being followed.
