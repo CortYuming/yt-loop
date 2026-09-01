@@ -3732,6 +3732,10 @@ function renderNotePanel() {
   // The first note of a stretch is the stretch's own name: the same moment, and
   // printed once at its head. So the box writes there rather than laying a second
   // name over the one already drawn in that spot.
+  // The chord in force at each note, which is what the box is writing over. Not
+  // the ruling worked out above for the board: that reads through a bass move to
+  // the harmony still sounding, while the box is about the name written here.
+  const names = Chords.rulingNames(chord);
   const headName = !!ev && noteSel === 0 && !ev.name;
   const onStretch = !ev || headName;
   const nameBox = shapeNameBox(chord,
