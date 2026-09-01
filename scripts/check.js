@@ -384,6 +384,18 @@ const DRAWN = {
   // an octave down carries none either, since nothing touched that line.
   'a-natural-then-a-flat': 'key: Bb\n@26.83-29.25 C7 2/5_:8 4/5- 2/5+3/3 4/5 '
     + 'F7 2/4+3/2:8 4/3 F7+ 2/2+3/2+4/1:4',
+  // A key spells its own seven and the chord spells the rest, which is what a
+  // B♭7 in C is for: the staff called its root A♯ and the name under the tab
+  // called it B♭, the same note answering to two letters in one column. The
+  // A7♯5 after it goes back to sharps, and `/C#` is a bass move the parser
+  // makes nothing of — there the key is all there is, and it says sharp.
+  // Drawn with the names on rather than the degrees, since the two readings of
+  // the note are what has to agree: the staff and the dot under it.
+  'a-flat-chord-in-a-sharp-key': {
+    mode: 'note',
+    sheet: 'key: C\n@36.55-38.50 E7#9 2/8+3/7+4/6+5/7:8 '
+      + '2/8+3/7+4/6- 6/6(Bb7) 4/6 2/6+3/6+4/5+6/5(A7#5) 2/6+3/6+4/5- 5/4(/C#) 4/4',
+  },
   // Two bars of a transcription where the bass walks under held harmony: `/Bb`
   // under E7♯9, `/C#` under A7♯5♭9. A name like that is a bass move and not a
   // chord, so the parser makes nothing of it — and every label under it fell

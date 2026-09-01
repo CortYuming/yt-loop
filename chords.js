@@ -166,6 +166,32 @@ const Chords = (() => {
     return flatRoots.has(chord.rootLabel[0].toUpperCase()) ? '♭' : '♯';
   }
 
+  // The seven a key already spells, counted from its do. A minor key is kept as
+  // the major it shares a signature with — see parseKeyName — so one scale
+  // answers for both.
+  const MAJOR_STEPS = new Set([0, 2, 4, 5, 7, 9, 11]);
+  function inKey(semi, key) {
+    return MAJOR_STEPS.has((semi - key.tonic + 12) % 12);
+  }
+
+  // Which of a pitch's two names it goes by. The key spells what it already
+  // spells: in B♭, the B of a C7 is the signature's B♭ and writing A♯ there
+  // asks the reader to play a letter the staff never mentioned. Everything
+  // else — the notes a key has no opinion about — is spelled by the chord that
+  // is sounding: a B♭7 in C is B♭ and A♭, not A♯ and G♯, whatever the key
+  // signature does elsewhere. Neither alone is enough, which is how this came
+  // to be two rules in two places that disagreed; it is one now, and the staff
+  // and the names under the tab both ask it, so they cannot come out saying
+  // different things about the same note.
+  function spellsFlat(semi, chord, key) {
+    if (key && (!chord || inKey(semi, key))) return key.accidental === '♭';
+    return !!chord && accidentalFor(chord) === '♭';
+  }
+
+  function spellName(semi, chord, key) {
+    return spellsFlat(semi, chord, key) ? NOTES_FLAT[semi] : NOTES_SHARP[semi];
+  }
+
   function contextualName(semi, chord) {
     for (const t of chord.tensions) if (t.adjusted === semi) return `${t.sign}${t.n}`;
     return CONTEXTUAL_SUMMARY[semi];
@@ -200,10 +226,8 @@ const Chords = (() => {
       const table = key.accidental === '♭' ? SOLFEGE_FLAT : SOLFEGE_SHARP;
       return table[(semi - key.tonic + 12) % 12];
     }
-    if (!chord) return NOTES_SHARP[semi];
-    if (mode === 'note') {
-      return accidentalFor(chord) === '♭' ? NOTES_FLAT[semi] : NOTES_SHARP[semi];
-    }
+    if (!chord) return spellName(semi, null, key);
+    if (mode === 'note') return spellName(semi, chord, key);
     return contextualName((semi - chord.root + 12) % 12, chord);
   }
 
@@ -1417,10 +1441,13 @@ const Chords = (() => {
   const NOTE_INSET = 17;
 
   // A written pitch as a place on the staff and the sign in front of it. Which
-  // of the two names it goes by is the key's business: in B♭ it is A♭, never G♯.
-  function staffNote(midi, flat, signed) {
+  // of the two names it goes by is spellsFlat's business, and it is asked here
+  // a note at a time rather than once for the chord: within one bar the key
+  // spells its own seven and the chord spells the rest, so the same B♭7 gives
+  // a D the key's way and an A♭ the chord's.
+  function staffNote(midi, chord, key, signed) {
     const pc = ((midi % 12) + 12) % 12;
-    const name = flat ? NOTES_FLAT[pc] : NOTES_SHARP[pc];
+    const name = spellName(pc, chord, key);
     const letter = LETTER_STEP[name[0]];
     const own = name.length > 1 ? name[1] : '';
     const bySignature = (signed && signed[letter]) || '';
@@ -1472,27 +1499,21 @@ const Chords = (() => {
   // chord's own notes: the key decides, and without one the chord does.
   function stopNote(stop, chordName, key) {
     const midi = OPEN_MIDI[stop.string - 1] + stop.fret + WRITTEN_8VA;
-    const note = staffNote(midi, spellsFlat(chordName, key), signedLetters(key));
+    const note = staffNote(midi, parseChord(chordName), key, signedLetters(key));
     return { step: note.step, sign: note.sign, own: note.own, pc: note.pc,
       string: stop.string, fret: stop.fret, dead: !!stop.dead };
   }
 
-  // Without a key the chord spells itself, the same rule the diagram's note
-  // names follow; with one, the key decides for the whole sheet.
-  function spellsFlat(chordName, key) {
-    if (key) return key.accidental === '♭';
-    const chord = parseChord(chordName);
-    return !!chord && accidentalFor(chord) === '♭';
-  }
-
   // What one chord puts on the staff, ready to draw. The parse comes back with
-  // it because the colours are read off the chord as well as the notes.
+  // it because the colours are read off the chord as well as the notes — and
+  // the spelling is read off it too, so it is done once here rather than once
+  // per note.
   function staffChord(name, markers, key) {
-    const flat = spellsFlat(name, key);
+    const chord = parseChord(name);
     const signed = signedLetters(key);
     return {
-      chord: parseChord(name),
-      notes: writtenPitches(markers).map(m => staffNote(m, flat, signed)),
+      chord,
+      notes: writtenPitches(markers).map(m => staffNote(m, chord, key, signed)),
     };
   }
 
