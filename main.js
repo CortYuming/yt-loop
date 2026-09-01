@@ -2161,6 +2161,11 @@ chordViewport.addEventListener('pointermove', e => {
       ? CHORD_TAP_SLOP : CHORD_DRAG_SLOP;
     if (Math.abs(e.clientX - chordDrag.fromX) < slop) return;
     chordDrag.moved = true;
+    // Where the row is taken hold of, which is where the hand is now rather than
+    // where it went down. Measured from the press, the row jumped the whole slop
+    // the moment it was crossed — and the wider slop above would have made that
+    // jump twice what it was.
+    chordDrag.fromX = e.clientX;
     chordViewport.classList.add('dragging');
     // Capture, so a fast drag that leaves the strip keeps being followed.
     try { chordViewport.setPointerCapture(e.pointerId); } catch (err) { /* no-op */ }

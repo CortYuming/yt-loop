@@ -97,9 +97,19 @@ python3 -m http.server 8000
 ## Checks
 
 ```bash
+npm ci                           # once, for the linter
+npm run lint                     # every name a file uses comes from somewhere
 node scripts/check.js            # run every case
 node scripts/check.js --update   # accept what the code draws now
 ```
+
+`npm run lint` asks one question — `no-undef`, and nothing about style. The page
+is two script files sharing a global scope, so a name deleted with a use left
+behind is not an error until the line runs: a `const names = ...` removed with
+one of its two uses still there threw the moment a note other than the first was
+selected in the ♪ panel, and nothing caught it until it was seen by eye. It is
+the one class of bug the cases below cannot reach, since they run the sheet
+half of `main.js` and not the panel.
 
 Runs the real `chords.js` and the sheet-editing half of `main.js` over a table
 of phrases — no dependencies, no test runner. Two kinds of case:

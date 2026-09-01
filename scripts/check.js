@@ -140,6 +140,7 @@ function lift(name) {
 // so it is handed in — the real one, lifted, rather than something near enough:
 // a bar's `@` time is read by it, and a stub would put the bars somewhere else
 // than the app does.
+/* global parseTime */ // assigned onto global just below, and used bare in the cases
 global.parseTime = new Function(`${liftOne('parseTime')}\nreturn parseTime;`)();
 const Chords = new Function('parseTime',
   `${fs.readFileSync(path.join(ROOT, 'chords.js'), 'utf8')}\nreturn Chords;`)(global.parseTime);

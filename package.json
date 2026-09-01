@@ -1,0 +1,13 @@
+{
+  "name": "yt-loop",
+  "private": true,
+  "description": "YouTube loop player for practising music",
+  "scripts": {
+    "lint": "eslint .",
+    "check": "node scripts/check.js"
+  },
+  "devDependencies": {
+    "eslint": "^10.9.1",
+    "globals": "^16.5.0"
+  }
+}
