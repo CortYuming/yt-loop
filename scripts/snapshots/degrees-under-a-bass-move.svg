@@ -58,6 +58,8 @@
   <text x="193.45000000000002" y="33" class="staff-name" data-chord="0" data-note="2" data-name="/Bb" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Bb</text>
   <text x="376.1" y="33" class="staff-name" data-chord="0" data-note="4" data-name="A7#5b9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">A7♯5♭9</text>
   <text x="558.75" y="33" class="staff-name" data-chord="0" data-note="6" data-name="/C#" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/C#</text>
+  <text x="10.8" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">III</text>
+  <text x="376.1" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">VI</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
@@ -181,6 +183,8 @@
   <text x="193.45000000000002" y="38" class="staff-name" data-chord="0" data-note="2" data-name="/Ab" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Ab</text>
   <text x="376.1" y="38" class="staff-name" data-chord="0" data-note="3" data-name="G7#5b9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">G7♯5♭9</text>
   <text x="558.75" y="38" class="staff-name" data-chord="0" data-note="5" data-name="/B" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/B</text>
+  <text x="10.8" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">II</text>
+  <text x="376.1" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">V</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>

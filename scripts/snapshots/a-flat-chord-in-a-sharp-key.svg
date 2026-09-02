@@ -57,6 +57,9 @@
   <text x="193.45000000000002" y="38" class="staff-name" data-chord="0" data-note="2" data-name="Bb7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">B♭7</text>
   <text x="376.1" y="38" class="staff-name" data-chord="0" data-note="4" data-name="A7#5" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">A7♯5</text>
   <text x="558.75" y="38" class="staff-name" data-chord="0" data-note="6" data-name="/C#" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/C#</text>
+  <text x="10.8" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">III</text>
+  <text x="193.45000000000002" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">♭VII</text>
+  <text x="376.1" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">VI</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>

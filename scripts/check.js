@@ -1234,6 +1234,35 @@ const READ = [
     want: { label: 'Gm', minor: true, tonic: 10, accidental: '♭' } },
   { name: '表示名: b と # は記号になる', got: () => Chords.displayName('Bbm7b5'),
     want: 'B♭m7♭5' },
+  // The numeral under the staff. The degree and nothing else: the seventh and
+  // the alterations are written in the chord's own name above it.
+  { name: '度数: 主和音', got: () => Chords.romanNumeral('BbM7', Chords.parseKey('key: Bb')),
+    want: 'I' },
+  { name: '度数: 7th は書かない', got: () => Chords.romanNumeral('F7', Chords.parseKey('key: Bb')),
+    want: 'V' },
+  { name: '度数: 短3度は小文字', got: () => Chords.romanNumeral('Cm7', Chords.parseKey('key: Bb')),
+    want: 'ii' },
+  // ♭5 is part of the chord's name, not of its degree — the numeral says which
+  // step of the key it is built on, and a half-diminished vii is built on vii.
+  { name: '度数: m7b5 も小文字', got: () => Chords.romanNumeral('Am7b5', Chords.parseKey('key: Bb')),
+    want: 'vii' },
+  // Both thirds at once is a dominant wearing a ♯9, not a minor chord.
+  { name: '度数: #9 は長調のまま', got: () => Chords.romanNumeral('E7#9', Chords.parseKey('key: C')),
+    want: 'III' },
+  { name: '度数: キー外の根音は調号側で綴る',
+    got: () => Chords.romanNumeral('Db7', Chords.parseKey('key: Bb')), want: '♭III' },
+  { name: '度数: シャープのキーでは♯側',
+    got: () => Chords.romanNumeral('F#7', Chords.parseKey('key: C')), want: '♯IV' },
+  // Everything else counts from the relative major, because that is where the
+  // signature is. Numerals count from the tonic the sheet names: a tune in G
+  // minor calls its own Gm i.
+  { name: '度数: 短調は名乗った主音から数える',
+    got: () => Chords.romanNumeral('Gm7', Chords.parseKey('key: Gm')), want: 'i' },
+  { name: '度数: 短調の V', got: () => Chords.romanNumeral('D7', Chords.parseKey('key: Gm')),
+    want: 'V' },
+  { name: '度数: キーがなければ出さない', got: () => Chords.romanNumeral('Cm7', null), want: '' },
+  { name: '度数: ベース移動には出さない',
+    got: () => Chords.romanNumeral('/Bb', Chords.parseKey('key: C')), want: '' },
 ];
 
 // Times, and the link a loop is shared as. A bar's `@` is where it starts and

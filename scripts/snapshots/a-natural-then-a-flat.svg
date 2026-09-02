@@ -38,6 +38,9 @@
   <text x="10.8" y="48" class="staff-name" data-chord="0" data-note="" data-name="C7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">C7</text>
   <text x="377.6285781655271" y="48" class="staff-name" data-chord="1" data-note="" data-name="F7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">F7</text>
   <text x="574.2142890827636" y="48" class="staff-name" data-chord="2" data-note="" data-name="F7+" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">F7+</text>
+  <text x="10.8" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">II</text>
+  <text x="377.6285781655271" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">V</text>
+  <text x="574.2142890827636" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">V</text>
   <rect class="staff-slot" x="0" y="0" width="366.82857816552706" height="210" fill="transparent" data-slot="0"></rect>
   <rect class="staff-slot" x="366.82857816552706" y="0" width="196.58571091723655" height="210" fill="transparent" data-slot="1"></rect>
   <rect class="staff-slot" x="563.4142890827636" y="0" width="196.58571091723638" height="210" fill="transparent" data-slot="2"></rect>

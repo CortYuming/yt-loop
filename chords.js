@@ -197,6 +197,41 @@ const Chords = (() => {
     return CONTEXTUAL_SUMMARY[semi];
   }
 
+  // ---------- the number system ----------
+  // A chord read as a degree of the key: the roman numeral written under the
+  // staff. Only the degree — the seventh, the ninth and the alterations belong
+  // to the chord's own name above the staff, and repeating them below says the
+  // same thing twice in a place there is no room for it. Lower case is a minor
+  // third, which is the one thing about the quality the numeral does carry:
+  // ii and II are different chords over the same root, and a progression read
+  // as numbers is read for exactly that difference.
+  const ROMAN_FLAT = ['I', '♭II', 'II', '♭III', 'III', 'IV',
+    '♭V', 'V', '♭VI', 'VI', '♭VII', 'VII'];
+  const ROMAN_SHARP = ['I', '♯I', 'II', '♯II', 'III', 'IV',
+    '♯IV', 'V', '♯V', 'VI', '♯VI', 'VII'];
+  // Everything else here counts from the relative major, because that is where
+  // the key signature is — see parseKeyName. Numerals are counted from the
+  // tonic the sheet actually names: `key: Gm` reads its own Gm as i, not as the
+  // vi of B♭. That is the reading the number system is written in, and a minor
+  // tune whose home chord came out vi says the wrong thing about the tune.
+  function romanTonic(key) {
+    return key.minor ? (key.tonic + 9) % 12 : key.tonic;
+  }
+
+  function romanNumeral(name, key) {
+    if (!key) return '';
+    const chord = parseChord(name);
+    if (!chord) return '';
+    const semi = (chord.root - romanTonic(key) + 12) % 12;
+    const table = spellsFlat(chord.root, chord, key) ? ROMAN_FLAT : ROMAN_SHARP;
+    const numeral = table[semi];
+    // A minor third with no major third over it. A chord that has both — the
+    // ♯9 a blues is built on — is a dominant with a tension, and reads as the
+    // major it is.
+    const minor = chord.tones.includes(3) && !chord.tones.includes(4);
+    return minor ? numeral.toLowerCase() : numeral;
+  }
+
   // What goes inside a dot: the picked note read against the chord's root, or —
   // in solfège — against the song's key. do is the key's and only the key's: a
   // chord's own root moving do from bar to bar is a different reading of the
@@ -1432,6 +1467,25 @@ const Chords = (() => {
     ? stack * LABEL_R * 2 + (stack - 1) * LABEL_GAP + SP * 0.15
     : 0);
   const NAME_SIZE = SP * 1.6;
+  // The numeral under the staff, and how far its baseline sits off the foot of
+  // the canvas. It is set at the size of a chord name rather than smaller: the
+  // room below the staff is the stems' clearance and is already there, so
+  // nothing is saved by shrinking it, and a degree that has to be squinted at
+  // is not read at all.
+  const DEGREE_SIZE = SP * 1.5;
+  const DEGREE_FOOT = SP * 0.4;
+  // Set in a serif, which is not what anything else on the staff is set in and
+  // is the point: the numeral's case is what it says about the chord, and in the
+  // sans the names are set in, I and i are the same stroke with and without a
+  // dot. A serif I wears its two bars and a serif i its dot, so the case is read
+  // off the shape of the letter rather than off a detail the size of a pixel.
+  // It also tells the two rows apart — names above in the sans, degrees below in
+  // this — which is the difference between them anyway.
+  // No quoted family name in the stack: the check harness writes an attribute
+  // out as plain text, and a double quote inside one comes back as a snapshot
+  // that cannot be read as markup. Generic `serif` is the fallback anyway, and
+  // every one it resolves to has the serifs and the dot this is here for.
+  const DEGREE_FONT = 'Georgia, serif';
   // Accidentals are the small print of a staff and were the first thing to go
   // unreadable, so they are sized against the staff rather than left at
   // whatever a note-sized glyph happens to be.
@@ -2429,6 +2483,23 @@ const Chords = (() => {
       }, displayName(n.name));
     }
 
+    // The same chords again as degrees of the key, along the foot of the staff.
+    // Below rather than beside the names: the room down here is the stems'
+    // clearance, which the canvas already holds whatever is written, so the row
+    // costs no height — and there is no width to take beside a name in a bar of
+    // four chords on a narrow window. A sheet with no `key:` line has nothing to
+    // count from and gets none.
+    const foot = Number(svg.getAttribute('height')) || 0;
+    for (const n of names) {
+      const numeral = romanNumeral(n.name, key);
+      if (!numeral) continue;
+      add('text', {
+        x: n.x, y: foot - DEGREE_FOOT, class: 'staff-degree',
+        fill: '#ddd', 'font-size': DEGREE_SIZE, 'text-anchor': 'start',
+        'font-family': DEGREE_FONT, 'font-weight': 600,
+      }, numeral);
+    }
+
     addSlots(add, items, width, Number(svg.getAttribute('height')) || 0);
     addCarets(add, items, Number(svg.getAttribute('height')) || 0);
     addNoteHits(add, hits, Number(svg.getAttribute('height')) || 0);
@@ -2886,6 +2957,7 @@ const Chords = (() => {
   return {
     parseSheet, resolveSpans, chordTimes, slotWeights, barWeights, toCompact, viewerUrl, diagram, fretWindows,
     readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
+    romanNumeral,
     staffRange, staffBar, staffHead, staffHeadWidth,
     // single notes
     parseNoteToken, parseDur, durText, notesToText, noteBeats, eventDur, isDottedDur,
