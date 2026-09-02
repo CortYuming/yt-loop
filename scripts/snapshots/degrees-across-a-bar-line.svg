@@ -19,12 +19,12 @@
   <line x1="23.2" y1="132" x2="23.2" y2="52" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="118.2" y1="52" x2="118.2" y2="52" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="23.2" y1="52" x2="118.2" y2="52" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
-  <text x="10.8" y="38" class="staff-name" data-chord="0" data-note="" data-name="E7#9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E7♯9</text>
   <text x="10.8" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">III</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
   <rect class="staff-hit" x="99" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="1"></rect>
+  <text x="10.8" y="38" class="staff-name" data-chord="0" data-note="" data-name="E7#9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E7♯9</text>
 </svg>
 <svg width="760" height="83.6" viewBox="0 0 760 83.6" aria-hidden="true">
   <line x1="0" y1="8" x2="760" y2="8" stroke="#4d4d4d" stroke-width="1"></line>
@@ -68,11 +68,11 @@
   <line x1="23.2" y1="117" x2="23.2" y2="102" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="118.2" y1="102" x2="118.2" y2="102" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="23.2" y1="102" x2="118.2" y2="102" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
-  <text x="10.8" y="79" class="staff-name" data-chord="0" data-note="" data-name="/Bb" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Bb</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
   <rect class="staff-hit" x="99" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="1"></rect>
+  <text x="10.8" y="79" class="staff-name" data-chord="0" data-note="" data-name="/Bb" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Bb</text>
 </svg>
 <svg width="760" height="83.6" viewBox="0 0 760 83.6" aria-hidden="true">
   <line x1="0" y1="8" x2="760" y2="8" stroke="#4d4d4d" stroke-width="1"></line>

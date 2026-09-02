@@ -951,11 +951,12 @@ button.chord-bar-no:focus-visible {
    with. */
 .chord-staff *, .chord-tab * { pointer-events: none; }
 .chord-staff .staff-hit, .chord-tab .staff-hit { pointer-events: all; }
-/* A chord's name on the staff is the way out to the viewer while editing — the
-   ↗ that used to sit in the cell. Only while editing: with the editor closed the
-   cell under it is that link already. */
-.editing-mode .chord-staff .staff-name { pointer-events: all; cursor: pointer; }
-.editing-mode .chord-staff .staff-name:hover { fill: var(--blue); }
+/* A chord's name on the staff is the way out to the viewer — the ↗ that used to
+   sit in the cell. In both modes: with the editor closed the cell under the staff
+   is that link too, but the name on the staff is where a chord is read, and the
+   press that lands there was landing on nothing. */
+.chord-staff .staff-name { pointer-events: all; cursor: pointer; }
+.chord-staff .staff-name:hover { fill: var(--blue); }
 /* The rest of a stretch's width, pressable only while editing: with the editor
    closed the cell is a link to the viewer and the press belongs to that. */
 .editing-mode .chord-staff .staff-slot,

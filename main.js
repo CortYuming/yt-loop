@@ -245,7 +245,6 @@ const loopToggle      = document.getElementById('loopToggle');
 const rampToggle      = document.getElementById('rampToggle');
 const rampFrom        = document.getElementById('rampFrom');
 const playLoopBtn     = document.getElementById('playLoopBtn');
-const toStartBtn      = document.getElementById('toStartBtn');
 const startJumpBtn    = document.getElementById('startJumpBtn');
 const endJumpBtn      = document.getElementById('endJumpBtn');
 const shareBtn        = document.getElementById('shareBtn');
@@ -972,7 +971,7 @@ playLoopBtn.addEventListener('click', () => {
 });
 
 // Jump to the start of the range without touching play / pause state. Shared by
-// the ⏮ Start button and the S shortcut.
+// the ⏮ at the head of Start and the A shortcut.
 function seekToStart() {
   if (!player || !player.seekTo) return;
   const s = parseTime(startInput.value);
@@ -990,9 +989,9 @@ function seekToEnd() {
   player.seekTo(e, true);
 }
 
-toStartBtn.addEventListener('click', seekToStart);
-// The same jump as ⏮ above, offered again beside the value it jumps to: reading
-// a time and going to it are one thought, and they were two rows apart.
+// The jump sits beside the value it jumps to: reading a time and going to it are
+// one thought, and a second ⏮ up on the current-time row said the same thing a
+// row away from the time it meant.
 startJumpBtn.addEventListener('click', seekToStart);
 endJumpBtn.addEventListener('click', seekToEnd);
 
@@ -2206,6 +2205,22 @@ chordViewport.addEventListener('click', e => {
 // strip is something you read, and a click on it is the fretboard-viewer link.
 chordStrip.addEventListener('click', e => {
   if (!e.target.closest) return;
+  // A chord's name, where it is written on the staff: the way out to the viewer,
+  // which used to be the ↗ in the cell. Asked before the mode is, since it means
+  // the same thing either way — with the editor closed the cell under the staff
+  // is that link too, but the name is what the eye reads a chord by, and a name
+  // that answers a press in one mode and ignores it in the other reads as broken.
+  const named = e.target.closest('.staff-name');
+  if (named) {
+    const barEl = named.closest('.chord-bar');
+    const bar = barEl && chordCache.bars[Number(barEl.dataset.bar)];
+    const chord = bar && bar.chords[Number(named.dataset.chord)];
+    if (chord) {
+      e.preventDefault();
+      openNameInViewer(chord, named.dataset.name);
+      return;
+    }
+  }
   // With the editor closed a note is still a way in: pressing one opens editing
   // on that note. Asking for the mode first and then for the note again is two
   // steps to say one thing, and the note pressed is the note meant.
@@ -2238,19 +2253,6 @@ chordStrip.addEventListener('click', e => {
     if (moved) window.scrollBy({ top: moved, behavior: 'instant' });
     focusNotePanel();
     return;
-  }
-  // A chord's name, where it is written on the staff: the way out to the viewer,
-  // which used to be the ↗ in the cell.
-  const named = e.target.closest('.staff-name');
-  if (named) {
-    const barEl = named.closest('.chord-bar');
-    const bar = barEl && chordCache.bars[Number(barEl.dataset.bar)];
-    const chord = bar && bar.chords[Number(named.dataset.chord)];
-    if (chord) {
-      e.preventDefault();
-      openNameInViewer(chord, named.dataset.name);
-      return;
-    }
   }
   const hit = e.target.closest('.staff-hit');
   if (hit) {

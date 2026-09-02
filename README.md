@@ -13,7 +13,7 @@ https://cortyuming.github.io/yt-loop/
 - **⤴️ Speed up** — a practice run from whatever speed is set when you switch it on up to 1.00x: the rate gains 0.05x on every completed lap. Switching it on never changes the tempo, so slow the part down until it is playable and let it climb from there. The label doubles as the progress readout (`0.60x → 1.00x`). While it runs the speed controls and the 🔗 / 📝 buttons are locked; switch it off to return to the speed you started from
 - Set start / end times, loop the region
 - **📍 pin** — snap the field to the current playback time
-- **⏮ / ⏭** — jump to the loop start or its end without changing play / pause state. The pair beside the boxes stands at the outer ends of the row, one to each edge of the range: hearing what the end runs into is how you tell whether it lands on the beat, and until now that meant dragging the player's own bar to somewhere near it. The ⏮ in the row above does the same jump to the start
+- **⏮ / ⏭** — jump to the loop start or its end without changing play / pause state. The pair beside the boxes stands at the outer ends of the row, one to each edge of the range: hearing what the end runs into is how you tell whether it lands on the beat, and until now that meant dragging the player's own bar to somewhere near it. There was a second ⏮ up on the current-time row saying the same thing a row away from the time it meant
 - Nudge start / end by ±0.05s with `Shift + ←` / `→` while the field is focused (the bare arrows move the caret)
 - **Live duration** display (end − start)
 - **Loop toggle** — turn looping on/off without losing your start/end

@@ -46,7 +46,6 @@
   <line x1="390.79999999999995" y1="105" x2="517.4666666666666" y2="105" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
   <text x="270.3333333333333" y="123.2" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
   <text x="460.33333333333326" y="123.2" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
-  <text x="10.8" y="42.6" class="staff-name" data-chord="0" data-note="" data-name="Cm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">Cm7</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
@@ -56,6 +55,7 @@
   <rect class="staff-hit" x="383.99999999999994" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="4"></rect>
   <rect class="staff-hit" x="447.33333333333326" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="5"></rect>
   <rect class="staff-hit" x="510.66666666666663" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="6"></rect>
+  <text x="10.8" y="42.6" class="staff-name" data-chord="0" data-note="" data-name="Cm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">Cm7</text>
 </svg>
 <svg width="760" height="83.6" viewBox="0 0 760 83.6" aria-hidden="true">
   <line x1="0" y1="8" x2="760" y2="8" stroke="#4d4d4d" stroke-width="1"></line>

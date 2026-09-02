@@ -50,7 +50,6 @@
   <line x1="558.75" y1="105" x2="558.75" y2="105" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="650.0749999999999" y1="100" x2="650.0749999999999" y2="105" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="558.75" y1="105" x2="650.0749999999999" y2="105" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
-  <text x="10.8" y="47.6" class="staff-name" data-chord="0" data-note="" data-name="Dm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">Dm7</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
@@ -62,6 +61,7 @@
   <rect class="staff-hit" x="369.3" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="6"></rect>
   <rect class="staff-hit" x="551.95" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="7"></rect>
   <rect class="staff-hit" x="643.275" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="8"></rect>
+  <text x="10.8" y="47.6" class="staff-name" data-chord="0" data-note="" data-name="Dm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">Dm7</text>
 </svg>
 <svg width="760" height="83.6" viewBox="0 0 760 83.6" aria-hidden="true">
   <line x1="0" y1="8" x2="760" y2="8" stroke="#4d4d4d" stroke-width="1"></line>
@@ -145,7 +145,6 @@
   <line x1="390.8" y1="105" x2="390.8" y2="115" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="485.8" y1="100" x2="485.8" y2="115" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="200.8" y1="115" x2="485.8" y2="115" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
-  <text x="10.8" y="47.6" class="staff-name" data-chord="0" data-note="" data-name="G7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">G7</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
@@ -153,6 +152,7 @@
   <rect class="staff-hit" x="289" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="2"></rect>
   <rect class="staff-hit" x="384" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="3"></rect>
   <rect class="staff-hit" x="479" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="4"></rect>
+  <text x="10.8" y="47.6" class="staff-name" data-chord="0" data-note="" data-name="G7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">G7</text>
   <path d="M0 56.6 Q 5.4 55.304 10.8 56.6" fill="none" stroke="#cfcfcf" stroke-width="1.4" opacity="0.55"></path>
 </svg>
 <svg width="760" height="83.6" viewBox="0 0 760 83.6" aria-hidden="true">

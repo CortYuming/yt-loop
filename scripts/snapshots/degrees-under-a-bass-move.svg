@@ -54,10 +54,6 @@
   <line x1="571.1500000000001" y1="107" x2="571.1500000000001" y2="47" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="662.475" y1="92" x2="662.475" y2="47" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="388.5" y1="47" x2="662.475" y2="47" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
-  <text x="10.8" y="33" class="staff-name" data-chord="0" data-note="" data-name="E7#9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E7♯9</text>
-  <text x="193.45000000000002" y="33" class="staff-name" data-chord="0" data-note="2" data-name="/Bb" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Bb</text>
-  <text x="376.1" y="33" class="staff-name" data-chord="0" data-note="4" data-name="A7#5b9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">A7♯5♭9</text>
-  <text x="558.75" y="33" class="staff-name" data-chord="0" data-note="6" data-name="/C#" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/C#</text>
   <text x="10.8" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">III</text>
   <text x="376.1" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">VI</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
@@ -70,6 +66,10 @@
   <rect class="staff-hit" x="460.625" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="5"></rect>
   <rect class="staff-hit" x="551.95" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="6"></rect>
   <rect class="staff-hit" x="643.275" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="7"></rect>
+  <text x="10.8" y="33" class="staff-name" data-chord="0" data-note="" data-name="E7#9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E7♯9</text>
+  <text x="193.45000000000002" y="33" class="staff-name" data-chord="0" data-note="2" data-name="/Bb" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Bb</text>
+  <text x="376.1" y="33" class="staff-name" data-chord="0" data-note="4" data-name="A7#5b9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">A7♯5♭9</text>
+  <text x="558.75" y="33" class="staff-name" data-chord="0" data-note="6" data-name="/C#" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/C#</text>
 </svg>
 <svg width="760" height="83.6" viewBox="0 0 760 83.6" aria-hidden="true">
   <line x1="0" y1="8" x2="760" y2="8" stroke="#4d4d4d" stroke-width="1"></line>
@@ -179,10 +179,6 @@
   <line x1="571.1500000000001" y1="112" x2="571.1500000000001" y2="52" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="662.475" y1="97" x2="662.475" y2="52" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="388.5" y1="52" x2="662.475" y2="52" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
-  <text x="10.8" y="38" class="staff-name" data-chord="0" data-note="" data-name="D9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">D9</text>
-  <text x="193.45000000000002" y="38" class="staff-name" data-chord="0" data-note="2" data-name="/Ab" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Ab</text>
-  <text x="376.1" y="38" class="staff-name" data-chord="0" data-note="3" data-name="G7#5b9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">G7♯5♭9</text>
-  <text x="558.75" y="38" class="staff-name" data-chord="0" data-note="5" data-name="/B" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/B</text>
   <text x="10.8" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">II</text>
   <text x="376.1" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">V</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
@@ -194,6 +190,10 @@
   <rect class="staff-hit" x="460.625" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="4"></rect>
   <rect class="staff-hit" x="551.95" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="5"></rect>
   <rect class="staff-hit" x="643.275" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="6"></rect>
+  <text x="10.8" y="38" class="staff-name" data-chord="0" data-note="" data-name="D9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">D9</text>
+  <text x="193.45000000000002" y="38" class="staff-name" data-chord="0" data-note="2" data-name="/Ab" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Ab</text>
+  <text x="376.1" y="38" class="staff-name" data-chord="0" data-note="3" data-name="G7#5b9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">G7♯5♭9</text>
+  <text x="558.75" y="38" class="staff-name" data-chord="0" data-note="5" data-name="/B" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/B</text>
 </svg>
 <svg width="760" height="83.6" viewBox="0 0 760 83.6" aria-hidden="true">
   <line x1="0" y1="8" x2="760" y2="8" stroke="#4d4d4d" stroke-width="1"></line>

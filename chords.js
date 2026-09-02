@@ -2472,17 +2472,10 @@ const Chords = (() => {
 
     // The names sit over the highest thing in the bar — the dots where there are
     // any, the music where there are not — rather than at the top of the canvas.
+    // Worked out here, where the ink they clear is known, but written further
+    // down — see below.
     const anchor = Math.min(inkTop, y(TOP_LINE));
     const nameY = Math.max(NAME_SIZE, anchor - SP * 1.2);
-    for (const n of names) {
-      add('text', {
-        x: n.x, y: nameY, class: 'staff-name',
-        'data-chord': n.chord, 'data-note': n.note, 'data-name': n.name,
-        fill: '#ddd', 'font-size': NAME_SIZE, 'text-anchor': 'start',
-        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif', 'font-weight': 600,
-      }, displayName(n.name));
-    }
-
     // The same chords again as degrees of the key, along the foot of the staff.
     // Below rather than beside the names: the room down here is the stems'
     // clearance, which the canvas already holds whatever is written, so the row
@@ -2503,6 +2496,21 @@ const Chords = (() => {
     addSlots(add, items, width, Number(svg.getAttribute('height')) || 0);
     addCarets(add, items, Number(svg.getAttribute('height')) || 0);
     addNoteHits(add, hits, Number(svg.getAttribute('height')) || 0);
+
+    // The names go on last, over those three. They are drawn at the top of the
+    // canvas and the covers are drawn the full height of it, so a name written
+    // before them sat under a transparent rectangle: the press meant for a chord
+    // reached the slot behind it and opened the board on that stretch instead.
+    // Nothing else changes — the covers carry no ink — and the name keeps the
+    // place worked out for it above.
+    for (const n of names) {
+      add('text', {
+        x: n.x, y: nameY, class: 'staff-name',
+        'data-chord': n.chord, 'data-note': n.note, 'data-name': n.name,
+        fill: '#ddd', 'font-size': NAME_SIZE, 'text-anchor': 'start',
+        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif', 'font-weight': 600,
+      }, displayName(n.name));
+    }
 
     // The bar after this one opens on a tie, so the curve starts here: from the
     // last heads to the right edge, where the next bar picks it up.

@@ -35,9 +35,6 @@
   <text x="570.2142890827636" y="97.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
   <ellipse cx="580.4142890827636" cy="101" rx="6.2" ry="4.4" fill="#c3b4ea" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="586.6142890827637" y1="131" x2="586.6142890827637" y2="67" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <text x="10.8" y="48" class="staff-name" data-chord="0" data-note="" data-name="C7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">C7</text>
-  <text x="377.6285781655271" y="48" class="staff-name" data-chord="1" data-note="" data-name="F7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">F7</text>
-  <text x="574.2142890827636" y="48" class="staff-name" data-chord="2" data-note="" data-name="F7+" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">F7+</text>
   <text x="10.8" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">II</text>
   <text x="377.6285781655271" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">V</text>
   <text x="574.2142890827636" y="206" class="staff-degree" fill="#ddd" font-size="15" text-anchor="start" font-family="Georgia, serif" font-weight="600">V</text>
@@ -54,6 +51,9 @@
   <rect class="staff-hit" x="370.82857816552706" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="1" data-note="0"></rect>
   <rect class="staff-hit" x="454.42143362414527" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="1" data-note="1"></rect>
   <rect class="staff-hit" x="567.4142890827636" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="2" data-note="0"></rect>
+  <text x="10.8" y="48" class="staff-name" data-chord="0" data-note="" data-name="C7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">C7</text>
+  <text x="377.6285781655271" y="48" class="staff-name" data-chord="1" data-note="" data-name="F7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">F7</text>
+  <text x="574.2142890827636" y="48" class="staff-name" data-chord="2" data-note="" data-name="F7+" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">F7+</text>
   <path d="M0 86.6 Q 5.4 85.30399999999999 10.8 86.6" fill="none" stroke="#cfcfcf" stroke-width="1.4" opacity="0.55"></path>
 </svg>
 <svg width="760" height="83.6" viewBox="0 0 760 83.6" aria-hidden="true">

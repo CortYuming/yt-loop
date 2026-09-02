@@ -89,10 +89,6 @@
   <path d="M659.1416454622561 145 q 9 -5 7 -15" fill="none" stroke="#dcdcdc" stroke-width="2.5500000000000003"></path>
   <text x="242.91388182075207" y="163.2" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
   <text x="419.69929318631614" y="153.2" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
-  <text x="10.8" y="37.6" class="staff-name" data-chord="0" data-note="" data-name="Eb9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E♭9</text>
-  <text x="187.58541136556406" y="37.6" class="staff-name" data-chord="1" data-note="" data-name="Bbm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">B♭m7</text>
-  <text x="364.3708227311281" y="37.6" class="staff-name" data-chord="2" data-note="" data-name="Bbm9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">B♭m9</text>
-  <text x="511.75623409669214" y="37.6" class="staff-name" data-chord="2" data-note="3" data-name="Bbm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">B♭m7</text>
   <rect class="staff-slot" x="0" y="0" width="176.78541136556404" height="210" fill="transparent" data-slot="0"></rect>
   <rect class="staff-slot" x="176.78541136556404" y="0" width="176.78541136556404" height="210" fill="transparent" data-slot="1"></rect>
   <rect class="staff-slot" x="353.5708227311281" y="0" width="406.4291772688719" height="210" fill="transparent" data-slot="2"></rect>
@@ -109,6 +105,10 @@
   <rect class="staff-hit" x="504.9562340966921" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="2" data-note="3"></rect>
   <rect class="staff-hit" x="578.6489397794742" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="2" data-note="4"></rect>
   <rect class="staff-hit" x="652.3416454622561" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="2" data-note="5"></rect>
+  <text x="10.8" y="37.6" class="staff-name" data-chord="0" data-note="" data-name="Eb9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E♭9</text>
+  <text x="187.58541136556406" y="37.6" class="staff-name" data-chord="1" data-note="" data-name="Bbm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">B♭m7</text>
+  <text x="364.3708227311281" y="37.6" class="staff-name" data-chord="2" data-note="" data-name="Bbm9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">B♭m9</text>
+  <text x="511.75623409669214" y="37.6" class="staff-name" data-chord="2" data-note="3" data-name="Bbm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">B♭m7</text>
 </svg>
 <svg width="760" height="83.6" viewBox="0 0 760 83.6" aria-hidden="true">
   <line x1="0" y1="8" x2="760" y2="8" stroke="#4d4d4d" stroke-width="1"></line>

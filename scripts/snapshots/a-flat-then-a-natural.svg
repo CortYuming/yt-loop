@@ -43,7 +43,6 @@
   <line x1="612.4666666666667" y1="150" x2="612.4666666666667" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="485.8" y1="150" x2="612.4666666666667" y2="150" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
   <text x="555.3333333333334" y="168.2" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
-  <text x="10.8" y="57.599999999999994" class="staff-name" data-chord="0" data-note="" data-name="Bb7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">B♭7</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
@@ -52,6 +51,7 @@
   <rect class="staff-hit" x="479" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="3"></rect>
   <rect class="staff-hit" x="542.3333333333334" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="4"></rect>
   <rect class="staff-hit" x="605.6666666666667" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="5"></rect>
+  <text x="10.8" y="57.599999999999994" class="staff-name" data-chord="0" data-note="" data-name="Bb7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">B♭7</text>
   <path d="M0 106.6 Q 5.4 105.30399999999999 10.8 106.6" fill="none" stroke="#cfcfcf" stroke-width="1.4" opacity="0.55"></path>
   <path d="M0 91.6 Q 5.4 90.30399999999999 10.8 91.6" fill="none" stroke="#cfcfcf" stroke-width="1.4" opacity="0.55"></path>
   <path d="M0 66.6 Q 5.4 65.30399999999999 10.8 66.6" fill="none" stroke="#cfcfcf" stroke-width="1.4" opacity="0.55"></path>
