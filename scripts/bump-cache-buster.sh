@@ -19,7 +19,7 @@ hash_of() {
   fi
 }
 
-for asset in style.css chords.js main.js; do
+for asset in style.css chords.js sheet.js main.js; do
   version=$(hash_of "$asset")
   perl -pi -e "s/\Q$asset\E\?v=[A-Za-z0-9]+/$asset?v=$version/g" index.html
 done

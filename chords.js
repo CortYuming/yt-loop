@@ -12,10 +12,8 @@
 // of a notes file are accepted as chords as well, so an existing sheet can be
 // dropped in without being rewritten by hand.
 //
-// Everything here is pure: text in, data or an <svg> out. It leans on
-// parseTime from main.js, which is loaded after this file — fine, since nothing
-// here runs at load time.
-/* global parseTime */
+// Everything here is pure: text in, data or an <svg> out, with no name reached
+// for outside the file.
 
 const Chords = (() => {
   // ---------- theory (mirrors guitar-chord-viewer's chord.ts) ----------
@@ -346,6 +344,30 @@ const Chords = (() => {
       return !isNaN(n) && n >= 0 && n <= 22 ? n : null;
     });
     return parsed.some(f => f !== null) ? parsed : null;
+  }
+
+  // `43.50`, `1:07.30`, `1:02:03.5` — seconds, or as many colon-separated parts
+  // as someone cares to write, each read as the next place up. Null for anything
+  // that is not a time, which is how every caller tells a typo from a number.
+  // A sheet's `@` time is read by it and so are the Start and End boxes on the
+  // page: the same notation in both places, so a time can be copied from one to
+  // the other.
+  function parseTime(str) {
+    if (str === null || str === undefined) return null;
+    const s = String(str).trim();
+    if (!s) return null;
+    if (!s.includes(':')) {
+      const n = parseFloat(s);
+      return isNaN(n) ? null : n;
+    }
+    const parts = s.split(':');
+    let total = 0;
+    for (let i = 0; i < parts.length; i++) {
+      const n = parseFloat(parts[i]);
+      if (isNaN(n)) return null;
+      total = total * 60 + n;
+    }
+    return total;
   }
 
   // `@43.50` or `@43.50-45.85`, either side also accepted as `0:43.50`.
@@ -3030,6 +3052,7 @@ const Chords = (() => {
   }
 
   return {
+    parseTime,
     parseSheet, resolveSpans, chordTimes, slotWeights, barWeights, toCompact, viewerUrl, diagram, fretWindows,
     readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
     romanNumeral,

@@ -104,15 +104,15 @@ node scripts/check.js --update   # accept what the code draws now
 ```
 
 `npm run lint` asks one question — `no-undef`, and nothing about style. The page
-is two script files sharing a global scope, so a name deleted with a use left
+is three script files sharing a global scope, so a name deleted with a use left
 behind is not an error until the line runs: a `const names = ...` removed with
 one of its two uses still there threw the moment a note other than the first was
 selected in the ♪ panel, and nothing caught it until it was seen by eye. It is
-the one class of bug the cases below cannot reach, since they run the sheet
-half of `main.js` and not the panel.
+the one class of bug the cases below cannot reach, since they run the sheet and
+what edits it, not the panel drawn over them.
 
-Runs the real `chords.js` and the sheet-editing half of `main.js` over a table
-of phrases — no dependencies, no test runner. Two kinds of case:
+Runs the real `chords.js` and `sheet.js` over a table of phrases — no
+dependencies, no test runner. Two kinds of case:
 
 - **drawing** — renders a bar and diffs the SVG against `scripts/snapshots/`.
   Change a beam, a bracket, a flag or a note's place and the diff says so.

@@ -22,12 +22,13 @@
 // An editing case presses a button or moves a note and compares the sheet text
 // that comes back. Text is what the app saves, so it is what an edit means.
 //
-// chords.js is pure text-in-SVG-out, so it runs here as it is, over the little
-// DOM shim below. main.js is a browser script that touches the document as it
-// loads, so the functions worth checking are lifted out of it by name and run
-// against a stub of the panel they read. That is a text lift and it can miss:
-// it fails loudly rather than quietly skipping, and the names are listed in one
-// place — LIFTED — so a rename is one line to fix.
+// chords.js is pure text-in-SVG-out and sheet.js is the edits a sheet takes, so
+// both run here as they are — chords.js over the little DOM shim below, sheet.js
+// with the page's side of an edit handed to it per case. main.js is a browser
+// script that touches the document as it loads, so what is left of it here is
+// the Start/End boxes: those functions are lifted out by name and run against
+// stub boxes. That is a text lift and it can miss, so it fails loudly rather
+// than quietly skipping — see rangeModule.
 
 'use strict';
 const fs = require('fs');
@@ -84,42 +85,16 @@ global.document = { createElementNS: (ns, tag) => new El(tag), createElement: ta
 global.location = { href: 'https://cortyuming.github.io/yt-loop/' };
 
 // ---------- the two files under test ----------
-// chords.js leans on parseTime from main.js and is loaded before it in the page,
-// so nothing there runs at load time and the one function it wants can be handed
-// in. Bar times are not what this checks, so a plain number will do.
 const MAIN = fs.readFileSync(path.join(ROOT, 'main.js'), 'utf8');
-// The functions lifted out of main.js. Editing a bar is these and nothing else,
-// which is why they can be run without a page: they read the parsed sheet and
-// the panel's two indexes, and write back into the same objects.
-const LIFTED = [
-  // writing
-  'putNote', 'pressStop', 'newStopEvent', 'unlightStop', 'stackStop', 'copyNote',
-  'deleteNote',
-  'insertAfterNote', 'endNoteWriting',
-  'addNoteRest', 'addNoteTie', 'markNote', 'heldStops',
-  // lengths and marks
-  'setNoteDur', 'toggleNoteDot', 'toggleNoteTriplet', 'noteCanTriplet',
-  'tripletGroup', 'barNoteEvents',
-  'toggleNoteBeam', 'noteCanBeam', 'noteJoinable', 'noteBeamOn',
-  'toggleNoteGrace', 'noteCanGrace', 'noteGraceOn',
-  'toggleNoteDeadMode', 'noteDeadOn',
-  // moving one thing along the sheet
-  'sheetEvents', 'pinnedNote', 'writeBarsFromEvents', 'selectedEventIndex',
-  'moveBlock', 'moveSelection', 'dropDanglingBeams', 'barHead', 'keepBarHeads',
-  'selectedIsChord', 'canMoveSelection',
-  // the triplet as one thing
-  'tripletGroupPlaces', 'noteCopy', 'freeTripId',
-  // bars
-  'roundTo', 'commitChordEdit', 'addBar', 'insertBar', 'barBeats', 'barBeatLabel',
-  'setBarStart', 'barTimeBounds',
-];
-// Read to the brace that closes the declaration rather than to the next line
-// holding one on its own: a function written on a single line — addNoteRest is
-// one — would otherwise come back with everything after it up to the next such
-// line, which is a silent wrong answer rather than an error.
+// The Start/End boxes are still main.js's own, so those functions are read out
+// of it by hand — the one place left that does. Read to the brace that closes
+// the declaration rather than to the next line holding one on its own: a
+// function written on a single line would otherwise come back with everything
+// after it up to the next such line, which is a silent wrong answer rather than
+// an error.
 function lift(name) {
   const at = MAIN.indexOf(`\nfunction ${name}(`);
-  if (at < 0) throw new Error(`main.js に function ${name} が見つかりません（改名したら LIFTED を直す）`);
+  if (at < 0) throw new Error(`main.js に function ${name} が見つかりません（改名したら rangeModule の名前を直す）`);
   const src = MAIN.slice(at + 1);
   let depth = 0, quote = null;
   for (let i = src.indexOf('{'); i < src.length; i++) {
@@ -137,14 +112,13 @@ function lift(name) {
   }
   throw new Error(`function ${name} の終わりが読めません`);
 }
-// chords.js wants parseTime from main.js and is loaded ahead of it in the page,
-// so it is handed in — the real one, lifted, rather than something near enough:
-// a bar's `@` time is read by it, and a stub would put the bars somewhere else
-// than the app does.
-/* global parseTime */ // assigned onto global just below, and used bare in the cases
-global.parseTime = new Function(`${liftOne('parseTime')}\nreturn parseTime;`)();
-const Chords = new Function('parseTime',
-  `${fs.readFileSync(path.join(ROOT, 'chords.js'), 'utf8')}\nreturn Chords;`)(global.parseTime);
+const Chords = new Function(
+  `${fs.readFileSync(path.join(ROOT, 'chords.js'), 'utf8')}\nreturn Chords;`)();
+// The edits themselves, loaded the way the page loads them. Nothing in there
+// reaches for a document or for the page's own state — what it works on is
+// handed over per case, in open() below.
+const Sheet = new Function('Chords',
+  `${fs.readFileSync(path.join(ROOT, 'sheet.js'), 'utf8')}\nreturn Sheet;`)(Chords);
 
 function liftOne(name) {
   const src = lift(name);
@@ -159,102 +133,87 @@ function liftOne(name) {
   }
   return src;
 }
-const LIFTED_SRC = LIFTED.map(liftOne).join('\n');
 
 // A sheet, opened for editing. `at(bar, stretch, note)` is where the panel is
 // pointing; everything else is the stubs those functions call into.
 function open(sheet) {
   const bars = Chords.parseSheet(sheet);
   const state = {
-    Chords, chordCache: { bars, spans: Chords.resolveSpans(bars) },
+    chordCache: { bars, spans: Chords.resolveSpans(bars) },
     writes: 0, carried: null, now: 0,
   };
-  const api = new Function('state', `
-    const Chords = state.Chords, chordCache = state.chordCache;
-    let notePanelAt = { bar: 0, chord: 0 }, noteSel = null, noteAfter = null;
-    // The board's own state — what a tap writes when nothing is selected. The
-    // same five values the panel holds; see the top of main.js's note panel.
-    let noteDur = 0.5, noteDotted = false, noteTriplet = false, noteStack = false;
-    let noteDeadMode = false;
-    const NO_DUR = 0;
-    const RANGE_EPS = 0.005;
-    const noteValue = () => noteDur * (noteDotted ? 1.5 : 1) * (noteTriplet ? 2 / 3 : 1);
-    const restValue = () => noteValue() || 1;
-    function editingNote() {
-      if (noteSel === null) return null;
-      const st = chordCache.bars[notePanelAt.bar].chords[notePanelAt.chord];
-      return (st.notes || [])[noteSel] || null;
-    }
-    function noteEntries() {
-      const st = chordCache.bars[notePanelAt.bar].chords[notePanelAt.chord];
-      return st.notes || (st.notes = []);
-    }
-    function commitNotes() { state.writes++; }
-    function markNoteSelection() {}
-    function renderNotePanel() {}
-    function renderChordStrip() {}
-    function writeSheetFromCache() { state.writes++; }
-    function openNotePanel(bar, chord) { notePanelAt = { bar, chord }; noteSel = null; }
+  // The page's side of an edit, which is the whole of what sheet.js asks for:
+  // the parse being worked on, and the ways an edit leaves. Nothing here draws,
+  // so a write is counted instead.
+  Sheet.init({
+    cache: () => state.chordCache,
+    // The case's sheet is the one on screen, always.
+    videoId: () => state.chordCache.vid,
+    writeSheet: () => { state.writes++; },
+    renderStrip: () => {},
+    renderPanel: () => {},
+    markSelection: () => {},
+    focusPanel: () => {},
+    commit: () => { state.writes++; },
     // The moment the video is at. A bar added with nothing to follow starts here.
-    function currentPlaybackTime() { return state.now; }
-    function settledTime(t) { return t; }
-    ${LIFTED_SRC}
-    return {
-      // The board, as the panel's buttons set it before a tap.
-      board(o) {
-        if (o.dur !== undefined) noteDur = o.dur;
-        if (o.dotted !== undefined) noteDotted = o.dotted;
-        if (o.triplet !== undefined) noteTriplet = o.triplet;
-        if (o.stack !== undefined) noteStack = o.stack;
-        if (o.dead !== undefined) noteDeadMode = o.dead;
-      },
-      at(bar, stretch, note) {
-        notePanelAt = { bar, chord: stretch }; noteSel = note;
-        // What the move button would say right now — read as the selection is
-        // made, since after a step the selection has moved with it.
-        state.carried = selectedIsChord() ? 'Chord' : 'Note';
-      },
-      selected() { return { bar: notePanelAt.bar, stretch: notePanelAt.chord, note: noteSel }; },
-      canTriplet: () => noteCanTriplet(),
-      triplet: () => toggleNoteTriplet(),
-      move: by => moveSelection(by),
-      canMove: by => canMoveSelection(by),
-      // What the move button says is about to travel — see selectedIsChord.
-      carries: () => (selectedIsChord() ? 'Chord' : 'Note'),
-      // The rest of the panel, named as the buttons are.
-      press: (string, fret) => pressStop(string, fret),
-      copy: () => copyNote(),
-      del: () => deleteNote(),
-      gap: () => insertAfterNote(),
-      done: () => endNoteWriting(),
-      addBar: at => { state.now = at === undefined ? state.now : at; addBar(); },
-      beats: at => barBeats(chordCache.bars[at || 0]),
-      // What the bar's head shows, as the text and the state it is shown in.
-      // No template literal here: this whole scope is itself inside one.
-      beatLabel: at => {
-        const el = barBeatLabel(chordCache.bars[at || 0]);
-        if (!el) return null;
-        return el.textContent + ' ' + (el.attrs.class.indexOf('over') < 0 ? '灰' : '赤');
-      },
-      insertBar: (at, start) => insertBar(at, start),
-      // The bar's own time, moved from its head, and how far it may go.
-      setBarStart: (at, t) => setBarStart(at, t),
-      bounds: at => barTimeBounds(at),
-      rest: () => addNoteRest(),
-      tie: () => addNoteTie(),
-      dur: d => setNoteDur(d),
-      dot: () => toggleNoteDot(),
-      beam: () => toggleNoteBeam(),
-      grace: () => toggleNoteGrace(),
-      dead: () => toggleNoteDeadMode(),
-      can: () => ({
-        beam: noteCanBeam(), grace: noteCanGrace(), triplet: noteCanTriplet(),
-      }),
-      on: what => ({
-        beam: () => noteBeamOn(), grace: () => noteGraceOn(), dead: () => noteDeadOn(),
-      }[what]()),
-      selection: () => ({ note: noteSel, gap: noteAfter }),
-    };`)(state);
+    now: () => state.now,
+    settled: t => t,
+  });
+  // Where the panel points before a case says: the head of the first bar, which
+  // is where a case that never calls at() writes.
+  Sheet.openNotePanel(0, 0);
+  const api = {
+    // The board, as the panel's buttons set it before a tap.
+    board: o => Sheet.setBoard(o),
+    at(bar, stretch, note) {
+      if (note === null || note === undefined) Sheet.openNotePanel(bar, stretch);
+      else Sheet.selectNote(bar, stretch, note);
+      // What the move button would say right now — read as the selection is
+      // made, since after a step the selection has moved with it.
+      state.carried = Sheet.selectedIsChord() ? 'Chord' : 'Note';
+    },
+    selected: () => ({ bar: Sheet.at.bar, stretch: Sheet.at.chord, note: Sheet.sel }),
+    canTriplet: () => Sheet.noteCanTriplet(),
+    triplet: () => Sheet.toggleNoteTriplet(),
+    move: by => Sheet.moveSelection(by),
+    canMove: by => Sheet.canMoveSelection(by),
+    // What the move button says is about to travel — see selectedIsChord.
+    carries: () => (Sheet.selectedIsChord() ? 'Chord' : 'Note'),
+    // The rest of the panel, named as the buttons are.
+    press: (string, fret) => Sheet.pressStop(string, fret),
+    copy: () => Sheet.copyNote(),
+    del: () => Sheet.deleteNote(),
+    gap: () => Sheet.insertAfterNote(),
+    done: () => Sheet.endNoteWriting(),
+    addBar: at => { state.now = at === undefined ? state.now : at; Sheet.addBar(); },
+    beats: at => Sheet.barBeats(state.chordCache.bars[at || 0]),
+    // What the bar's head shows, as the text and the state it is shown in.
+    beatLabel: at => {
+      const count = Sheet.barBeatText(state.chordCache.bars[at || 0]);
+      if (!count) return null;
+      return `${count.shown}/${Chords.BEATS_PER_BAR} ${count.over ? '赤' : '灰'}`;
+    },
+    insertBar: (at, start) => Sheet.insertBar(at, start),
+    // The bar's own time, moved from its head, and how far it may go.
+    setBarStart: (at, t) => Sheet.setBarStart(at, t),
+    bounds: at => Sheet.barTimeBounds(at),
+    rest: () => Sheet.addNoteRest(),
+    tie: () => Sheet.addNoteTie(),
+    dur: d => Sheet.setNoteDur(d),
+    dot: () => Sheet.toggleNoteDot(),
+    beam: () => Sheet.toggleNoteBeam(),
+    grace: () => Sheet.toggleNoteGrace(),
+    dead: () => Sheet.toggleNoteDeadMode(),
+    can: () => ({
+      beam: Sheet.noteCanBeam(), grace: Sheet.noteCanGrace(),
+      triplet: Sheet.noteCanTriplet(),
+    }),
+    on: what => ({
+      beam: () => Sheet.noteBeamOn(), grace: () => Sheet.noteGraceOn(),
+      dead: () => Sheet.noteDeadOn(),
+    }[what]()),
+    selection: () => ({ note: Sheet.sel, gap: Sheet.after }),
+  };
   return { api, bars, get carried() { return state.carried; } };
 }
 
@@ -424,7 +383,7 @@ const DRAWN = {
   // Four triplets in a row, which is what writing with the triplet button on
   // looks like the moment the fourth tap lands: three are a triplet and the
   // fourth is a 3 over one note, waiting for the two after it. Every button that
-  // edits a triplet keeps it three — see tripletGroupPlaces in main.js — so this
+  // edits a triplet keeps it three — see tripletGroupPlaces in sheet.js — so this
   // is the one way a bar holds a triplet of one, and it is a phrase halfway
   // written rather than a phrase gone wrong.
   'four-triplets-in-a-row': '@0 Cm7 1/8:4 1/8:8t 1/10 1/12 1/5',
@@ -1376,9 +1335,9 @@ const BASS = [
 // first bar line after the new Start. These run the real functions over stub
 // boxes, because which box moved is the whole of the rule.
 const rangeModule = (() => {
-  const src = ['formatTime', 'parseTime', 'formRange', 'refusesRange', 'rangeIsEmpty',
+  const src = ['formatTime', 'formRange', 'refusesRange', 'rangeIsEmpty',
     'linkEndFor', 'nextBarEdge', 'endForStart', 'takesRange'].map(liftOne).join('\n');
-  const make = new Function('shim', `
+  const make = new Function('shim', 'Chords', `
     const RANGE_EPS = 0.005;
     const startInput = shim.startInput;
     const endInput = shim.endInput;
@@ -1394,7 +1353,7 @@ const rangeModule = (() => {
     ${src}
     return { formatTime, refusesRange, rangeIsEmpty, linkEndFor,
       nextBarEdge, endForStart, takesRange };`);
-  return shim => make(shim);
+  return shim => make(shim, Chords);
 })();
 
 // One case's boxes and sheet, built fresh so no case inherits the End another
@@ -1484,7 +1443,7 @@ const RANGE = [
         const { api } = rangeCase({ sheet: `@${at} C7|@${edge} F7` });
         const end = api.endForStart(at);
         if (end === null) return false;
-        return !(parseTime(api.formatTime(end)) > at);
+        return !(Chords.parseTime(api.formatTime(end)) > at);
       });
     },
     want: [] },
@@ -1558,10 +1517,10 @@ const TIMES = [
   { name: 'コードの時刻: 終わりが分からなければ先頭だけ',
     got: () => Chords.chordTimes(Chords.parseSheet('@0 C7 F7')[0], { start: 0, end: null }),
     want: [0, null] },
-  { name: '時刻を読む: 秒だけ', got: () => parseTime('43.50'), want: 43.5 },
-  { name: '時刻を読む: 分と秒', got: () => parseTime('1:07.30'), want: 67.3 },
-  { name: '時刻を読む: 時と分と秒', got: () => parseTime('1:02:03.5'), want: 3723.5 },
-  { name: '時刻を読む: 時刻でないもの', got: () => parseTime('あとで'), want: null },
+  { name: '時刻を読む: 秒だけ', got: () => Chords.parseTime('43.50'), want: 43.5 },
+  { name: '時刻を読む: 分と秒', got: () => Chords.parseTime('1:07.30'), want: 67.3 },
+  { name: '時刻を読む: 時と分と秒', got: () => Chords.parseTime('1:02:03.5'), want: 3723.5 },
+  { name: '時刻を読む: 時刻でないもの', got: () => Chords.parseTime('あとで'), want: null },
   { name: '時刻を書く: 1分未満', got: () => share.formatTime(9.5), want: '0:09.50' },
   { name: '時刻を書く: 1時間以上', got: () => share.formatTime(3723.5), want: '1:02:03.50' },
   { name: '時刻を書く: 負の値は0', got: () => share.formatTime(-5), want: '0:00.00' },
