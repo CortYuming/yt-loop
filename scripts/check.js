@@ -22,12 +22,13 @@
 // An editing case presses a button or moves a note and compares the sheet text
 // that comes back. Text is what the app saves, so it is what an edit means.
 //
-// chords.js is pure text-in-SVG-out, so it runs here as it is, over the little
-// DOM shim below. main.js is a browser script that touches the document as it
-// loads, so the functions worth checking are lifted out of it by name and run
-// against a stub of the panel they read. That is a text lift and it can miss:
-// it fails loudly rather than quietly skipping, and the names are listed in one
-// place — LIFTED — so a rename is one line to fix.
+// chords.js is pure text-in-SVG-out and sheet.js is the edits a sheet takes, so
+// both run here as they are — chords.js over the little DOM shim below, sheet.js
+// with the page's side of an edit handed to it per case. main.js is a browser
+// script that touches the document as it loads, so what is left of it here is
+// the Start/End boxes: those functions are lifted out by name and run against
+// stub boxes. That is a text lift and it can miss, so it fails loudly rather
+// than quietly skipping — see rangeModule.
 
 'use strict';
 const fs = require('fs');
@@ -382,7 +383,7 @@ const DRAWN = {
   // Four triplets in a row, which is what writing with the triplet button on
   // looks like the moment the fourth tap lands: three are a triplet and the
   // fourth is a 3 over one note, waiting for the two after it. Every button that
-  // edits a triplet keeps it three — see tripletGroupPlaces in main.js — so this
+  // edits a triplet keeps it three — see tripletGroupPlaces in sheet.js — so this
   // is the one way a bar holds a triplet of one, and it is a phrase halfway
   // written rather than a phrase gone wrong.
   'four-triplets-in-a-row': '@0 Cm7 1/8:4 1/8:8t 1/10 1/12 1/5',
