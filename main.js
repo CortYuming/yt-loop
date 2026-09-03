@@ -2740,8 +2740,9 @@ function commitNotes() {
   // than at each caller: everything the board does comes through this door.
   pushNoteUndo();
   writeSheetFromCache('notes');
+  // The redraw ends by drawing the panel against the same parse, so the panel is
+  // not asked for again here — see the tail of drawChordStrip.
   renderChordStrip(true);
-  renderNotePanel();
 }
 
 // Back to writing at the end of the stretch: nothing selected, and no room being
@@ -2750,8 +2751,10 @@ function endNoteWriting() {
   const wasOpen = noteAfter !== null;
   noteSel = null;
   noteAfter = null;
+  // A redraw draws the panel itself; without one the panel still has to hear
+  // that nothing is selected any more.
   if (wasOpen) renderChordStrip(true);
-  renderNotePanel();
+  else renderNotePanel();
   markNoteSelection();
 }
 
@@ -2769,7 +2772,6 @@ function insertAfterNote() {
   noteAfter = at;
   noteSel = null;
   renderChordStrip(true);
-  renderNotePanel();
   markNoteSelection();
 }
 
