@@ -41,7 +41,9 @@ header,
 .url-input,
 .player-wrap,
 .controls,
+.chord-toolbar,
 .chord-editor,
+.note-panel,
 .loops,
 .backup {
   max-width: 828px;
