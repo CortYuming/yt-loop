@@ -84,9 +84,6 @@ global.document = { createElementNS: (ns, tag) => new El(tag), createElement: ta
 global.location = { href: 'https://cortyuming.github.io/yt-loop/' };
 
 // ---------- the two files under test ----------
-// chords.js leans on parseTime from main.js and is loaded before it in the page,
-// so nothing there runs at load time and the one function it wants can be handed
-// in. Bar times are not what this checks, so a plain number will do.
 const MAIN = fs.readFileSync(path.join(ROOT, 'main.js'), 'utf8');
 // The functions lifted out of main.js. Editing a bar is these and nothing else,
 // which is why they can be run without a page: they read the parsed sheet and
@@ -137,14 +134,8 @@ function lift(name) {
   }
   throw new Error(`function ${name} の終わりが読めません`);
 }
-// chords.js wants parseTime from main.js and is loaded ahead of it in the page,
-// so it is handed in — the real one, lifted, rather than something near enough:
-// a bar's `@` time is read by it, and a stub would put the bars somewhere else
-// than the app does.
-/* global parseTime */ // assigned onto global just below, and used bare in the cases
-global.parseTime = new Function(`${liftOne('parseTime')}\nreturn parseTime;`)();
-const Chords = new Function('parseTime',
-  `${fs.readFileSync(path.join(ROOT, 'chords.js'), 'utf8')}\nreturn Chords;`)(global.parseTime);
+const Chords = new Function(
+  `${fs.readFileSync(path.join(ROOT, 'chords.js'), 'utf8')}\nreturn Chords;`)();
 
 function liftOne(name) {
   const src = lift(name);
@@ -1376,9 +1367,9 @@ const BASS = [
 // first bar line after the new Start. These run the real functions over stub
 // boxes, because which box moved is the whole of the rule.
 const rangeModule = (() => {
-  const src = ['formatTime', 'parseTime', 'formRange', 'refusesRange', 'rangeIsEmpty',
+  const src = ['formatTime', 'formRange', 'refusesRange', 'rangeIsEmpty',
     'linkEndFor', 'nextBarEdge', 'endForStart', 'takesRange'].map(liftOne).join('\n');
-  const make = new Function('shim', `
+  const make = new Function('shim', 'Chords', `
     const RANGE_EPS = 0.005;
     const startInput = shim.startInput;
     const endInput = shim.endInput;
@@ -1394,7 +1385,7 @@ const rangeModule = (() => {
     ${src}
     return { formatTime, refusesRange, rangeIsEmpty, linkEndFor,
       nextBarEdge, endForStart, takesRange };`);
-  return shim => make(shim);
+  return shim => make(shim, Chords);
 })();
 
 // One case's boxes and sheet, built fresh so no case inherits the End another
@@ -1484,7 +1475,7 @@ const RANGE = [
         const { api } = rangeCase({ sheet: `@${at} C7|@${edge} F7` });
         const end = api.endForStart(at);
         if (end === null) return false;
-        return !(parseTime(api.formatTime(end)) > at);
+        return !(Chords.parseTime(api.formatTime(end)) > at);
       });
     },
     want: [] },
@@ -1558,10 +1549,10 @@ const TIMES = [
   { name: 'コードの時刻: 終わりが分からなければ先頭だけ',
     got: () => Chords.chordTimes(Chords.parseSheet('@0 C7 F7')[0], { start: 0, end: null }),
     want: [0, null] },
-  { name: '時刻を読む: 秒だけ', got: () => parseTime('43.50'), want: 43.5 },
-  { name: '時刻を読む: 分と秒', got: () => parseTime('1:07.30'), want: 67.3 },
-  { name: '時刻を読む: 時と分と秒', got: () => parseTime('1:02:03.5'), want: 3723.5 },
-  { name: '時刻を読む: 時刻でないもの', got: () => parseTime('あとで'), want: null },
+  { name: '時刻を読む: 秒だけ', got: () => Chords.parseTime('43.50'), want: 43.5 },
+  { name: '時刻を読む: 分と秒', got: () => Chords.parseTime('1:07.30'), want: 67.3 },
+  { name: '時刻を読む: 時と分と秒', got: () => Chords.parseTime('1:02:03.5'), want: 3723.5 },
+  { name: '時刻を読む: 時刻でないもの', got: () => Chords.parseTime('あとで'), want: null },
   { name: '時刻を書く: 1分未満', got: () => share.formatTime(9.5), want: '0:09.50' },
   { name: '時刻を書く: 1時間以上', got: () => share.formatTime(3723.5), want: '1:02:03.50' },
   { name: '時刻を書く: 負の値は0', got: () => share.formatTime(-5), want: '0:00.00' },

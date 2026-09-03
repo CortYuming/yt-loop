@@ -13,8 +13,8 @@ const globals = require('globals');
 module.exports = [
   {
     // The two files the page loads. They share one global scope in the browser —
-    // chords.js declares Chords and reaches back for parseTime — so each has to
-    // be told about the other's name.
+    // chords.js declares Chords, which main.js reads — so each has to be told
+    // about the other's name.
     files: ['main.js', 'chords.js'],
     languageOptions: {
       ecmaVersion: 2022,
@@ -22,7 +22,6 @@ module.exports = [
       globals: {
         ...globals.browser,
         Chords: 'readonly',
-        parseTime: 'readonly',
         // The YouTube IFrame API, which the page loads and the player waits for.
         YT: 'readonly',
       },

@@ -52,8 +52,8 @@ let seekWhilePaused = false;
 // display and the emptiness check want to say something about a pair that does
 // not.
 function formRange() {
-  const start = parseTime(startInput.value);
-  const end = parseTime(endInput.value);
+  const start = Chords.parseTime(startInput.value);
+  const end = Chords.parseTime(endInput.value);
   if (start === null || end === null || isNaN(start) || isNaN(end)) return null;
   return { start, end };
 }
@@ -92,9 +92,9 @@ function loopRange() {
 // A value that is not a time at all is somebody else's business — the box holds
 // half-typed times all the time.
 function refusesRange(box, text) {
-  const t = parseTime(text);
+  const t = Chords.parseTime(text);
   if (t === null || isNaN(t)) return false;
-  const other = parseTime((box === startInput ? endInput : startInput).value);
+  const other = Chords.parseTime((box === startInput ? endInput : startInput).value);
   if (other === null || isNaN(other)) return false;
   return box === startInput ? t >= other : t <= other;
 }
@@ -152,7 +152,7 @@ function endForStart(start) {
 function takesRange(box, text) {
   if (!refusesRange(box, text)) return true;
   if (box !== startInput) return false;
-  const start = parseTime(text);
+  const start = Chords.parseTime(text);
   if (start === null || isNaN(start)) return false;
   const end = endForStart(start);
   if (end === null) return false;
@@ -490,24 +490,6 @@ function formatTime(sec) {
     return `${h}:${String(m).padStart(2, '0')}:${s.toFixed(2).padStart(5, '0')}`;
   }
   return `${m}:${s.toFixed(2).padStart(5, '0')}`;
-}
-
-function parseTime(str) {
-  if (str === null || str === undefined) return null;
-  const s = String(str).trim();
-  if (!s) return null;
-  if (!s.includes(':')) {
-    const n = parseFloat(s);
-    return isNaN(n) ? null : n;
-  }
-  const parts = s.split(':');
-  let total = 0;
-  for (let i = 0; i < parts.length; i++) {
-    const n = parseFloat(parts[i]);
-    if (isNaN(n)) return null;
-    total = total * 60 + n;
-  }
-  return total;
 }
 
 function roundTo(n, digits) {
@@ -990,7 +972,7 @@ playLoopBtn.addEventListener('click', () => {
 // the ⏮ at the head of Start and the A shortcut.
 function seekToStart() {
   if (!player || !player.seekTo) return;
-  const s = parseTime(startInput.value);
+  const s = Chords.parseTime(startInput.value);
   if (s === null || isNaN(s)) return;
   player.seekTo(s, true);
 }
@@ -1000,7 +982,7 @@ function seekToStart() {
 // until now that meant dragging the player's own bar to somewhere near it.
 function seekToEnd() {
   if (!player || !player.seekTo) return;
-  const e = parseTime(endInput.value);
+  const e = Chords.parseTime(endInput.value);
   if (e === null || isNaN(e)) return;
   player.seekTo(e, true);
 }
@@ -1051,8 +1033,8 @@ function clearVideoHistory(vid) {
 // The form's current state in the shape of a saved loop.
 function currentFormLoop() {
   return {
-    start: parseTime(startInput.value),
-    end:   parseTime(endInput.value),
+    start: Chords.parseTime(startInput.value),
+    end:   Chords.parseTime(endInput.value),
     speed: effectiveSpeed(),
     note:  noteInput ? noteInput.value.trim() : ''
   };
@@ -1642,7 +1624,7 @@ function askInsertBar(at) {
     formatTime(settledTime(currentPlaybackTime())),
   );
   if (answer === null) return;                 // asked, and thought better of it
-  const t = answer.trim() ? parseTime(answer) : null;
+  const t = answer.trim() ? Chords.parseTime(answer) : null;
   if (answer.trim() && t === null) {
     alert(`"${answer}" is not a time. Write it as 43.50 or 0:43.50.`);
     return;
@@ -1882,7 +1864,7 @@ function barTimeEditor(index, time) {
     const text = box.value.trim();
     // Opened and nothing said: a way out, like Esc or a click on the music.
     if (!text) { closeChordTimePins(); return; }
-    const t = parseTime(text);
+    const t = Chords.parseTime(text);
     if (t === null || isNaN(t)) { refuse(`"${text}" is not a time`); return; }
     const { after, before } = barTimeBounds(index);
     const low = after !== null && t <= after;
@@ -4983,7 +4965,7 @@ document.addEventListener('keydown', e => {
     if (!e.shiftKey) return;
     e.preventDefault();
     const delta = e.key === 'ArrowLeft' ? -0.05 : 0.05;
-    const cur = parseTime(target.value);
+    const cur = Chords.parseTime(target.value);
     const base = (cur === null || isNaN(cur)) ? 0 : cur;
     const next = formatTime(Math.max(0, roundTo(base + delta, 2)));
     // The step that would cross the other end is the step that doesn't happen —
