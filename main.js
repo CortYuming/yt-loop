@@ -2820,14 +2820,21 @@ function putNote(ev) {
 // A tap on the board. With a note selected it replaces that note — which is how
 // one written on the wrong string is corrected — and otherwise it writes a new
 // one after the last, or into the gap the + opened.
+// A new note holding one stop, at the length the board is set to. No length at
+// all is the state a fingering is written in — held until the next note, the way
+// a chord is — and that is what `free` says.
+function newStopEvent(stop) {
+  return noteDur === NO_DUR
+    ? { d: 1, stops: [stop], free: true }
+    : { d: noteValue(), stops: [stop] };
+}
+
 function pressStop(string, fret) {
   const notes = noteEntries();
   // What a tap writes: a stop, muted while the ✕ button is on.
   const stop = () => (noteDeadMode ? { string, fret, dead: true } : { string, fret });
   if (noteAfter !== null) {
-    putNote(noteDur === NO_DUR
-      ? { d: 1, stops: [stop()], free: true }
-      : { d: noteValue(), stops: [stop()] });
+    putNote(newStopEvent(stop()));
     commitNotes();
     return;
   }
@@ -2891,8 +2898,7 @@ function pressStop(string, fret) {
   const last = notes[notes.length - 1];
   if (noteStack && last && !last.rest && !last.tie) {
     last.stops = stackStop(last.stops, string, fret);
-  } else if (noteDur === NO_DUR) notes.push({ d: 1, stops: [stop()], free: true });
-  else notes.push({ d: noteValue(), stops: [stop()] });
+  } else notes.push(newStopEvent(stop()));
   commitNotes();
 }
 
