@@ -2592,11 +2592,11 @@ function chordMarkersToStop(chord) {
   (chord.markers || []).forEach((fret, i) => {
     if (fret !== null) stops.push({ string: i + 1, fret });
   });
-  if (!stops.length) return -1;
+  // A name with no frets under it is already written the one way.
+  if (!stops.length) return;
   chord.notes = chord.notes || [];
   chord.notes.unshift({ d: 1, stops, free: true });
   chord.markers = null;
-  return 0;
 }
 
 // MIGRATION (temporary): the same turn for a whole sheet at once. Every chord
