@@ -1392,18 +1392,11 @@ function drawChordStrip(fromCache) {
     // belonging to the bar on the other side of it. Only while editing — see
     // .editing-mode in style.css. + Bar adds to the end, which is how a
     // transcription grows; this is for the bar found missing later.
-    const insertBtn = document.createElement('button');
-    insertBtn.type = 'button';
-    insertBtn.className = 'chord-add';
-    insertBtn.textContent = '+';
-    insertBtn.title = `Add a bar before bar ${i + 1}`;
-    insertBtn.setAttribute('aria-label', `Add a bar before bar ${i + 1}`);
-    insertBtn.addEventListener('mousedown', e => e.preventDefault());
-    insertBtn.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      askInsertBar(i);
-    });
+    const insertLabel = `Add a bar before bar ${i + 1}`;
+    const insertBtn = toolButton('chord-add', '+', insertLabel,
+      () => askInsertBar(i), true);
+    // The face is a bare +, so the name of the thing it adds is said here.
+    insertBtn.setAttribute('aria-label', insertLabel);
     head.appendChild(insertBtn);
     head.appendChild(barNumber(i, spans[i].start));
     // A bar with a time on it carries the loop controls for that moment; one
@@ -1606,14 +1599,9 @@ function addBar() {
 }
 
 function addBarButton() {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'chord-add-bar';
-  b.textContent = '+ Bar';
-  b.title = 'Add a bar, starting where the last one ends';
-  b.addEventListener('mousedown', e => e.preventDefault());
-  b.addEventListener('click', e => { e.preventDefault(); addBar(); });
-  return b;
+  // No stop: this one sits past the last bar, with no cell under it to guard.
+  return toolButton('chord-add-bar', '+ Bar',
+    'Add a bar, starting where the last one ends', addBar);
 }
 
 // When the new bar starts, asked before it is made. The video is somewhere in
@@ -1680,20 +1668,8 @@ function barNumber(index, start) {
     label.textContent = text;
     return label;
   }
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'chord-bar-no';
-  b.textContent = text;
-  b.title = `Jump to bar ${text} — ${formatTime(start)}`;
-  // Same reason as the chord ops: taking focus can blur an open box, which
-  // writes the sheet back and redraws the strip out from under this click.
-  b.addEventListener('mousedown', e => e.preventDefault());
-  b.addEventListener('click', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    seekToTime(start);
-  });
-  return b;
+  return toolButton('chord-bar-no', text, `Jump to bar ${text} — ${formatTime(start)}`,
+    () => seekToTime(start), true);
 }
 
 // The time in a bar head, which is also how a loop is marked out from the
@@ -1715,11 +1691,15 @@ function barTimePins(index, span) {
   const wrap = document.createElement('span');
   wrap.className = 'chord-bar-time';
 
-  const face = document.createElement('button');
-  face.type = 'button';
-  face.className = 'chord-time-face';
-  face.textContent = formatTime(time);
-  face.title = 'Use this time as the loop start or end';
+  const face = toolButton('chord-time-face', formatTime(time),
+    'Use this time as the loop start or end', () => {
+      const wasOpen = wrap.classList.contains('open');
+      closeChordTimePins();
+      if (!wasOpen) {
+        wrap.classList.add('open');
+        openTimePins = wrap;
+      }
+    }, true);
 
   const pins = document.createElement('span');
   pins.className = 'chord-time-pins';
@@ -1730,20 +1710,10 @@ function barTimePins(index, span) {
   refused.className = 'chord-time-err';
   refused.hidden = true;
   const pin = (text, title, input, at) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'chord-time-pin';
-    b.textContent = text;
-    b.title = at === null
-      ? 'This bar has no end yet — give the next bar a time, or write this one as @start-end'
-      : title;
-    b.disabled = at === null;
-    // Same reason as the chord ops: taking focus can blur an open box, which
-    // writes the sheet back and redraws the strip out from under this click.
-    b.addEventListener('mousedown', e => e.preventDefault());
-    b.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
+    const known = at !== null;
+    const b = toolButton('chord-time-pin', text, known ? title
+      : 'This bar has no end yet — give the next bar a time, or write this one as @start-end',
+    () => {
       const value = formatTime(at);
       // A bar picked as the Start after the range's End brings the End along —
       // walking Start down the sheet is the whole point of these — and only an
@@ -1763,7 +1733,8 @@ function barTimePins(index, span) {
       refreshUI();
       handleValueEdit(input);
       closeChordTimePins();
-    });
+    }, true);
+    b.disabled = !known;
     row.appendChild(b);
   };
   pin('start📍', 'Set this bar\'s start as the loop start', startInput, span.start);
@@ -1775,18 +1746,6 @@ function barTimePins(index, span) {
   // listening, not by editing, and having to open the sheet's text box first put
   // the fix a long way from the noticing.
   pins.appendChild(barTimeEditor(index, time));
-
-  face.addEventListener('mousedown', e => e.preventDefault());
-  face.addEventListener('click', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    const wasOpen = wrap.classList.contains('open');
-    closeChordTimePins();
-    if (!wasOpen) {
-      wrap.classList.add('open');
-      openTimePins = wrap;
-    }
-  });
 
   wrap.appendChild(face);
   wrap.appendChild(pins);
@@ -1913,22 +1872,15 @@ function barTimeEditor(index, time) {
     setBarStart(index, t);
   };
 
-  const now = document.createElement('button');
-  now.type = 'button';
-  now.className = 'chord-time-pin';
-  now.textContent = 'now📍';
-  now.title = 'Fill in the current playback time';
-  now.addEventListener('mousedown', e => e.preventDefault());
-  now.addEventListener('click', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Where the row is, not what the player says — the same reading the strip
-    // itself is drawn against. See askInsertBar.
-    box.value = formatTime(settledTime(currentPlaybackTime()));
-    err.hidden = true;
-    ok.classList.add('dirty');
-    box.focus();
-  });
+  const now = toolButton('chord-time-pin', 'now📍',
+    'Fill in the current playback time', () => {
+      // Where the row is, not what the player says — the same reading the strip
+      // itself is drawn against. See askInsertBar.
+      box.value = formatTime(settledTime(currentPlaybackTime()));
+      err.hidden = true;
+      ok.classList.add('dirty');
+      box.focus();
+    }, true);
 
   const ok = document.createElement('button');
   ok.type = 'button';
