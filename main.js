@@ -2820,6 +2820,33 @@ function putNote(ev) {
 // A tap on the board. With a note selected it replaces that note — which is how
 // one written on the wrong string is corrected — and otherwise it writes a new
 // one after the last, or into the gap the + opened.
+// A stop already lit is a stop taken off: pressing what is on is how you
+// unwrite it, stacking or replacing alike. It used to filter that string out and
+// put the same fret straight back, so the one press that plainly meant "not this
+// one" was the one press that did nothing. Emptied of every string the note
+// keeps its place and its length and becomes a rest — what was being corrected
+// is the fingering, not the beat — written the way the R button writes one.
+// A rest and a tie are turned away, because on them a lit cell means something
+// else: a rest keeps the shape it was made from so that pressing it again brings
+// the note back, and a tie's lit cells are the strings it is holding on from
+// before it. On either, a press is that note struck again, which is what the
+// stack and replace branches in pressStop do.
+// False where nothing was taken off, so the caller knows to go on.
+function unlightStop(ev, string, fret) {
+  if (ev.tie || ev.rest) return false;
+  const stops = ev.stops || [];
+  const lit = stops.findIndex(st => st.string === string && st.fret === fret);
+  if (lit < 0) return false;
+  stops.splice(lit, 1);
+  ev.stops = stops;
+  if (!stops.length) {
+    delete ev.free;
+    delete ev.grace;
+    ev.rest = true;
+  }
+  return true;
+}
+
 // A new note holding one stop, at the length the board is set to. No length at
 // all is the state a fingering is written in — held until the next note, the way
 // a chord is — and that is what `free` says.
@@ -2855,32 +2882,12 @@ function pressStop(string, fret) {
       commitNotes();
       return;
     }
-    // A stop already lit is a stop taken off: pressing what is on is how you
-    // unwrite it, stacking or replacing alike. It used to filter that string out
-    // and put the same fret straight back, so the one press that plainly meant
-    // "not this one" was the one press that did nothing. Emptied of every string
-    // the note keeps its place and its length and becomes a rest — what was
-    // being corrected is the fingering, not the beat — written the way the R
-    // button writes one.
-    // A rest and a tie are both let through to the branches below, because on
-    // them a lit cell means something else: a rest keeps the shape it was made
-    // from so that pressing it again brings the note back, and a tie's lit cells
-    // are the strings it is holding on from before it. On either, a press is
-    // that note struck again, which is what the stack and replace branches do.
-    if (!ev.tie && !ev.rest) {
-      const stops = ev.stops || [];
-      const lit = stops.findIndex(st => st.string === string && st.fret === fret);
-      if (lit >= 0) {
-        stops.splice(lit, 1);
-        ev.stops = stops;
-        if (!stops.length) {
-          delete ev.free;
-          delete ev.grace;
-          ev.rest = true;
-        }
-        commitNotes();
-        return;
-      }
+    // A stop already lit is a stop taken off — see unlightStop. A rest and a tie
+    // fall through it to the branches below, where a press is that note struck
+    // again.
+    if (unlightStop(ev, string, fret)) {
+      commitNotes();
+      return;
     }
     if (noteStack && !ev.tie) {
       ev.stops = stackStop(ev.stops, string, fret);
