@@ -3993,16 +3993,24 @@ function notePanelHead(notes, ev, beats, used) {
   room.textContent = `${notes.length} note${notes.length === 1 ? '' : 's'}, `
     + `${beatsText(used)} beat${used === 1 ? '' : 's'} written`;
   head.append(what, mode, room);
-  // The way out of the panel is not one of the tools: it sits where a window's
-  // close sits, rather than at the end of a row of things that write music.
+  // The way out of editing, not one of the tools: it sits where a window's close
+  // sits, rather than at the end of a row of things that write music. It puts
+  // the sheet back to being read — the panel only ever stands open while the
+  // editor does, so shutting the board and leaving the row full of boxes was a
+  // half-exit nobody wanted: the way back out was then the 🎼 Edit button, all
+  // the way up in the toolbar. Esc still steps back through the panel alone.
   const close = document.createElement('button');
   close.type = 'button';
   close.className = 'note-panel-close';
   close.textContent = '×';
-  close.title = 'Close this panel (Esc)';
-  close.setAttribute('aria-label', 'Close this panel');
+  close.title = 'Stop editing this sheet';
+  close.setAttribute('aria-label', 'Stop editing this sheet');
   close.addEventListener('mousedown', e => e.preventDefault());
-  close.addEventListener('click', e => { e.preventDefault(); closeNotePanel(); });
+  close.addEventListener('click', e => {
+    e.preventDefault();
+    if (chordEditor.hidden) closeNotePanel();
+    else toggleChordEditor(false);
+  });
   head.appendChild(close);
   return head;
 }
