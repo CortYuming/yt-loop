@@ -626,7 +626,7 @@ function onPlayerStateChange(e) {
   // undefined and the guard silently matches every state.
   if (state !== -1) runPendingLoad();
 
-  if (state === (window.YT && YT.PlayerState.PLAYING)) {
+  if (isPlaying(state)) {
     if (seekWhilePaused) {
       seekWhilePaused = false;
       player.pauseVideo();
@@ -679,8 +679,7 @@ function updatePlayButton() {
     playLoopBtn.textContent = '⏳ 1s…';
     return;
   }
-  const state = safeState();
-  if (state === (window.YT && YT.PlayerState.PLAYING)) {
+  if (isPlaying()) {
     playLoopBtn.textContent = '⏸ Pause';
   } else {
     playLoopBtn.textContent = '▶ Play';
@@ -756,7 +755,7 @@ function enforceLoopEnd() {
   if (!player || typeof player.getCurrentTime !== 'function') return;
   // Cheapest question first: this runs 40 times a second whether or not
   // anything is playing, and reading the range means parsing two strings.
-  if (safeState() !== (window.YT && YT.PlayerState.PLAYING)) return;
+  if (!isPlaying()) return;
   const loop = loopRange();
   if (!loop) return;
   let t;
@@ -813,6 +812,15 @@ function startTimeLoop() {
 
 function safeState() {
   try { return player.getPlayerState(); } catch (e) { return -1; }
+}
+
+// Is it playing? The guard against YT not having loaded rides along, since
+// YT.PlayerState.PLAYING is undefined until it has and an unguarded comparison
+// would then match a player that reports undefined for its own state. Takes a
+// state when the caller already holds one — the state handler is handed one —
+// and asks the player otherwise.
+function isPlaying(state = safeState()) {
+  return state === (window.YT && YT.PlayerState.PLAYING);
 }
 
 // ============================================================
@@ -969,8 +977,7 @@ playLoopBtn.addEventListener('click', () => {
     return;
   }
   if (cancelPendingPlay()) { updatePlayButton(); return; }
-  const state = safeState();
-  if (state === (window.YT && YT.PlayerState.PLAYING)) {
+  if (isPlaying()) {
     player.pauseVideo();
     return;
   }
@@ -2054,8 +2061,7 @@ function settledTime(t) {
   // yet reports 0 for as long as it stays stopped, and giving up on the seek then
   // snaps the row back to the head of the track — the drag looks undone, until
   // the video is played once and the clock starts telling the truth.
-  if (safeState() === (window.YT && YT.PlayerState.PLAYING)
-      && performance.now() > pendingSeek.until) {
+  if (isPlaying() && performance.now() > pendingSeek.until) {
     pendingSeek = null;
     return t;
   }
@@ -2123,7 +2129,7 @@ function seekToTime(t) {
   // seekTo while PLAYING bounces the player through BUFFERING back to PLAYING;
   // claim that as ours so the state handler doesn't read it as someone else
   // starting playback and pause it for the warm-up delay.
-  const playing = safeState() === (window.YT && YT.PlayerState.PLAYING);
+  const playing = isPlaying();
   if (playing) intentionalPlay = true;
   else seekWhilePaused = true;
   player.seekTo(time, true);
@@ -2723,7 +2729,7 @@ function markNoteSelection() {
 function keepCaretInView() {
   if (!notePanelAt || chordEditor.hidden || !getChordsVisible()) return;
   if (chordViewport.hidden || chordDrag) return;
-  if (safeState() === (window.YT && YT.PlayerState.PLAYING)) return;
+  if (isPlaying()) return;
   // What is being written on, in the order the marks mean: the note selected,
   // the empty stretch's caret, then the place after the last note — which is
   // where writing sits when nothing is selected.
@@ -4631,7 +4637,7 @@ function recordHistory() {
 // it — null when nothing was written.
 function updateLiveEntry() {
   if (!liveEntryId || !currentVideoId) return null;
-  if (safeState() !== (window.YT && YT.PlayerState.PLAYING)) return null;
+  if (!isPlaying()) return null;
   const r = formRange();
   if (!r || r.start >= r.end) return null;
   const { start, end } = r;
@@ -4933,8 +4939,7 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space') {
     e.preventDefault();
     if (cancelPendingPlay()) { updatePlayButton(); return; }
-    const state = safeState();
-    if (state === (window.YT && YT.PlayerState.PLAYING)) player.pauseVideo();
+    if (isPlaying()) player.pauseVideo();
     else startPlaybackWithDelay();
   } else if (e.key === 'a' || e.key === 'A') {
     // Not S, which is stack while the note panel is open: one key doing two
