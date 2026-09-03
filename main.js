@@ -1387,37 +1387,10 @@ function drawChordStrip(fromCache) {
 
     barEl.appendChild(buildBarHead(i, bar, spans[i]));
 
-    // The same bar again, as the notes it sounds. Each chord sits at the beat
-    // it starts on — the left edge of its cell — rather than under the middle
-    // of its diagram, since what the staff is showing is when as much as what.
-    // Past four chords the cells wrap and there are no beat edges to follow, so
-    // those are spread evenly across the bar instead.
+    // The same bar again, as the notes it sounds — see staffItems for where each
+    // chord lands across it.
     if (staffReach) {
-      const wide = bar.chords.length > SLOTS_PER_BAR;
-      let cellX = 0;
-      const items = bar.chords.map((chord, j) => {
-        const at = wide ? (j * width) / bar.chords.length : cellX;
-        cellX += weights[j] * slot;
-        // Which of this stretch's notes is being edited, so the strip can mark it.
-        const here = notePanelAt && notePanelAt.bar === i && notePanelAt.chord === j;
-        const sel = here ? noteSel : null;
-        // Writing at the end marks nothing, and then nothing on screen says where
-        // the next tap goes. So the note it will follow is marked too, in its own
-        // way: what is written there yet is not this note but the one after it.
-        const after = here && noteAfter === null && noteSel === null
-          && chord.notes && chord.notes.length ? chord.notes.length - 1 : null;
-        // Room held open after this note, for what is written next — the staff
-        // moves the notes after it over and marks the space.
-        const gap = here && noteAfter !== null ? noteAfter : null;
-        // Nothing written here yet, and the board open on it: the first beat is
-        // where the next tap lands, and with no note to mark there would be
-        // nothing at all on screen saying which stretch is being written into.
-        const caret = here && !(chord.notes && chord.notes.length);
-        return {
-          x: at, chord: j, name: chord.name, markers: chord.markers, notes: chord.notes,
-          sel, after, caret, gap,
-        };
-      });
+      const items = staffItems(bar, i, width, slot, weights);
       // A bar is four slots wide, so one slot is one beat — which is what the
       // notes inside a chord's stretch are placed by.
       // A bar can open on a tie — a note held over the bar line — and then what
@@ -1522,6 +1495,40 @@ function buildBarHead(i, bar, span) {
   const count = barBeatLabel(bar);
   if (count) head.appendChild(count);
   return head;
+}
+
+// A bar's chords as the staff wants them: where each one sits across the bar,
+// and what the board open on it has marked. Each chord sits at the beat it
+// starts on — the left edge of its cell — rather than under the middle of its
+// diagram, since what the staff is showing is when as much as what. Past four
+// chords the cells wrap and there are no beat edges to follow, so those are
+// spread evenly across the bar instead.
+function staffItems(bar, i, width, slot, weights) {
+  const wide = bar.chords.length > SLOTS_PER_BAR;
+  let cellX = 0;
+  return bar.chords.map((chord, j) => {
+    const at = wide ? (j * width) / bar.chords.length : cellX;
+    cellX += weights[j] * slot;
+    // Which of this stretch's notes is being edited, so the strip can mark it.
+    const here = notePanelAt && notePanelAt.bar === i && notePanelAt.chord === j;
+    const sel = here ? noteSel : null;
+    // Writing at the end marks nothing, and then nothing on screen says where
+    // the next tap goes. So the note it will follow is marked too, in its own
+    // way: what is written there yet is not this note but the one after it.
+    const after = here && noteAfter === null && noteSel === null
+      && chord.notes && chord.notes.length ? chord.notes.length - 1 : null;
+    // Room held open after this note, for what is written next — the staff
+    // moves the notes after it over and marks the space.
+    const gap = here && noteAfter !== null ? noteAfter : null;
+    // Nothing written here yet, and the board open on it: the first beat is
+    // where the next tap lands, and with no note to mark there would be
+    // nothing at all on screen saying which stretch is being written into.
+    const caret = here && !(chord.notes && chord.notes.length);
+    return {
+      x: at, chord: j, name: chord.name, markers: chord.markers, notes: chord.notes,
+      sel, after, caret, gap,
+    };
+  });
 }
 
 // What a bar's phrase actually counts, over the whole of it rather than one
