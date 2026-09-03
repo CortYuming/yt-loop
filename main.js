@@ -1172,13 +1172,14 @@ const SLOTS_PER_BAR = 4;
 // number sets how large the whole sheet draws.
 const SLOT_MAX = 142;
 const BAR_BORDER = 2;   // the amber rule down the left of a bar
-// Where the playhead sits across the window. Not the middle: a bar of five or
-// more chords wraps to a second line inside its own width, so what is sounding
-// late in such a bar is drawn well left of the playhead — and off the window
-// entirely when only half of it lies behind. Two thirds keeps that in view at
-// the cost of some of the lookahead. Keep .chord-playhead's left in style.css
-// on the same fraction.
-const PLAYHEAD_RATIO = 2 / 3;
+// Where the playhead sits across the window: a little left of the middle, which
+// buys the lookahead the extra room without moving now far from where the eye
+// rests. It sat at two thirds while the sheet was capped at 860px, to keep a bar
+// of five or more chords — which wraps to a second line inside its own width,
+// drawing its late chords well left of the playhead — from falling off the
+// window. A wide window carries that bar either side of here. Keep
+// .chord-playhead's left in style.css on the same fraction.
+const PLAYHEAD_RATIO = 0.40;
 let chordAnchors = [];  // {time, x} along the track, ascending by time
 // The one bar head whose 📍 buttons are open, if any. Declared up here with the
 // rest of the strip's state because the strip can be drawn before this file has

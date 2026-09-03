@@ -24,10 +24,29 @@ body {
   font-size: 14px;
 }
 
+/* Only the sheet has any use for a wide window: it is one long row sliding
+   under a playhead, so every extra pixel is another beat of lookahead. Nothing
+   else here gains by stretching, and the block below holds them at the width
+   they were designed at. */
 main {
-  max-width: 860px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: 16px;
+}
+
+/* Everything that is not the sheet, kept at the old 860px and centred under it.
+   The player especially: it is a 16:9 box sized by padding-bottom, which is a
+   percentage of its parent's WIDTH, so left to itself a wide window makes it
+   taller as well and pushes the sheet off the screen. */
+header,
+.url-input,
+.player-wrap,
+.controls,
+.chord-editor,
+.loops,
+.backup {
+  max-width: 860px;
+  margin-inline: auto;
 }
 
 header h1 {
@@ -689,7 +708,7 @@ button.pin {
    in main.js, which is what actually slides the row. */
 .chord-playhead {
   position: absolute;
-  left: 66.6667%;
+  left: 40%;
   top: 0;
   bottom: 0;
   width: 2px;
