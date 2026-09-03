@@ -34,10 +34,9 @@ main {
   padding: 16px;
 }
 
-/* Everything that is not the sheet, kept at the old 860px and centred under it.
-   The player especially: it is a 16:9 box sized by padding-bottom, which is a
-   percentage of its parent's WIDTH, so left to itself a wide window makes it
-   taller as well and pushes the sheet off the screen. */
+/* Everything that is not the sheet, held at the width it had before main was
+   widened and centred under it. 828px, not 860: the old cap was on main, so the
+   column these sat in was that less main's own 16px of padding either side. */
 header,
 .url-input,
 .player-wrap,
@@ -45,7 +44,7 @@ header,
 .chord-editor,
 .loops,
 .backup {
-  max-width: 860px;
+  max-width: 828px;
   margin-inline: auto;
 }
 
@@ -116,8 +115,11 @@ button.primary:hover {
 
 .player-wrap {
   position: relative;
-  padding-bottom: 56.25%;
-  height: 0;
+  /* aspect-ratio, not the old padding-bottom: 56.25% — a percentage padding
+     resolves against the PARENT's width, not this box's own. With main widened
+     and this box held to the column width, the padding kept sizing itself off
+     main and drew a black box half again too tall around a 16:9 video. */
+  aspect-ratio: 16 / 9;
   background: #000;
   border-radius: 4px;
   overflow: hidden;
