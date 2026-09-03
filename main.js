@@ -1573,6 +1573,18 @@ function barOpensOnTie(bar) {
   return false;
 }
 
+// The three steps that follow an edit made on the row rather than in the text
+// box: the cached spans are worked out per parse, so a bar added or a bar line
+// moved leaves them describing the sheet as it was — recompute, write the text
+// back out, and redraw from the cache rather than from the text just written.
+// `source` reaches writeSheetFromCache, which uses it to decide what the edit
+// was for the history it keeps.
+function commitChordEdit(source) {
+  chordCache.spans = Chords.resolveSpans(chordCache.bars);
+  writeSheetFromCache(source);
+  renderChordStrip(true);
+}
+
 // A bar that isn't there yet. It starts where the last one ends, which is what
 // a transcription does — bar after bar — and at the playhead when there is no
 // last one to follow. The bar arrives holding one empty chord, so it is a cell
@@ -1580,18 +1592,14 @@ function barOpensOnTie(bar) {
 // sheet still keeps nothing until something is actually typed or tapped.
 function addBar() {
   const bars = chordCache.bars;
-  const spans = Chords.resolveSpans(bars);
-  const last = spans[spans.length - 1];
+  // The cache's own spans, not a fresh resolve: they are the resolve of these
+  // same bars, kept in step by every edit that touches them.
+  const last = chordCache.spans[chordCache.spans.length - 1];
   const after = last ? (last.end !== null ? last.end : last.start) : null;
   const start = roundTo(
     after === null ? settledTime(currentPlaybackTime()) : after, 2);
   bars.push({ start, end: null, chords: [{ name: '', markers: null }] });
-  // The cached spans are worked out per parse, and this adds a bar to that parse
-  // without going back through it — so they are recomputed here or the new bar
-  // has no timing at all.
-  chordCache.spans = Chords.resolveSpans(bars);
-  writeSheetFromCache();
-  renderChordStrip(true);
+  commitChordEdit();
   // Straight into the bar just made: the button was pressed to write something,
   // and the board is where writing happens.
   openNotePanel(chordCache.bars.length - 1, 0);
@@ -1653,9 +1661,7 @@ function insertBar(at, start) {
     end: null,
     chords: [{ name: '', markers: null }],
   });
-  chordCache.spans = Chords.resolveSpans(bars);
-  writeSheetFromCache();
-  renderChordStrip(true);
+  commitChordEdit();
   // Straight into the bar just made: it was asked for in order to write in it.
   openNotePanel(at, 0);
 }
@@ -1863,9 +1869,7 @@ function setBarStart(index, t) {
   if (prev && prev.end !== null && was !== null && Math.abs(prev.end - was) <= RANGE_EPS) {
     prev.end = start;
   }
-  chordCache.spans = Chords.resolveSpans(bars);
-  writeSheetFromCache('bar-time');
-  renderChordStrip(true);
+  commitChordEdit('bar-time');
 }
 
 // The box the time is typed in, with the current playback position on a button

@@ -109,7 +109,7 @@ const LIFTED = [
   // the triplet as one thing
   'tripletGroupPlaces', 'noteCopy', 'freeTripId',
   // bars
-  'roundTo', 'addBar', 'insertBar', 'barBeats', 'barBeatLabel',
+  'roundTo', 'commitChordEdit', 'addBar', 'insertBar', 'barBeats', 'barBeatLabel',
   'setBarStart', 'barTimeBounds',
 ];
 // Read to the brace that closes the declaration rather than to the next line
