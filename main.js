@@ -1929,44 +1929,36 @@ function currentPlaybackTime() {
   try { return player.getCurrentTime(); } catch (e) { return 0; }
 }
 
-// Where a moment in the music sits along the track. Outside the sheet the
-// nearest bar's speed carries on, so it drifts in and out rather than sticking.
-function chordXForTime(t) {
+// Reading one of an anchor's two numbers off the other. Both axes ascend — the
+// anchors are built left to right and time runs with them — so a single walk
+// does either direction, with `from` naming the axis being searched and `to`
+// the one being read. Outside the sheet the nearest pair's slope carries on, so
+// a point past either end drifts in and out rather than sticking.
+function chordInterp(v, from, to) {
   const a = chordAnchors;
   if (a.length === 0) return 0;
-  if (a.length === 1) return a[0].x;
+  if (a.length === 1) return a[0][to];
   const last = a.length - 1;
-  const between = (i, j) => {
-    const span = a[j].time - a[i].time;
-    return span > 0 ? (a[j].x - a[i].x) / span : 0;
+  const slope = (i, j) => {
+    const span = a[j][from] - a[i][from];
+    return span > 0 ? (a[j][to] - a[i][to]) / span : 0;
   };
-  if (t <= a[0].time) return a[0].x + (t - a[0].time) * between(0, 1);
-  if (t >= a[last].time) return a[last].x + (t - a[last].time) * between(last - 1, last);
+  // Off `at`, along the slope the pair (i, j) describes. Past the ends the
+  // anchor and the pair are not the same two: the walk leans on the last pair
+  // there is and keeps going.
+  const readAt = (at, i, j) => a[at][to] + (v - a[at][from]) * slope(i, j);
+  if (v <= a[0][from]) return readAt(0, 0, 1);
+  if (v >= a[last][from]) return readAt(last, last - 1, last);
   for (let i = 0; i < last; i++) {
-    if (t < a[i + 1].time) return a[i].x + (t - a[i].time) * between(i, i + 1);
+    if (v < a[i + 1][from]) return readAt(i, i, i + 1);
   }
-  return a[last].x;
+  return a[last][to];
 }
 
-// The inverse: where along the track a point sits, in seconds. Anchors are
-// built left to right, so their x is already ascending and the same walk works
-// on either axis.
-function chordTimeForX(x) {
-  const a = chordAnchors;
-  if (a.length === 0) return 0;
-  if (a.length === 1) return a[0].time;
-  const last = a.length - 1;
-  const between = (i, j) => {
-    const span = a[j].x - a[i].x;
-    return span > 0 ? (a[j].time - a[i].time) / span : 0;
-  };
-  if (x <= a[0].x) return a[0].time + (x - a[0].x) * between(0, 1);
-  if (x >= a[last].x) return a[last].time + (x - a[last].x) * between(last - 1, last);
-  for (let i = 0; i < last; i++) {
-    if (x < a[i + 1].x) return a[i].time + (x - a[i].x) * between(i, i + 1);
-  }
-  return a[last].time;
-}
+// Where a moment in the music sits along the track, and the inverse: where
+// along the track a point sits, in seconds.
+function chordXForTime(t) { return chordInterp(t, 'time', 'x'); }
+function chordTimeForX(x) { return chordInterp(x, 'x', 'time'); }
 
 // A transform and nothing else, so the compositor can carry it without a
 // layout pass. Both the clock and the dragging hand come through here.
