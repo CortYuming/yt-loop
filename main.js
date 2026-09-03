@@ -1385,26 +1385,7 @@ function drawChordStrip(fromCache) {
     barEl.style.width = `${width}px`;
     barEl.dataset.bar = String(i);
 
-    const head = document.createElement('div');
-    head.className = 'chord-bar-head';
-    // A bar goes in before this one, so the button is at that edge — the head's
-    // own left, where the bar line is. Anywhere else in the head it reads as
-    // belonging to the bar on the other side of it. Only while editing — see
-    // .editing-mode in style.css. + Bar adds to the end, which is how a
-    // transcription grows; this is for the bar found missing later.
-    const insertLabel = `Add a bar before bar ${i + 1}`;
-    const insertBtn = toolButton('chord-add', '+', insertLabel,
-      () => askInsertBar(i), true);
-    // The face is a bare +, so the name of the thing it adds is said here.
-    insertBtn.setAttribute('aria-label', insertLabel);
-    head.appendChild(insertBtn);
-    head.appendChild(barNumber(i, spans[i].start));
-    // A bar with a time on it carries the loop controls for that moment; one
-    // without is just its number.
-    if (spans[i].start !== null) head.appendChild(barTimePins(i, spans[i]));
-    const count = barBeatLabel(bar);
-    if (count) head.appendChild(count);
-    barEl.appendChild(head);
+    barEl.appendChild(buildBarHead(i, bar, spans[i]));
 
     // The same bar again, as the notes it sounds. Each chord sits at the beat
     // it starts on — the left edge of its cell — rather than under the middle
@@ -1516,6 +1497,31 @@ function drawChordStrip(fromCache) {
   // The panel is drawn against the same parse, so it follows the strip rather
   // than keeping whatever it said before the sheet changed.
   if (notePanelAt) renderNotePanel();
+}
+
+// What sits above a bar's staff: the way to put a bar in before it, which bar
+// this is, the loop controls for the moment it starts on, and what it counts.
+function buildBarHead(i, bar, span) {
+  const head = document.createElement('div');
+  head.className = 'chord-bar-head';
+  // A bar goes in before this one, so the button is at that edge — the head's
+  // own left, where the bar line is. Anywhere else in the head it reads as
+  // belonging to the bar on the other side of it. Only while editing — see
+  // .editing-mode in style.css. + Bar adds to the end, which is how a
+  // transcription grows; this is for the bar found missing later.
+  const insertLabel = `Add a bar before bar ${i + 1}`;
+  const insertBtn = toolButton('chord-add', '+', insertLabel,
+    () => askInsertBar(i), true);
+  // The face is a bare +, so the name of the thing it adds is said here.
+  insertBtn.setAttribute('aria-label', insertLabel);
+  head.appendChild(insertBtn);
+  head.appendChild(barNumber(i, span.start));
+  // A bar with a time on it carries the loop controls for that moment; one
+  // without is just its number.
+  if (span.start !== null) head.appendChild(barTimePins(i, span));
+  const count = barBeatLabel(bar);
+  if (count) head.appendChild(count);
+  return head;
 }
 
 // What a bar's phrase actually counts, over the whole of it rather than one
