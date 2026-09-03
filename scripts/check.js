@@ -85,9 +85,9 @@ global.location = { href: 'https://cortyuming.github.io/yt-loop/' };
 
 // ---------- the two files under test ----------
 const MAIN = fs.readFileSync(path.join(ROOT, 'main.js'), 'utf8');
-// The functions lifted out of main.js. Editing a bar is these and nothing else,
-// which is why they can be run without a page: they read the parsed sheet and
-// the panel's two indexes, and write back into the same objects.
+// The ♪ editing still living in main.js, lifted out of it. It can be run
+// without a page for the same reason sheet.js can: it reads the parsed sheet and
+// the panel's two indexes, and writes back into the same objects.
 const LIFTED = [
   // writing
   'putNote', 'pressStop', 'newStopEvent', 'unlightStop', 'stackStop', 'copyNote',
@@ -106,9 +106,6 @@ const LIFTED = [
   'selectedIsChord', 'canMoveSelection',
   // the triplet as one thing
   'tripletGroupPlaces', 'noteCopy', 'freeTripId',
-  // bars
-  'roundTo', 'commitChordEdit', 'addBar', 'insertBar', 'barBeats', 'barBeatText',
-  'setBarStart', 'barTimeBounds',
 ];
 // Read to the brace that closes the declaration rather than to the next line
 // holding one on its own: a function written on a single line — addNoteRest is
@@ -136,6 +133,11 @@ function lift(name) {
 }
 const Chords = new Function(
   `${fs.readFileSync(path.join(ROOT, 'chords.js'), 'utf8')}\nreturn Chords;`)();
+// The edits themselves, loaded the way the page loads them. Nothing in there
+// reaches for a document or for the page's own state — what it works on is
+// handed over per case, in open() below.
+const Sheet = new Function('Chords',
+  `${fs.readFileSync(path.join(ROOT, 'sheet.js'), 'utf8')}\nreturn Sheet;`)(Chords);
 
 function liftOne(name) {
   const src = lift(name);
@@ -160,7 +162,7 @@ function open(sheet) {
     Chords, chordCache: { bars, spans: Chords.resolveSpans(bars) },
     writes: 0, carried: null, now: 0,
   };
-  const api = new Function('state', `
+  const api = new Function('state', 'Sheet', `
     const Chords = state.Chords, chordCache = state.chordCache;
     let notePanelAt = { bar: 0, chord: 0 }, noteSel = null, noteAfter = null;
     // The board's own state — what a tap writes when nothing is selected. The
@@ -168,7 +170,6 @@ function open(sheet) {
     let noteDur = 0.5, noteDotted = false, noteTriplet = false, noteStack = false;
     let noteDeadMode = false;
     const NO_DUR = 0;
-    const RANGE_EPS = 0.005;
     const noteValue = () => noteDur * (noteDotted ? 1.5 : 1) * (noteTriplet ? 2 / 3 : 1);
     const restValue = () => noteValue() || 1;
     function editingNote() {
@@ -186,9 +187,6 @@ function open(sheet) {
     function renderChordStrip() {}
     function writeSheetFromCache() { state.writes++; }
     function openNotePanel(bar, chord) { notePanelAt = { bar, chord }; noteSel = null; }
-    // The moment the video is at. A bar added with nothing to follow starts here.
-    function currentPlaybackTime() { return state.now; }
-    function settledTime(t) { return t; }
     ${LIFTED_SRC}
     return {
       // The board, as the panel's buttons set it before a tap.
@@ -218,19 +216,19 @@ function open(sheet) {
       del: () => deleteNote(),
       gap: () => insertAfterNote(),
       done: () => endNoteWriting(),
-      addBar: at => { state.now = at === undefined ? state.now : at; addBar(); },
-      beats: at => barBeats(chordCache.bars[at || 0]),
+      addBar: at => { state.now = at === undefined ? state.now : at; Sheet.addBar(); },
+      beats: at => Sheet.barBeats(chordCache.bars[at || 0]),
       // What the bar's head shows, as the text and the state it is shown in.
       // No template literal here: this whole scope is itself inside one.
       beatLabel: at => {
-        const count = barBeatText(chordCache.bars[at || 0]);
+        const count = Sheet.barBeatText(chordCache.bars[at || 0]);
         if (!count) return null;
         return count.shown + '/' + Chords.BEATS_PER_BAR + ' ' + (count.over ? '赤' : '灰');
       },
-      insertBar: (at, start) => insertBar(at, start),
+      insertBar: (at, start) => Sheet.insertBar(at, start),
       // The bar's own time, moved from its head, and how far it may go.
-      setBarStart: (at, t) => setBarStart(at, t),
-      bounds: at => barTimeBounds(at),
+      setBarStart: (at, t) => Sheet.setBarStart(at, t),
+      bounds: at => Sheet.barTimeBounds(at),
       rest: () => addNoteRest(),
       tie: () => addNoteTie(),
       dur: d => setNoteDur(d),
@@ -245,7 +243,21 @@ function open(sheet) {
         beam: () => noteBeamOn(), grace: () => noteGraceOn(), dead: () => noteDeadOn(),
       }[what]()),
       selection: () => ({ note: noteSel, gap: noteAfter }),
-    };`)(state);
+      // What sheet.js is handed as the page: a bar added or inserted opens the
+      // board on it, which is this scope's business rather than that file's.
+      openPanel: (bar, chord) => openNotePanel(bar, chord),
+    };`)(state, Sheet);
+  // This case's sheet, and the page's side of an edit — the same shape main.js
+  // hands over, with the writes counted instead of drawn.
+  Sheet.init({
+    cache: () => state.chordCache,
+    writeSheet: () => { state.writes++; },
+    renderStrip: () => {},
+    openPanel: (bar, chord) => api.openPanel(bar, chord),
+    // The moment the video is at. A bar added with nothing to follow starts here.
+    now: () => state.now,
+    settled: t => t,
+  });
   return { api, bars, get carried() { return state.carried; } };
 }
 

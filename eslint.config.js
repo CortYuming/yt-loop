@@ -12,16 +12,18 @@ const globals = require('globals');
 
 module.exports = [
   {
-    // The two files the page loads. They share one global scope in the browser —
-    // chords.js declares Chords, which main.js reads — so each has to be told
-    // about the other's name.
-    files: ['main.js', 'chords.js'],
+    // The three files the page loads. They share one global scope in the
+    // browser — chords.js declares Chords, sheet.js declares Sheet and reads
+    // Chords, main.js reads both — so each has to be told about the others'
+    // names.
+    files: ['main.js', 'chords.js', 'sheet.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: {
         ...globals.browser,
         Chords: 'readonly',
+        Sheet: 'readonly',
         // The YouTube IFrame API, which the page loads and the player waits for.
         YT: 'readonly',
       },
