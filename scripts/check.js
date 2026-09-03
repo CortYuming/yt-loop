@@ -107,7 +107,7 @@ const LIFTED = [
   // the triplet as one thing
   'tripletGroupPlaces', 'noteCopy', 'freeTripId',
   // bars
-  'roundTo', 'commitChordEdit', 'addBar', 'insertBar', 'barBeats', 'barBeatLabel',
+  'roundTo', 'commitChordEdit', 'addBar', 'insertBar', 'barBeats', 'barBeatText',
   'setBarStart', 'barTimeBounds',
 ];
 // Read to the brace that closes the declaration rather than to the next line
@@ -223,9 +223,9 @@ function open(sheet) {
       // What the bar's head shows, as the text and the state it is shown in.
       // No template literal here: this whole scope is itself inside one.
       beatLabel: at => {
-        const el = barBeatLabel(chordCache.bars[at || 0]);
-        if (!el) return null;
-        return el.textContent + ' ' + (el.attrs.class.indexOf('over') < 0 ? '灰' : '赤');
+        const count = barBeatText(chordCache.bars[at || 0]);
+        if (!count) return null;
+        return count.shown + '/' + Chords.BEATS_PER_BAR + ' ' + (count.over ? '赤' : '灰');
       },
       insertBar: (at, start) => insertBar(at, start),
       // The bar's own time, moved from its head, and how far it may go.

@@ -1540,24 +1540,31 @@ function barBeats(bar) {
   return any ? beats : null;
 }
 
-// The count in the bar's head, and only where it is not four. A bar that adds up
-// is the ordinary case and saying so on every bar of a sheet is noise; a bar that
-// does not is the one thing about it nothing on screen used to say. Undoing a
-// triplet leaves a bar half a beat long, and beatFit then squeezes the phrase
-// into the room the bar has — so the sheet reads as usual and the count is the
-// only place the truth shows.
-// Short of four is a phrase still being written, so it is said in the head's own
-// grey; over four is a bar that cannot be played as written, and that is red.
-function barBeatLabel(bar) {
+// What the bar's head has to say about its count, and only where it is not four.
+// A bar that adds up is the ordinary case and saying so on every bar of a sheet
+// is noise; a bar that does not is the one thing about it nothing on screen used
+// to say. Undoing a triplet leaves a bar half a beat long, and beatFit then
+// squeezes the phrase into the room the bar has — so the sheet reads as usual and
+// the count is the only place the truth shows.
+// `over` is a bar that cannot be played as written; short of four is a phrase
+// still being written. Null where there is nothing to say.
+function barBeatText(bar) {
   const beats = barBeats(bar);
   if (beats === null || Math.abs(beats - Chords.BEATS_PER_BAR) < 1e-9) return null;
-  const over = beats > Chords.BEATS_PER_BAR;
-  const el = document.createElement('span');
-  el.className = `chord-bar-beats${over ? ' over' : ''}`;
   // Thirds of a beat do not come out even, so the count is written to as many
   // places as it needs and no more: 4.5 rather than 4.50, 4.33 for a stray
   // triplet.
-  const shown = String(Number(beats.toFixed(2)));
+  return { shown: String(Number(beats.toFixed(2))), over: beats > Chords.BEATS_PER_BAR };
+}
+
+// That count as the head wears it: the head's own grey, or red for a bar over
+// four.
+function barBeatLabel(bar) {
+  const count = barBeatText(bar);
+  if (!count) return null;
+  const { shown, over } = count;
+  const el = document.createElement('span');
+  el.className = `chord-bar-beats${over ? ' over' : ''}`;
   el.textContent = `${shown}/${Chords.BEATS_PER_BAR}`;
   el.title = over
     ? `${shown} beats written in a bar of ${Chords.BEATS_PER_BAR} — more than it can hold`
