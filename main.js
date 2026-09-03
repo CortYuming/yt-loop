@@ -45,6 +45,19 @@ let intentionalPlay = false;
 // provokes is claimed here and put straight back to paused.
 let seekWhilePaused = false;
 
+// The two boxes read as numbers. Null when either one does not hold a time —
+// which is every caller's answer too, since a range with one end missing is not
+// a range. Whether the pair also has to run forwards is the caller's own
+// question: the loop and the history want a Start before the End, the duration
+// display and the emptiness check want to say something about a pair that does
+// not.
+function formRange() {
+  const start = parseTime(startInput.value);
+  const end = parseTime(endInput.value);
+  if (start === null || end === null || isNaN(start) || isNaN(end)) return null;
+  return { start, end };
+}
+
 // Where the loop runs, worked out afresh every time it is asked for. The toggle
 // says whether to loop and the two boxes say where, so there is nothing to keep
 // in step and nothing that can go stale: a range that stops making sense means
@@ -59,10 +72,9 @@ let seekWhilePaused = false;
 // switching the toggle off and on again did.
 function loopRange() {
   if (!loopToggle || !loopToggle.checked) return null;
-  const s = parseTime(startInput.value);
-  const e = parseTime(endInput.value);
-  if (s === null || e === null || isNaN(s) || isNaN(e) || s >= e) return null;
-  return { start: s, end: e };
+  const r = formRange();
+  if (!r || r.start >= r.end) return null;
+  return r;
 }
 
 // Everything that has to be recomputed after the form's values change. The loop
@@ -169,10 +181,9 @@ function takesRange(box, text) {
 // takes the value or turns it away. See the share-link landing, which drops an
 // End it cannot use rather than carrying it in.
 function rangeIsEmpty() {
-  const s = parseTime(startInput.value);
-  const e = parseTime(endInput.value);
-  if (s === null || e === null || isNaN(s) || isNaN(e)) return false;
-  return s >= e;
+  const r = formRange();
+  if (!r) return false;
+  return r.start >= r.end;
 }
 
 // Said on the button the finger is already on, since that is the one place on
@@ -435,12 +446,11 @@ window.onYouTubeIframeAPIReady = () => {
 // so it should stay cleared rather than being refilled from the link.
 function adoptNoteFromHistory() {
   if (!currentVideoId) return false;
-  const s = parseTime(startInput.value);
-  const e = parseTime(endInput.value);
-  if (s === null || e === null || isNaN(s) || isNaN(e)) return false;
+  const r = formRange();
+  if (!r) return false;
   const video = loadData().videos[currentVideoId];
   if (!video) return false;
-  const match = video.history.find(h => sameRange(h, s, e, effectiveSpeed()));
+  const match = video.history.find(h => sameRange(h, r.start, r.end, effectiveSpeed()));
   if (!match) return false;
   noteInput.value = match.note || '';
   return true;
@@ -861,13 +871,12 @@ document.addEventListener('animationend', e => {
 // Duration display (end − start)
 // ============================================================
 function updateDurationDisplay() {
-  const s = parseTime(startInput.value);
-  const e = parseTime(endInput.value);
-  if (s === null || e === null || isNaN(s) || isNaN(e) || e <= s) {
+  const r = formRange();
+  if (!r || r.end <= r.start) {
     durationDisplay.textContent = '—';
     return;
   }
-  durationDisplay.textContent = formatTime(e - s);
+  durationDisplay.textContent = formatTime(r.end - r.start);
 }
 startInput.addEventListener('input', () => { refreshUI(); handleValueEdit(startInput); });
 endInput.addEventListener('input',   () => { refreshUI(); handleValueEdit(endInput); });
@@ -4582,9 +4591,9 @@ function migrateLegacyData() {
 // the list readable when you loop the same four bars twenty times.
 function recordHistory() {
   if (!currentVideoId) return;
-  const start = parseTime(startInput.value);
-  const end   = parseTime(endInput.value);
-  if (start === null || end === null || isNaN(start) || isNaN(end) || start >= end) return;
+  const r = formRange();
+  if (!r || r.start >= r.end) return;
+  const { start, end } = r;
   // The chosen speed, not the ramp's live one — a ramp run would otherwise log
   // a separate entry for every lap it climbs.
   const speed = effectiveSpeed();
@@ -4623,9 +4632,9 @@ function recordHistory() {
 function updateLiveEntry() {
   if (!liveEntryId || !currentVideoId) return null;
   if (safeState() !== (window.YT && YT.PlayerState.PLAYING)) return null;
-  const start = parseTime(startInput.value);
-  const end   = parseTime(endInput.value);
-  if (start === null || end === null || isNaN(start) || isNaN(end) || start >= end) return null;
+  const r = formRange();
+  if (!r || r.start >= r.end) return null;
+  const { start, end } = r;
   const speed = effectiveSpeed();
   const note  = noteInput.value.trim();
 

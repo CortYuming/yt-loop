@@ -1365,8 +1365,8 @@ const BASS = [
 // first bar line after the new Start. These run the real functions over stub
 // boxes, because which box moved is the whole of the rule.
 const rangeModule = (() => {
-  const src = ['formatTime', 'parseTime', 'refusesRange', 'rangeIsEmpty', 'linkEndFor',
-    'nextBarEdge', 'endForStart', 'takesRange'].map(liftOne).join('\n');
+  const src = ['formatTime', 'parseTime', 'formRange', 'refusesRange', 'rangeIsEmpty',
+    'linkEndFor', 'nextBarEdge', 'endForStart', 'takesRange'].map(liftOne).join('\n');
   const make = new Function('shim', `
     const RANGE_EPS = 0.005;
     const startInput = shim.startInput;
