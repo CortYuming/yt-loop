@@ -3660,52 +3660,7 @@ function renderNotePanel() {
 
   notePanel.hidden = false;
   notePanel.textContent = '';
-
-  // Thirds of a beat do not add up to whole numbers in binary — three triplet
-  // eighths come to 0.9999999999999999, and a bar split six ways gives a stretch
-  // 0.6666666666666666 of a beat — so what is printed is rounded to where the ear
-  // stops caring rather than where the arithmetic does.
-  const beatsText = n => String(Math.round(n * 1000) / 1000);
-
-  const head = document.createElement('p');
-  head.className = 'note-panel-head';
-  const what = document.createElement('span');
-  what.className = 'note-panel-what';
-  what.textContent = `♪ bar ${notePanelAt.bar + 1}, `
-    + `${beatsText(beats)} beat${beats === 1 ? '' : 's'}`;
-  const mode = document.createElement('span');
-  mode.className = 'note-panel-mode';
-  mode.textContent = noteAfter !== null
-    ? `writing after note ${noteAfter + 1} — a tap goes in there`
-    : ev
-      ? `editing note ${noteSel + 1} of ${notes.length} — a tap replaces it`
-      : 'adding at the end — a tap follows the last note';
-  // Naming is done where the name is drawn — over the shape it belongs to, in the
-  // strip — so there is no name box here. A box in the panel wrote a name nothing
-  // on screen pointed at, and what it renamed was the whole stretch: naming one
-  // stop renamed every chord in the bar.
-
-  const room = document.createElement('span');
-  // What is written against what there is room for. Overrunning is allowed —
-  // a phrase is often written before its bar's timing is right — but it is said
-  // out loud, since the overrun is drawn past the bar and reads as a mistake in
-  // the sheet otherwise.
-  room.className = 'note-panel-room' + (used > beats + 1e-6 ? ' over' : '');
-  room.textContent = `${notes.length} note${notes.length === 1 ? '' : 's'}, `
-    + `${beatsText(used)} beat${used === 1 ? '' : 's'} written`;
-  head.append(what, mode, room);
-  // The way out of the panel is not one of the tools: it sits where a window's
-  // close sits, rather than at the end of a row of things that write music.
-  const close = document.createElement('button');
-  close.type = 'button';
-  close.className = 'note-panel-close';
-  close.textContent = '×';
-  close.title = 'Close this panel (Esc)';
-  close.setAttribute('aria-label', 'Close this panel');
-  close.addEventListener('mousedown', e => e.preventDefault());
-  close.addEventListener('click', e => { e.preventDefault(); closeNotePanel(); });
-  head.appendChild(close);
-  notePanel.appendChild(head);
+  notePanel.appendChild(notePanelHead(notes, ev, beats, used));
 
   // Degrees are read against a chord. With no chord over these notes there is
   // nothing to read them against — every label would be counted from C, which
@@ -3972,6 +3927,56 @@ function renderNotePanel() {
     pressStop(Number(cell.dataset.string), Number(cell.dataset.fret));
   });
   notePanel.appendChild(boardWrap);
+}
+
+// What the panel says about itself: which bar and stretch is open, what the next
+// tap will do to it, and how much of the bar is spoken for.
+// Naming is done where the name is drawn — over the shape it belongs to, in the
+// strip — so there is no name box here. A box in the panel wrote a name nothing
+// on screen pointed at, and what it renamed was the whole stretch: naming one
+// stop renamed every chord in the bar.
+function notePanelHead(notes, ev, beats, used) {
+  // Thirds of a beat do not add up to whole numbers in binary — three triplet
+  // eighths come to 0.9999999999999999, and a bar split six ways gives a stretch
+  // 0.6666666666666666 of a beat — so what is printed is rounded to where the ear
+  // stops caring rather than where the arithmetic does.
+  const beatsText = n => String(Math.round(n * 1000) / 1000);
+
+  const head = document.createElement('p');
+  head.className = 'note-panel-head';
+  const what = document.createElement('span');
+  what.className = 'note-panel-what';
+  what.textContent = `♪ bar ${notePanelAt.bar + 1}, `
+    + `${beatsText(beats)} beat${beats === 1 ? '' : 's'}`;
+  const mode = document.createElement('span');
+  mode.className = 'note-panel-mode';
+  mode.textContent = noteAfter !== null
+    ? `writing after note ${noteAfter + 1} — a tap goes in there`
+    : ev
+      ? `editing note ${noteSel + 1} of ${notes.length} — a tap replaces it`
+      : 'adding at the end — a tap follows the last note';
+
+  const room = document.createElement('span');
+  // What is written against what there is room for. Overrunning is allowed —
+  // a phrase is often written before its bar's timing is right — but it is said
+  // out loud, since the overrun is drawn past the bar and reads as a mistake in
+  // the sheet otherwise.
+  room.className = 'note-panel-room' + (used > beats + 1e-6 ? ' over' : '');
+  room.textContent = `${notes.length} note${notes.length === 1 ? '' : 's'}, `
+    + `${beatsText(used)} beat${used === 1 ? '' : 's'} written`;
+  head.append(what, mode, room);
+  // The way out of the panel is not one of the tools: it sits where a window's
+  // close sits, rather than at the end of a row of things that write music.
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'note-panel-close';
+  close.textContent = '×';
+  close.title = 'Close this panel (Esc)';
+  close.setAttribute('aria-label', 'Close this panel');
+  close.addEventListener('mousedown', e => e.preventDefault());
+  close.addEventListener('click', e => { e.preventDefault(); closeNotePanel(); });
+  head.appendChild(close);
+  return head;
 }
 
 // Interval / Note / Solfège, small, at the end of the Fix row. It sets the same
