@@ -1299,6 +1299,11 @@ function drawChordStrip(fromCache) {
 
   const slot = chordSlotWidth();
   chordStrip.style.setProperty('--slot', `${slot}px`);
+  // How much of a slot a diagram is drawn at. It comes from chords.js because
+  // that is where the fret numbers are sized against it — the two have to move
+  // together, and a fraction written down in both a stylesheet and a script is
+  // one that gets changed in the stylesheet alone. See DIA_SCALE there.
+  chordStrip.style.setProperty('--dia-scale', String(Chords.DIA_SCALE));
   // How high and low the staff has to reach, measured over the whole sheet so
   // every bar draws its five lines in the same place and they meet across the
   // row. Null when nothing in the sheet has a fingering — there is no music to
@@ -1400,7 +1405,7 @@ function drawChordStrip(fromCache) {
     // the same music in boxes. While editing the bar is its staff: the names are
     // written where they sound, and the notes are tapped out on the board.
     if (chordEditor.hidden) {
-      const cells = renderBarLane(bars, i, slot);
+      const cells = renderBarLane(bars, i);
       if (cells) barEl.appendChild(cells);
     }
 
@@ -2333,7 +2338,7 @@ function barShapes(bars, barIndex) {
 // had, counted in diagrams rather than in stretches. Beats are the staff's job;
 // down here they were dropping every diagram that landed less than a slot after
 // the one before it, which in a bar of eighths is most of them.
-function renderBarLane(bars, barIndex, slot) {
+function renderBarLane(bars, barIndex) {
   const shapes = barShapes(bars, barIndex);
   if (!shapes.length) return null;
   const weights = Chords.slotWeights(shapes.length);
@@ -2343,7 +2348,11 @@ function renderBarLane(bars, barIndex, slot) {
   shapes.forEach((shape, k) => {
     const cell = document.createElement('div');
     cell.className = shape.markers ? 'chord' : 'chord chord-notes-only';
-    cell.style.width = `${weights[k] * slot}px`;
+    // The share of the bar this chord holds, handed to the stylesheet rather
+    // than worked out here: the width the cell ends up with is that share
+    // brought down by the same fraction the board is drawn at, and the two have
+    // to come off one number or the row fills with gap. See .chord in style.css.
+    cell.style.setProperty('--w', String(weights[k]));
     // The name sits over the shape it names, which is where it is read. A name
     // repeated over the next diagram says the chord was struck again as a new
     // one, which is not what a second voicing of it is — so it goes unwritten,
