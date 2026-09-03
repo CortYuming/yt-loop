@@ -1042,11 +1042,24 @@ button.chord-bar-no:focus-visible {
   text-decoration: none;
 }
 /* The diagram keeps one size across the sheet; the cell around it is what grows
-   with the beats the chord holds. */
+   with the beats the chord holds.
+   Drawn at a fraction of the slot rather than filling it — --dia-scale, which
+   the strip is given along with --slot. The fraction is not written here: the
+   fret numbers on the board are sized from it too, so it lives in chords.js as
+   DIA_SCALE and is handed over by drawChordStrip. Changing how large the boards
+   draw is then one number in one file, and the numbers on them follow.
+   The cell comes down by the same fraction as the board it holds. A cell is as
+   wide as its chord's share of the bar, and left at full width around a board
+   drawn at a fraction of a slot it was mostly gap — a bar holding one chord
+   reserved four slots to draw a picture two thirds of one slot wide. Scaled
+   together, the shapes sit as close as they ever did and the row keeps what the
+   widths are for: a chord holding two beats is still drawn twice the width of
+   one holding a single beat, and four to a line still fills a line. */
+.chord { width: calc(var(--w) * var(--slot) * var(--dia-scale)); }
 .chord svg {
   display: block;
   margin: 3px 0 1px;
-  width: calc(var(--slot) - 8px);
+  width: calc((var(--slot) - 8px) * var(--dia-scale));
   height: auto;
 }
 
@@ -1055,6 +1068,15 @@ button.chord-bar-no:focus-visible {
   color: var(--text);
   font-weight: 600;
   font-size: 16px;
+  /* Kept on one line. The cell is drawn at a fraction of its share of the bar
+     now — see .chord — and a long name in a narrow cell wrapped to a second
+     line, which made that one cell taller than its neighbours and stepped the
+     whole row of diagrams down under it. A name too long for its cell is cut
+     with an ellipsis instead: the row stays level, and the mark says the name
+     goes on rather than letting a truncated one be read as the whole chord. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* The name and the shape are each a link to the viewer, and each answers for
    itself. The whole cell used to be one link, back when a cell held one shape. */

@@ -1,56 +1,58 @@
 <!-- bar 1: D7 3/2{ 4/4:8 } 3/2{ 3/3+2/1:4 } r r r -->
 <!-- 4.0000 beats -->
-<svg width="760" height="210" viewBox="0 0 760 210" aria-hidden="true">
-  <line x1="0" y1="131" x2="760" y2="131" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="121" x2="760" y2="121" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="111" x2="760" y2="111" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="101" x2="760" y2="101" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="91" x2="760" y2="91" stroke="#4d4d4d" stroke-width="1"></line>
-  <text x="6.800000000000001" y="126" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
-  <ellipse cx="17" cy="126" rx="6.2" ry="4.4" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="23.2" y1="126" x2="23.2" y2="92" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="23.2" y1="92" x2="23.2" y2="92" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <path d="M23.2 92 q 9 5 7 15" fill="none" stroke="#dcdcdc" stroke-width="2.5500000000000003"></path>
-  <text x="67.68333333333332" y="116" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
-  <ellipse cx="77.88333333333333" cy="116" rx="6.2" ry="4.4" fill="#c3b4ea" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="77.88333333333333" cy="106" rx="6.2" ry="4.4" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="71.68333333333332" y1="106" x2="71.68333333333332" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <path d="M196.65 100 l 5 7 l -5 5 l 6 9" fill="none" stroke="#c8c8c8" stroke-width="2.4"></path>
-  <path d="M379.3 100 l 5 7 l -5 5 l 6 9" fill="none" stroke="#c8c8c8" stroke-width="2.4"></path>
-  <path d="M561.95 100 l 5 7 l -5 5 l 6 9" fill="none" stroke="#c8c8c8" stroke-width="2.4"></path>
-  <text x="17" y="87.2" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
-  <text x="77.88333333333333" y="165" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
-  <rect class="staff-slot" x="0" y="0" width="760" height="210" fill="transparent" data-slot="0"></rect>
-  <rect class="staff-caret" x="4" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
-  <rect class="staff-hit" x="4" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
-  <rect class="staff-hit" x="64.88333333333333" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="1"></rect>
-  <rect class="staff-hit" x="186.65" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="2"></rect>
-  <rect class="staff-hit" x="369.3" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="3"></rect>
-  <rect class="staff-hit" x="551.95" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="4"></rect>
-  <text x="10.8" y="65" class="staff-name" data-chord="0" data-note="" data-name="D7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">D7</text>
+<svg width="760" height="238.35" viewBox="0 0 760 238.35" aria-hidden="true">
+  <line x1="0" y1="147.5" x2="760" y2="147.5" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="136" x2="760" y2="136" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="124.5" x2="760" y2="124.5" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="113" x2="760" y2="113" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="101.5" x2="760" y2="101.5" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <text x="6.583" y="141.75" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
+  <ellipse cx="17" cy="141.75" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="23.417" y1="141.75" x2="23.417" y2="102.65" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="23.417" y1="102.65" x2="23.417" y2="102.65" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <path d="M23.417 102.65 q 10.35 5.75 8.049999999999999 17.25" fill="none" stroke="#dcdcdc" stroke-width="2.9325"></path>
+  <text x="67.43016666666666" y="130.25" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
+  <ellipse cx="77.84716666666667" cy="130.25" rx="6.417" ry="4.553999999999999" fill="#c3b4ea" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="77.84716666666667" cy="118.75" rx="6.417" ry="4.553999999999999" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="71.43016666666666" y1="118.75" x2="71.43016666666666" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <path d="M196.09150000000002 111.85 l 5.75 8.049999999999999 l -5.75 5.75 l 6.8999999999999995 10.35" fill="none" stroke="#c8c8c8" stroke-width="2.76"></path>
+  <path d="M378.63300000000004 111.85 l 5.75 8.049999999999999 l -5.75 5.75 l 6.8999999999999995 10.35" fill="none" stroke="#c8c8c8" stroke-width="2.76"></path>
+  <path d="M561.1745 111.85 l 5.75 8.049999999999999 l -5.75 5.75 l 6.8999999999999995 10.35" fill="none" stroke="#c8c8c8" stroke-width="2.76"></path>
+  <text x="17" y="97.85000000000001" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <text x="77.84716666666667" y="184.35" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <rect class="staff-slot" x="0" y="0" width="760" height="238.35" fill="transparent" data-slot="0"></rect>
+  <rect class="staff-caret" x="4" y="0" width="26" height="238.35" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
+  <rect class="staff-hit" x="4" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
+  <rect class="staff-hit" x="64.84716666666667" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="1"></rect>
+  <rect class="staff-hit" x="186.5415" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="2"></rect>
+  <rect class="staff-hit" x="369.083" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="3"></rect>
+  <rect class="staff-hit" x="551.6245" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="4"></rect>
+  <text x="10.583" y="73.85000000000001" class="staff-name" data-chord="0" data-note="" data-name="D7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">D7</text>
 </svg>
-<svg width="760" height="83.6" viewBox="0 0 760 83.6" aria-hidden="true">
-  <line x1="0" y1="8" x2="760" y2="8" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="17.5" x2="760" y2="17.5" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="27" x2="760" y2="27" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="36.5" x2="760" y2="36.5" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="46" x2="760" y2="46" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="55.5" x2="760" y2="55.5" stroke="#4d4d4d" stroke-width="1"></line>
-  <rect x="9" y="30.5" width="16" height="12" fill="#000"></rect>
-  <text x="17" y="36.5" fill="#9cc267" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">4</text>
-  <rect x="69.88333333333333" y="21" width="16" height="12" fill="#000"></rect>
-  <text x="77.88333333333333" y="27" fill="#c3b4ea" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
-  <rect x="69.88333333333333" y="11.5" width="16" height="12" fill="#000"></rect>
-  <text x="77.88333333333333" y="17.5" fill="#d888cf" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">1</text>
-  <circle class="staff-label-dot" cx="17" cy="73.3" r="8.8" fill="#9cc267"></circle>
-  <text x="17" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
-  <circle class="staff-label-dot" cx="77.88333333333333" cy="73.3" r="8.8" fill="#d888cf"></circle>
-  <text x="77.88333333333333" y="77.56" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭7</text>
-  <rect class="staff-slot" x="0" y="0" width="760" height="83.6" fill="transparent" data-slot="0"></rect>
-  <rect class="staff-caret" x="4" y="0" width="26" height="83.6" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
-  <rect class="staff-hit" x="4" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
-  <rect class="staff-hit" x="64.88333333333333" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="0" data-note="1"></rect>
-  <rect class="staff-hit" x="186.65" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="0" data-note="2"></rect>
-  <rect class="staff-hit" x="369.3" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="0" data-note="3"></rect>
-  <rect class="staff-hit" x="551.95" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="0" data-note="4"></rect>
+<svg width="760" height="116.50500000000001" viewBox="0 0 760 116.50500000000001" aria-hidden="true">
+  <line x1="0" y1="9.200000000000001" x2="760" y2="9.200000000000001" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="20.700000000000003" x2="760" y2="20.700000000000003" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="32.2" x2="760" y2="32.2" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="43.7" x2="760" y2="43.7" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="55.2" x2="760" y2="55.2" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="66.7" x2="760" y2="66.7" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <rect x="8.20825" y="38.295" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="17" y="43.7" fill="#9cc267" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">4</text>
+  <rect x="69.05541666666667" y="26.795" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="77.84716666666667" y="32.2" fill="#c3b4ea" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <rect x="69.05541666666667" y="15.295000000000003" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="77.84716666666667" y="20.700000000000003" fill="#d888cf" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">1</text>
+  <circle class="staff-label-dot" cx="17" cy="85.85" r="8.8" fill="#9cc267"></circle>
+  <text x="17" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <circle class="staff-label-dot" cx="77.84716666666667" cy="85.85" r="8.8" fill="#d888cf"></circle>
+  <text x="77.84716666666667" y="90.11" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭7</text>
+  <circle class="staff-label-dot" cx="77.84716666666667" cy="105.97999999999999" r="8.8" fill="#c3b4ea"></circle>
+  <text x="77.84716666666667" y="110.24" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭6</text>
+  <rect class="staff-slot" x="0" y="0" width="760" height="116.50500000000001" fill="transparent" data-slot="0"></rect>
+  <rect class="staff-caret" x="4" y="0" width="26" height="116.50500000000001" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
+  <rect class="staff-hit" x="4" y="0" width="26" height="116.50500000000001" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
+  <rect class="staff-hit" x="64.84716666666667" y="0" width="26" height="116.50500000000001" rx="4" fill="transparent" data-chord="0" data-note="1"></rect>
+  <rect class="staff-hit" x="186.5415" y="0" width="26" height="116.50500000000001" rx="4" fill="transparent" data-chord="0" data-note="2"></rect>
+  <rect class="staff-hit" x="369.083" y="0" width="26" height="116.50500000000001" rx="4" fill="transparent" data-chord="0" data-note="3"></rect>
+  <rect class="staff-hit" x="551.6245" y="0" width="26" height="116.50500000000001" rx="4" fill="transparent" data-chord="0" data-note="4"></rect>
 </svg>

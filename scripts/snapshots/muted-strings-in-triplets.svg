@@ -1,206 +1,238 @@
 <!-- bar 1: Eb9 1/6+2/8+3/8:4 Bbm7 3/2{ 2/6+3/6+4/6:8 2/6+3/6x+4/6x 2/8+3/8+4/8 } Ebm9 3/2{ 1/6+2/8+3/8:8 1/6+2/8x+3/8x 1/8+2/10+3/10 } Ebm7 3/2{ 2/6+3/6+4/6:8 2/6+3/6+4/6 2/8+3/8+4/8 } -->
 <!-- 4.0000 beats -->
-<svg width="760" height="210" viewBox="0 0 760 210" aria-hidden="true">
-  <line x1="0" y1="131" x2="760" y2="131" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="121" x2="760" y2="121" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="111" x2="760" y2="111" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="101" x2="760" y2="101" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="91" x2="760" y2="91" stroke="#4d4d4d" stroke-width="1"></line>
-  <text x="6.800000000000001" y="92.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
-  <ellipse cx="17" cy="96" rx="6.2" ry="4.4" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="17" cy="86" rx="6.2" ry="4.4" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="4.800000000000001" y1="81" x2="29.2" y2="81" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <text x="6.800000000000001" y="72.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
-  <ellipse cx="17" cy="76" rx="6.2" ry="4.4" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="10.8" y1="76" x2="10.8" y2="130" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <text x="196.8" y="112.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
-  <ellipse cx="207" cy="116" rx="6.2" ry="4.4" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
-  <text x="196.8" y="97.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
-  <ellipse cx="207" cy="101" rx="6.2" ry="4.4" fill="#6d8f45" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="207" cy="91" rx="6.2" ry="4.4" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="200.8" y1="91" x2="200.8" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="256.0693333333333" y1="111.688" x2="264.9973333333333" y2="120.312" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
-  <line x1="256.0693333333333" y1="120.312" x2="264.9973333333333" y2="111.688" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
-  <line x1="256.0693333333333" y1="96.688" x2="264.9973333333333" y2="105.312" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
-  <line x1="256.0693333333333" y1="105.312" x2="264.9973333333333" y2="96.688" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
-  <ellipse cx="260.5333333333333" cy="91" rx="6.2" ry="4.4" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="254.33333333333331" y1="91" x2="254.33333333333331" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <text x="303.8666666666667" y="107.43" fill="#9a9a9a" font-size="21" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
-  <ellipse cx="314.06666666666666" cy="111" rx="6.2" ry="4.4" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="314.06666666666666" cy="96" rx="6.2" ry="4.4" fill="#6ec6c1" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="314.06666666666666" cy="86" rx="6.2" ry="4.4" fill="#9b7ce6" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="307.8666666666667" y1="86" x2="307.8666666666667" y2="145" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="200.8" y1="150" x2="200.8" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="254.33333333333331" y1="150" x2="254.33333333333331" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="307.8666666666667" y1="145" x2="307.8666666666667" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="200.8" y1="150" x2="307.8666666666667" y2="150" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
-  <ellipse cx="397" cy="96" rx="6.2" ry="4.4" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="397" cy="86" rx="6.2" ry="4.4" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="384.8" y1="81" x2="409.2" y2="81" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <ellipse cx="397" cy="76" rx="6.2" ry="4.4" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="390.8" y1="76" x2="390.8" y2="130" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="446.0693333333333" y1="91.688" x2="454.9973333333333" y2="100.312" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
-  <line x1="446.0693333333333" y1="100.312" x2="454.9973333333333" y2="91.688" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
-  <line x1="446.0693333333333" y1="81.688" x2="454.9973333333333" y2="90.312" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
-  <line x1="446.0693333333333" y1="90.312" x2="454.9973333333333" y2="81.688" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
-  <line x1="438.3333333333333" y1="81" x2="462.7333333333333" y2="81" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <ellipse cx="450.5333333333333" cy="76" rx="6.2" ry="4.4" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="444.3333333333333" y1="76" x2="444.3333333333333" y2="130" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <ellipse cx="504.06666666666666" cy="91" rx="6.2" ry="4.4" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="491.8666666666667" y1="81" x2="516.2666666666667" y2="81" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <ellipse cx="504.06666666666666" cy="81" rx="6.2" ry="4.4" fill="#98c9c4" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="491.8666666666667" y1="71" x2="516.2666666666667" y2="71" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <ellipse cx="504.06666666666666" cy="71" rx="6.2" ry="4.4" fill="#9b7ce6" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="497.8666666666667" y1="71" x2="497.8666666666667" y2="125" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="390.8" y1="130" x2="390.8" y2="130" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="444.3333333333333" y1="130" x2="444.3333333333333" y2="130" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="497.8666666666667" y1="125" x2="497.8666666666667" y2="130" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="390.8" y1="130" x2="497.8666666666667" y2="130" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
-  <ellipse cx="587" cy="116" rx="6.2" ry="4.4" fill="#6ec6c1" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="587" cy="101" rx="6.2" ry="4.4" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="587" cy="91" rx="6.2" ry="4.4" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="580.8" y1="91" x2="580.8" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <ellipse cx="640.5333333333333" cy="116" rx="6.2" ry="4.4" fill="#6ec6c1" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="640.5333333333333" cy="101" rx="6.2" ry="4.4" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="640.5333333333333" cy="91" rx="6.2" ry="4.4" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="634.3333333333333" y1="91" x2="634.3333333333333" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <ellipse cx="694.0666666666666" cy="111" rx="6.2" ry="4.4" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="694.0666666666666" cy="96" rx="6.2" ry="4.4" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="694.0666666666666" cy="86" rx="6.2" ry="4.4" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="687.8666666666666" y1="86" x2="687.8666666666666" y2="145" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="580.8" y1="150" x2="580.8" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="634.3333333333333" y1="150" x2="634.3333333333333" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="687.8666666666666" y1="145" x2="687.8666666666666" y2="150" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="580.8" y1="150" x2="687.8666666666666" y2="150" stroke="#dcdcdc" stroke-width="3.4000000000000004"></line>
-  <text x="260.5333333333333" y="168.2" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
-  <text x="450.5333333333333" y="148.2" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
-  <text x="640.5333333333333" y="168.2" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
-  <rect class="staff-slot" x="0" y="0" width="190" height="210" fill="transparent" data-slot="0"></rect>
-  <rect class="staff-slot" x="190" y="0" width="190" height="210" fill="transparent" data-slot="1"></rect>
-  <rect class="staff-slot" x="380" y="0" width="190" height="210" fill="transparent" data-slot="2"></rect>
-  <rect class="staff-slot" x="570" y="0" width="190" height="210" fill="transparent" data-slot="3"></rect>
-  <rect class="staff-caret" x="4" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
-  <rect class="staff-caret" x="194" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="1"></rect>
-  <rect class="staff-caret" x="384" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="2"></rect>
-  <rect class="staff-caret" x="574" y="0" width="26" height="210" rx="4" fill="none" pointer-events="none" data-caret="3"></rect>
-  <rect class="staff-hit" x="4" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
-  <rect class="staff-hit" x="194" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="1" data-note="0"></rect>
-  <rect class="staff-hit" x="247.5333333333333" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="1" data-note="1"></rect>
-  <rect class="staff-hit" x="301.06666666666666" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="1" data-note="2"></rect>
-  <rect class="staff-hit" x="384" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="2" data-note="0"></rect>
-  <rect class="staff-hit" x="437.5333333333333" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="2" data-note="1"></rect>
-  <rect class="staff-hit" x="491.06666666666666" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="2" data-note="2"></rect>
-  <rect class="staff-hit" x="574" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="3" data-note="0"></rect>
-  <rect class="staff-hit" x="627.5333333333333" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="3" data-note="1"></rect>
-  <rect class="staff-hit" x="681.0666666666666" y="0" width="26" height="210" rx="4" fill="transparent" data-chord="3" data-note="2"></rect>
-  <text x="10.8" y="52.599999999999994" class="staff-name" data-chord="0" data-note="" data-name="Eb9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E♭9</text>
-  <text x="200.8" y="52.599999999999994" class="staff-name" data-chord="1" data-note="" data-name="Bbm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">B♭m7</text>
-  <text x="390.8" y="52.599999999999994" class="staff-name" data-chord="2" data-note="" data-name="Ebm9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E♭m9</text>
-  <text x="580.8" y="52.599999999999994" class="staff-name" data-chord="3" data-note="" data-name="Ebm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E♭m7</text>
+<svg width="760" height="238.35" viewBox="0 0 760 238.35" aria-hidden="true">
+  <line x1="0" y1="147.5" x2="760" y2="147.5" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="136" x2="760" y2="136" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="124.5" x2="760" y2="124.5" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="113" x2="760" y2="113" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="101.5" x2="760" y2="101.5" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <text x="6.583" y="103.1445" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
+  <ellipse cx="17" cy="107.25" rx="6.417" ry="4.553999999999999" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="17" cy="95.75" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="4.583" y1="90" x2="29.417" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <text x="6.583" y="80.1445" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
+  <ellipse cx="17" cy="84.25" rx="6.417" ry="4.553999999999999" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="10.583" y1="84.25" x2="10.583" y2="146.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <text x="196.583" y="126.1445" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
+  <ellipse cx="207" cy="130.25" rx="6.417" ry="4.553999999999999" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
+  <text x="196.583" y="108.8945" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
+  <ellipse cx="207" cy="113" rx="6.417" ry="4.553999999999999" fill="#6d8f45" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="207" cy="101.5" rx="6.417" ry="4.553999999999999" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="200.583" y1="101.5" x2="200.583" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="255.76842666666667" y1="125.78708" x2="265.0089066666667" y2="134.71292" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
+  <line x1="255.76842666666667" y1="134.71292" x2="265.0089066666667" y2="125.78708" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
+  <line x1="255.76842666666667" y1="108.53708" x2="265.0089066666667" y2="117.46292" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
+  <line x1="255.76842666666667" y1="117.46292" x2="265.0089066666667" y2="108.53708" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
+  <ellipse cx="260.38866666666667" cy="101.5" rx="6.417" ry="4.553999999999999" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="253.97166666666666" y1="101.5" x2="253.97166666666666" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <text x="303.36033333333336" y="120.3945" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
+  <ellipse cx="313.77733333333333" cy="124.5" rx="6.417" ry="4.553999999999999" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="313.77733333333333" cy="107.25" rx="6.417" ry="4.553999999999999" fill="#6ec6c1" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="313.77733333333333" cy="95.75" rx="6.417" ry="4.553999999999999" fill="#9b7ce6" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="307.36033333333336" y1="95.75" x2="307.36033333333336" y2="163.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="200.583" y1="169.35" x2="200.583" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="253.97166666666666" y1="169.35" x2="253.97166666666666" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="307.36033333333336" y1="163.6" x2="307.36033333333336" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="200.583" y1="169.35" x2="307.36033333333336" y2="169.35" stroke="#dcdcdc" stroke-width="3.91"></line>
+  <ellipse cx="397" cy="107.25" rx="6.417" ry="4.553999999999999" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="397" cy="95.75" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="384.583" y1="90" x2="409.417" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="397" cy="84.25" rx="6.417" ry="4.553999999999999" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="390.583" y1="84.25" x2="390.583" y2="146.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="445.76842666666664" y1="102.78708" x2="455.0089066666667" y2="111.71292" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
+  <line x1="445.76842666666664" y1="111.71292" x2="455.0089066666667" y2="102.78708" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
+  <line x1="445.76842666666664" y1="91.28708" x2="455.0089066666667" y2="100.21292" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
+  <line x1="445.76842666666664" y1="100.21292" x2="455.0089066666667" y2="91.28708" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
+  <line x1="437.9716666666667" y1="90" x2="462.80566666666664" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="450.38866666666667" cy="84.25" rx="6.417" ry="4.553999999999999" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="443.9716666666667" y1="84.25" x2="443.9716666666667" y2="146.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <ellipse cx="503.77733333333333" cy="101.5" rx="6.417" ry="4.553999999999999" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="491.36033333333336" y1="90" x2="516.1943333333334" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="503.77733333333333" cy="90" rx="6.417" ry="4.553999999999999" fill="#98c9c4" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="491.36033333333336" y1="78.5" x2="516.1943333333334" y2="78.5" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="503.77733333333333" cy="78.5" rx="6.417" ry="4.553999999999999" fill="#9b7ce6" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="497.36033333333336" y1="78.5" x2="497.36033333333336" y2="140.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="390.583" y1="146.35" x2="390.583" y2="146.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="443.9716666666667" y1="146.35" x2="443.9716666666667" y2="146.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="497.36033333333336" y1="140.6" x2="497.36033333333336" y2="146.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="390.583" y1="146.35" x2="497.36033333333336" y2="146.35" stroke="#dcdcdc" stroke-width="3.91"></line>
+  <ellipse cx="587" cy="130.25" rx="6.417" ry="4.553999999999999" fill="#6ec6c1" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="587" cy="113" rx="6.417" ry="4.553999999999999" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="587" cy="101.5" rx="6.417" ry="4.553999999999999" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="580.583" y1="101.5" x2="580.583" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <ellipse cx="640.3886666666667" cy="130.25" rx="6.417" ry="4.553999999999999" fill="#6ec6c1" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="640.3886666666667" cy="113" rx="6.417" ry="4.553999999999999" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="640.3886666666667" cy="101.5" rx="6.417" ry="4.553999999999999" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="633.9716666666667" y1="101.5" x2="633.9716666666667" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <ellipse cx="693.7773333333333" cy="124.5" rx="6.417" ry="4.553999999999999" fill="#6ea6de" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="693.7773333333333" cy="107.25" rx="6.417" ry="4.553999999999999" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="693.7773333333333" cy="95.75" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="687.3603333333333" y1="95.75" x2="687.3603333333333" y2="163.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="580.583" y1="169.35" x2="580.583" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="633.9716666666667" y1="169.35" x2="633.9716666666667" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="687.3603333333333" y1="163.6" x2="687.3603333333333" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="580.583" y1="169.35" x2="687.3603333333333" y2="169.35" stroke="#dcdcdc" stroke-width="3.91"></line>
+  <text x="260.38866666666667" y="188.63" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <text x="450.38866666666667" y="165.63" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <text x="640.3886666666667" y="188.63" fill="#dcdcdc" font-size="9" text-anchor="middle" font-style="italic" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <rect class="staff-slot" x="0" y="0" width="190" height="238.35" fill="transparent" data-slot="0"></rect>
+  <rect class="staff-slot" x="190" y="0" width="190" height="238.35" fill="transparent" data-slot="1"></rect>
+  <rect class="staff-slot" x="380" y="0" width="190" height="238.35" fill="transparent" data-slot="2"></rect>
+  <rect class="staff-slot" x="570" y="0" width="190" height="238.35" fill="transparent" data-slot="3"></rect>
+  <rect class="staff-caret" x="4" y="0" width="26" height="238.35" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
+  <rect class="staff-caret" x="194" y="0" width="26" height="238.35" rx="4" fill="none" pointer-events="none" data-caret="1"></rect>
+  <rect class="staff-caret" x="384" y="0" width="26" height="238.35" rx="4" fill="none" pointer-events="none" data-caret="2"></rect>
+  <rect class="staff-caret" x="574" y="0" width="26" height="238.35" rx="4" fill="none" pointer-events="none" data-caret="3"></rect>
+  <rect class="staff-hit" x="4" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
+  <rect class="staff-hit" x="194" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="1" data-note="0"></rect>
+  <rect class="staff-hit" x="247.38866666666667" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="1" data-note="1"></rect>
+  <rect class="staff-hit" x="300.77733333333333" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="1" data-note="2"></rect>
+  <rect class="staff-hit" x="384" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="2" data-note="0"></rect>
+  <rect class="staff-hit" x="437.38866666666667" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="2" data-note="1"></rect>
+  <rect class="staff-hit" x="490.77733333333333" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="2" data-note="2"></rect>
+  <rect class="staff-hit" x="574" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="3" data-note="0"></rect>
+  <rect class="staff-hit" x="627.3886666666667" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="3" data-note="1"></rect>
+  <rect class="staff-hit" x="680.7773333333333" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="3" data-note="2"></rect>
+  <text x="10.583" y="58.146" class="staff-name" data-chord="0" data-note="" data-name="Eb9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E♭9</text>
+  <text x="200.583" y="58.146" class="staff-name" data-chord="1" data-note="" data-name="Bbm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">B♭m7</text>
+  <text x="390.583" y="58.146" class="staff-name" data-chord="2" data-note="" data-name="Ebm9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E♭m9</text>
+  <text x="580.583" y="58.146" class="staff-name" data-chord="3" data-note="" data-name="Ebm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E♭m7</text>
 </svg>
-<svg width="760" height="83.6" viewBox="0 0 760 83.6" aria-hidden="true">
-  <line x1="0" y1="8" x2="760" y2="8" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="17.5" x2="760" y2="17.5" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="27" x2="760" y2="27" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="36.5" x2="760" y2="36.5" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="46" x2="760" y2="46" stroke="#4d4d4d" stroke-width="1"></line>
-  <line x1="0" y1="55.5" x2="760" y2="55.5" stroke="#4d4d4d" stroke-width="1"></line>
-  <rect x="9" y="2" width="16" height="12" fill="#000"></rect>
-  <text x="17" y="8" fill="#6ea6de" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="9" y="11.5" width="16" height="12" fill="#000"></rect>
-  <text x="17" y="17.5" fill="#9cc267" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="9" y="21" width="16" height="12" fill="#000"></rect>
-  <text x="17" y="27" fill="#e57672" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="199" y="11.5" width="16" height="12" fill="#000"></rect>
-  <text x="207" y="17.5" fill="#6ea6de" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="199" y="21" width="16" height="12" fill="#000"></rect>
-  <text x="207" y="27" fill="#6d8f45" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="199" y="30.5" width="16" height="12" fill="#000"></rect>
-  <text x="207" y="36.5" fill="#d888cf" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="252.5333333333333" y="11.5" width="16" height="12" fill="#000"></rect>
-  <text x="260.5333333333333" y="17.5" fill="#6ea6de" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="252.5333333333333" y="21" width="16" height="12" fill="#000"></rect>
-  <text x="260.5333333333333" y="27" fill="#9aa0a0" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="252.5333333333333" y="30.5" width="16" height="12" fill="#000"></rect>
-  <text x="260.5333333333333" y="36.5" fill="#9aa0a0" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="306.06666666666666" y="11.5" width="16" height="12" fill="#000"></rect>
-  <text x="314.06666666666666" y="17.5" fill="#9b7ce6" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="306.06666666666666" y="21" width="16" height="12" fill="#000"></rect>
-  <text x="314.06666666666666" y="27" fill="#6ec6c1" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="306.06666666666666" y="30.5" width="16" height="12" fill="#000"></rect>
-  <text x="314.06666666666666" y="36.5" fill="#e57672" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="389" y="2" width="16" height="12" fill="#000"></rect>
-  <text x="397" y="8" fill="#6ea6de" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="389" y="11.5" width="16" height="12" fill="#000"></rect>
-  <text x="397" y="17.5" fill="#9cc267" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="389" y="21" width="16" height="12" fill="#000"></rect>
-  <text x="397" y="27" fill="#e57672" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="442.5333333333333" y="2" width="16" height="12" fill="#000"></rect>
-  <text x="450.5333333333333" y="8" fill="#6ea6de" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="442.5333333333333" y="11.5" width="16" height="12" fill="#000"></rect>
-  <text x="450.5333333333333" y="17.5" fill="#9aa0a0" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="442.5333333333333" y="21" width="16" height="12" fill="#000"></rect>
-  <text x="450.5333333333333" y="27" fill="#9aa0a0" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="496.06666666666666" y="2" width="16" height="12" fill="#000"></rect>
-  <text x="504.06666666666666" y="8" fill="#9b7ce6" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="496.06666666666666" y="11.5" width="16" height="12" fill="#000"></rect>
-  <text x="504.06666666666666" y="17.5" fill="#98c9c4" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">10</text>
-  <rect x="496.06666666666666" y="21" width="16" height="12" fill="#000"></rect>
-  <text x="504.06666666666666" y="27" fill="#e6a45c" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">10</text>
-  <rect x="579" y="11.5" width="16" height="12" fill="#000"></rect>
-  <text x="587" y="17.5" fill="#e6a45c" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="579" y="21" width="16" height="12" fill="#000"></rect>
-  <text x="587" y="27" fill="#d888cf" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="579" y="30.5" width="16" height="12" fill="#000"></rect>
-  <text x="587" y="36.5" fill="#6ec6c1" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="632.5333333333333" y="11.5" width="16" height="12" fill="#000"></rect>
-  <text x="640.5333333333333" y="17.5" fill="#e6a45c" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="632.5333333333333" y="21" width="16" height="12" fill="#000"></rect>
-  <text x="640.5333333333333" y="27" fill="#d888cf" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="632.5333333333333" y="30.5" width="16" height="12" fill="#000"></rect>
-  <text x="640.5333333333333" y="36.5" fill="#6ec6c1" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <rect x="686.0666666666666" y="11.5" width="16" height="12" fill="#000"></rect>
-  <text x="694.0666666666666" y="17.5" fill="#9cc267" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="686.0666666666666" y="21" width="16" height="12" fill="#000"></rect>
-  <text x="694.0666666666666" y="27" fill="#e57672" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <rect x="686.0666666666666" y="30.5" width="16" height="12" fill="#000"></rect>
-  <text x="694.0666666666666" y="36.5" fill="#6ea6de" font-size="11.5" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
-  <circle class="staff-label-dot" cx="17" cy="73.3" r="8.8" fill="#6ea6de"></circle>
-  <text x="17" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
-  <circle class="staff-label-dot" cx="207" cy="73.3" r="8.8" fill="#6ea6de"></circle>
-  <text x="207" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
-  <circle class="staff-label-dot" cx="260.5333333333333" cy="73.3" r="8.8" fill="#6ea6de"></circle>
-  <text x="260.5333333333333" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
-  <circle class="staff-label-dot" cx="314.06666666666666" cy="73.3" r="8.8" fill="#9b7ce6"></circle>
-  <text x="314.06666666666666" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <circle class="staff-label-dot" cx="397" cy="73.3" r="8.8" fill="#6ea6de"></circle>
-  <text x="397" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
-  <circle class="staff-label-dot" cx="450.5333333333333" cy="73.3" r="8.8" fill="#6ea6de"></circle>
-  <text x="450.5333333333333" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
-  <circle class="staff-label-dot" cx="504.06666666666666" cy="73.3" r="8.8" fill="#9b7ce6"></circle>
-  <text x="504.06666666666666" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
-  <circle class="staff-label-dot" cx="587" cy="73.3" r="8.8" fill="#e6a45c"></circle>
-  <text x="587" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">9</text>
-  <circle class="staff-label-dot" cx="640.5333333333333" cy="73.3" r="8.8" fill="#e6a45c"></circle>
-  <text x="640.5333333333333" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">9</text>
-  <circle class="staff-label-dot" cx="694.0666666666666" cy="73.3" r="8.8" fill="#9cc267"></circle>
-  <text x="694.0666666666666" y="77.91499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
-  <rect class="staff-slot" x="0" y="0" width="190" height="83.6" fill="transparent" data-slot="0"></rect>
-  <rect class="staff-slot" x="190" y="0" width="190" height="83.6" fill="transparent" data-slot="1"></rect>
-  <rect class="staff-slot" x="380" y="0" width="190" height="83.6" fill="transparent" data-slot="2"></rect>
-  <rect class="staff-slot" x="570" y="0" width="190" height="83.6" fill="transparent" data-slot="3"></rect>
-  <rect class="staff-caret" x="4" y="0" width="26" height="83.6" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
-  <rect class="staff-caret" x="194" y="0" width="26" height="83.6" rx="4" fill="none" pointer-events="none" data-caret="1"></rect>
-  <rect class="staff-caret" x="384" y="0" width="26" height="83.6" rx="4" fill="none" pointer-events="none" data-caret="2"></rect>
-  <rect class="staff-caret" x="574" y="0" width="26" height="83.6" rx="4" fill="none" pointer-events="none" data-caret="3"></rect>
-  <rect class="staff-hit" x="4" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
-  <rect class="staff-hit" x="194" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="1" data-note="0"></rect>
-  <rect class="staff-hit" x="247.5333333333333" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="1" data-note="1"></rect>
-  <rect class="staff-hit" x="301.06666666666666" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="1" data-note="2"></rect>
-  <rect class="staff-hit" x="384" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="2" data-note="0"></rect>
-  <rect class="staff-hit" x="437.5333333333333" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="2" data-note="1"></rect>
-  <rect class="staff-hit" x="491.06666666666666" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="2" data-note="2"></rect>
-  <rect class="staff-hit" x="574" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="3" data-note="0"></rect>
-  <rect class="staff-hit" x="627.5333333333333" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="3" data-note="1"></rect>
-  <rect class="staff-hit" x="681.0666666666666" y="0" width="26" height="83.6" rx="4" fill="transparent" data-chord="3" data-note="2"></rect>
+<svg width="760" height="136.635" viewBox="0 0 760 136.635" aria-hidden="true">
+  <line x1="0" y1="9.200000000000001" x2="760" y2="9.200000000000001" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="20.700000000000003" x2="760" y2="20.700000000000003" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="32.2" x2="760" y2="32.2" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="43.7" x2="760" y2="43.7" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="55.2" x2="760" y2="55.2" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="66.7" x2="760" y2="66.7" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <rect x="8.20825" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="17" y="9.200000000000001" fill="#6ea6de" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="8.20825" y="15.295000000000003" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="17" y="20.700000000000003" fill="#9cc267" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="8.20825" y="26.795" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="17" y="32.2" fill="#e57672" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="198.20825" y="15.295000000000003" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="207" y="20.700000000000003" fill="#6ea6de" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="198.20825" y="26.795" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="207" y="32.2" fill="#6d8f45" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="198.20825" y="38.295" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="207" y="43.7" fill="#d888cf" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="251.59691666666666" y="15.295000000000003" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="260.38866666666667" y="20.700000000000003" fill="#6ea6de" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="251.59691666666666" y="26.795" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="260.38866666666667" y="32.2" fill="#9aa0a0" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="251.59691666666666" y="38.295" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="260.38866666666667" y="43.7" fill="#9aa0a0" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="304.98558333333335" y="15.295000000000003" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="313.77733333333333" y="20.700000000000003" fill="#9b7ce6" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="304.98558333333335" y="26.795" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="313.77733333333333" y="32.2" fill="#6ec6c1" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="304.98558333333335" y="38.295" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="313.77733333333333" y="43.7" fill="#e57672" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="388.20825" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="397" y="9.200000000000001" fill="#6ea6de" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="388.20825" y="15.295000000000003" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="397" y="20.700000000000003" fill="#9cc267" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="388.20825" y="26.795" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="397" y="32.2" fill="#e57672" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="441.5969166666667" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="450.38866666666667" y="9.200000000000001" fill="#6ea6de" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="441.5969166666667" y="15.295000000000003" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="450.38866666666667" y="20.700000000000003" fill="#9aa0a0" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="441.5969166666667" y="26.795" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="450.38866666666667" y="32.2" fill="#9aa0a0" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="494.98558333333335" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="503.77733333333333" y="9.200000000000001" fill="#9b7ce6" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="494.98558333333335" y="15.295000000000003" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="503.77733333333333" y="20.700000000000003" fill="#98c9c4" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">10</text>
+  <rect x="494.98558333333335" y="26.795" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="503.77733333333333" y="32.2" fill="#e6a45c" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">10</text>
+  <rect x="578.20825" y="15.295000000000003" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="587" y="20.700000000000003" fill="#e6a45c" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="578.20825" y="26.795" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="587" y="32.2" fill="#d888cf" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="578.20825" y="38.295" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="587" y="43.7" fill="#6ec6c1" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="631.5969166666667" y="15.295000000000003" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="640.3886666666667" y="20.700000000000003" fill="#e6a45c" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="631.5969166666667" y="26.795" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="640.3886666666667" y="32.2" fill="#d888cf" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="631.5969166666667" y="38.295" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="640.3886666666667" y="43.7" fill="#6ec6c1" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <rect x="684.9855833333334" y="15.295000000000003" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="693.7773333333333" y="20.700000000000003" fill="#9cc267" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="684.9855833333334" y="26.795" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="693.7773333333333" y="32.2" fill="#e57672" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="684.9855833333334" y="38.295" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="693.7773333333333" y="43.7" fill="#6ea6de" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <circle class="staff-label-dot" cx="17" cy="85.85" r="8.8" fill="#6ea6de"></circle>
+  <text x="17" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
+  <circle class="staff-label-dot" cx="17" cy="105.97999999999999" r="8.8" fill="#9cc267"></circle>
+  <text x="17" y="110.59499999999998" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <circle class="staff-label-dot" cx="17" cy="126.11" r="8.8" fill="#e57672"></circle>
+  <text x="17" y="130.725" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">R</text>
+  <circle class="staff-label-dot" cx="207" cy="85.85" r="8.8" fill="#6ea6de"></circle>
+  <text x="207" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
+  <circle class="staff-label-dot" cx="207" cy="105.97999999999999" r="8.8" fill="#6d8f45"></circle>
+  <text x="207" y="110.24" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭3</text>
+  <circle class="staff-label-dot" cx="207" cy="126.11" r="8.8" fill="#d888cf"></circle>
+  <text x="207" y="130.37" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭7</text>
+  <circle class="staff-label-dot" cx="260.38866666666667" cy="85.85" r="8.8" fill="#6ea6de"></circle>
+  <text x="260.38866666666667" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
+  <circle class="staff-label-dot" cx="313.77733333333333" cy="85.85" r="8.8" fill="#9b7ce6"></circle>
+  <text x="313.77733333333333" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <circle class="staff-label-dot" cx="313.77733333333333" cy="105.97999999999999" r="8.8" fill="#6ec6c1"></circle>
+  <text x="313.77733333333333" y="110.59499999999998" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">4</text>
+  <circle class="staff-label-dot" cx="313.77733333333333" cy="126.11" r="8.8" fill="#e57672"></circle>
+  <text x="313.77733333333333" y="130.725" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">R</text>
+  <circle class="staff-label-dot" cx="397" cy="85.85" r="8.8" fill="#6ea6de"></circle>
+  <text x="397" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
+  <circle class="staff-label-dot" cx="397" cy="105.97999999999999" r="8.8" fill="#9cc267"></circle>
+  <text x="397" y="110.59499999999998" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <circle class="staff-label-dot" cx="397" cy="126.11" r="8.8" fill="#e57672"></circle>
+  <text x="397" y="130.725" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">R</text>
+  <circle class="staff-label-dot" cx="450.38866666666667" cy="85.85" r="8.8" fill="#6ea6de"></circle>
+  <text x="450.38866666666667" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
+  <circle class="staff-label-dot" cx="503.77733333333333" cy="85.85" r="8.8" fill="#9b7ce6"></circle>
+  <text x="503.77733333333333" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">6</text>
+  <circle class="staff-label-dot" cx="503.77733333333333" cy="105.97999999999999" r="8.8" fill="#98c9c4"></circle>
+  <text x="503.77733333333333" y="110.24" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭5</text>
+  <circle class="staff-label-dot" cx="503.77733333333333" cy="126.11" r="8.8" fill="#e6a45c"></circle>
+  <text x="503.77733333333333" y="130.725" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">9</text>
+  <circle class="staff-label-dot" cx="587" cy="85.85" r="8.8" fill="#e6a45c"></circle>
+  <text x="587" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">9</text>
+  <circle class="staff-label-dot" cx="587" cy="105.97999999999999" r="8.8" fill="#d888cf"></circle>
+  <text x="587" y="110.24" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭7</text>
+  <circle class="staff-label-dot" cx="587" cy="126.11" r="8.8" fill="#6ec6c1"></circle>
+  <text x="587" y="130.725" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">4</text>
+  <circle class="staff-label-dot" cx="640.3886666666667" cy="85.85" r="8.8" fill="#e6a45c"></circle>
+  <text x="640.3886666666667" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">9</text>
+  <circle class="staff-label-dot" cx="640.3886666666667" cy="105.97999999999999" r="8.8" fill="#d888cf"></circle>
+  <text x="640.3886666666667" y="110.24" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭7</text>
+  <circle class="staff-label-dot" cx="640.3886666666667" cy="126.11" r="8.8" fill="#6ec6c1"></circle>
+  <text x="640.3886666666667" y="130.725" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">4</text>
+  <circle class="staff-label-dot" cx="693.7773333333333" cy="85.85" r="8.8" fill="#9cc267"></circle>
+  <text x="693.7773333333333" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <circle class="staff-label-dot" cx="693.7773333333333" cy="105.97999999999999" r="8.8" fill="#e57672"></circle>
+  <text x="693.7773333333333" y="110.59499999999998" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">R</text>
+  <circle class="staff-label-dot" cx="693.7773333333333" cy="126.11" r="8.8" fill="#6ea6de"></circle>
+  <text x="693.7773333333333" y="130.725" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">5</text>
+  <rect class="staff-slot" x="0" y="0" width="190" height="136.635" fill="transparent" data-slot="0"></rect>
+  <rect class="staff-slot" x="190" y="0" width="190" height="136.635" fill="transparent" data-slot="1"></rect>
+  <rect class="staff-slot" x="380" y="0" width="190" height="136.635" fill="transparent" data-slot="2"></rect>
+  <rect class="staff-slot" x="570" y="0" width="190" height="136.635" fill="transparent" data-slot="3"></rect>
+  <rect class="staff-caret" x="4" y="0" width="26" height="136.635" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
+  <rect class="staff-caret" x="194" y="0" width="26" height="136.635" rx="4" fill="none" pointer-events="none" data-caret="1"></rect>
+  <rect class="staff-caret" x="384" y="0" width="26" height="136.635" rx="4" fill="none" pointer-events="none" data-caret="2"></rect>
+  <rect class="staff-caret" x="574" y="0" width="26" height="136.635" rx="4" fill="none" pointer-events="none" data-caret="3"></rect>
+  <rect class="staff-hit" x="4" y="0" width="26" height="136.635" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
+  <rect class="staff-hit" x="194" y="0" width="26" height="136.635" rx="4" fill="transparent" data-chord="1" data-note="0"></rect>
+  <rect class="staff-hit" x="247.38866666666667" y="0" width="26" height="136.635" rx="4" fill="transparent" data-chord="1" data-note="1"></rect>
+  <rect class="staff-hit" x="300.77733333333333" y="0" width="26" height="136.635" rx="4" fill="transparent" data-chord="1" data-note="2"></rect>
+  <rect class="staff-hit" x="384" y="0" width="26" height="136.635" rx="4" fill="transparent" data-chord="2" data-note="0"></rect>
+  <rect class="staff-hit" x="437.38866666666667" y="0" width="26" height="136.635" rx="4" fill="transparent" data-chord="2" data-note="1"></rect>
+  <rect class="staff-hit" x="490.77733333333333" y="0" width="26" height="136.635" rx="4" fill="transparent" data-chord="2" data-note="2"></rect>
+  <rect class="staff-hit" x="574" y="0" width="26" height="136.635" rx="4" fill="transparent" data-chord="3" data-note="0"></rect>
+  <rect class="staff-hit" x="627.3886666666667" y="0" width="26" height="136.635" rx="4" fill="transparent" data-chord="3" data-note="1"></rect>
+  <rect class="staff-hit" x="680.7773333333333" y="0" width="26" height="136.635" rx="4" fill="transparent" data-chord="3" data-note="2"></rect>
 </svg>

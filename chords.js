@@ -1272,7 +1272,32 @@ const Chords = (() => {
     for (const k in (attrs || {})) svg.setAttribute(k, String(attrs[k]));
     return { svg, add: svgAdder(svg) };
   }
-  const BOARD_W = 110, CELL_H = 20, PAD_L = 20, PAD_T = 14, DOT_R = 8.8;
+  // Every ruled line in the app — the board's strings and frets, the staff's
+  // five, the tab's six. A hairline is what a printed stave is, but a printed
+  // stave is ink on paper rather than a grey a hair wide on a dark screen, and
+  // at that weight the lines dropped out from a foot away: what was left was
+  // dots and numbers floating on black. Read at playing distance, so the line
+  // is drawn heavy enough to be one.
+  const RULE_W = 1.7;
+  const BOARD_W = 110, CELL_H = 20, PAD_L = 20, DOT_R = 8.8;
+  // How much of its slot a board is drawn at. The board used to be where a
+  // voicing was read and was sized for that; the row of dots under the tab now
+  // names every note of the chord, and what is left for the board to say is
+  // which strings and where on the neck — a picture of the hand, read at a
+  // glance. The height it gives up is what the deeper row of dots takes.
+  // The number is here rather than in the stylesheet because the fret numbers
+  // are worked out from it, and a fraction kept in two files is a fraction that
+  // gets changed in one. The strip hands it to CSS as --dia-scale — see
+  // drawChordStrip in main.js, and .chord in style.css.
+  const DIA_SCALE = 0.6;
+  // The number naming the fret, and the room kept above the board for it. Set
+  // so that it comes out the size it always was once the board has been scaled
+  // down: the board shrank, the number did not, and this is what says so in one
+  // line rather than as a figure someone has to re-tune by eye every time the
+  // fraction moves. Left riding the board down it was a footnote, which is no
+  // use for the one thing on it that says where on the neck the hand goes.
+  const DIA_NUM = 14 / DIA_SCALE;
+  const PAD_T = DIA_NUM * 0.95 + 2;
   // Open and muted strings live in the gutter left of the nut; the marks there
   // have to clear the left edge, so the dot's own radius sets the offset.
   const GUTTER_X = DOT_R + 1;
@@ -1356,7 +1381,8 @@ const Chords = (() => {
     // of their own rather than shrinking to a footnote.
     // Above the 21st there is nothing left to name, and the left edge answers.
     const number = (col, fret) => add('text', {
-      x: PAD_L + col * CELL_W + CELL_W / 2, y: 12, fill: '#bbb', 'font-size': 14,
+      x: PAD_L + col * CELL_W + CELL_W / 2, y: PAD_T - 2, fill: '#bbb',
+      'font-size': DIA_NUM,
       'text-anchor': 'middle', 'font-family': 'ui-monospace, Menlo, monospace',
       'font-weight': 600,
     }, String(fret));
@@ -1370,7 +1396,8 @@ const Chords = (() => {
 
     for (let s = 0; s < 6; s++) {
       const y = PAD_T + s * CELL_H + CELL_H / 2;
-      add('line', { x1: PAD_L, y1: y, x2: PAD_L + cols * CELL_W, y2: y, stroke: '#4d4d4d', 'stroke-width': 1 });
+      add('line', { x1: PAD_L, y1: y, x2: PAD_L + cols * CELL_W, y2: y,
+        stroke: '#4d4d4d', 'stroke-width': RULE_W });
     }
     for (let c = 0; c <= cols; c++) {
       const x = PAD_L + c * CELL_W;
@@ -1378,10 +1405,14 @@ const Chords = (() => {
       // ruling, so it is drawn as one: thicker than the frets and lit brighter
       // than them, since at this size thickness alone in the same grey reads as
       // a smudge rather than as the end of the neck.
+      // Held as a multiple of the ruling so the two move together, but a smaller
+      // multiple than the four it was when a ruling was a hairline: four times
+      // a 1.7 line is a slab across the board rather than a nut.
       const nut = c === 0 && from === 1;
       add('line', {
         x1: x, y1: PAD_T + CELL_H / 2, x2: x, y2: PAD_T + 5 * CELL_H + CELL_H / 2,
-        stroke: nut ? '#9a9a9a' : '#4d4d4d', 'stroke-width': nut ? 4 : 1,
+        stroke: nut ? '#9a9a9a' : '#4d4d4d',
+        'stroke-width': nut ? RULE_W * 2.35 : RULE_W,
       });
     }
 
@@ -1393,7 +1424,6 @@ const Chords = (() => {
       // nothing else, so marking the rest would put a × on the four idle strings
       // of a double stop and call them muted, which is not what they are.
       if (f === null) return;
-      const label = dotLabel(s, f, chord, mode, key);
       const degree = colourDegree((OPEN_STRINGS[s] + f) % 12, chord, mode, key);
       const hue = degree === null ? '#4a7fff' : DEGREE_HUE[degree];
       const open = f === 0;
@@ -1404,16 +1434,11 @@ const Chords = (() => {
         fill: open ? 'none' : hue,
         stroke: open ? hue : 'none', 'stroke-width': 1.5,
       });
-      // The dot is 17.6 across, so how large the label can be set depends on how
-      // much of it there is: `R` has the room to be read at a glance, `♭13` has
-      // to come down or it spills over the edge of the circle it belongs to.
-      const fs = label.length > 2 ? 10 : label.length > 1 ? 12 : 13;
-      add('text', {
-        x: cx, y: y + fs * 0.355,
-        fill: DOT_INK,
-        'font-size': fs, 'text-anchor': 'middle',
-        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif', 'font-weight': 600,
-      }, label);
+      // No word inside it. The board is drawn small enough now that a label in
+      // a dot was a smudge, and the row under the tab says the same thing at a
+      // size it can be read at — every note of the shape, one dot to a note.
+      // What the board is for down here is the shape itself: which strings, and
+      // where on the neck. The degrees are read a row up.
     });
     return svg;
   }
@@ -1440,39 +1465,57 @@ const Chords = (() => {
   // One staff space, which every other size here is a multiple of — the staff
   // is 4 of them tall, a notehead a little over 1 of them wide, and a step
   // between two neighbouring places is half of one. So this single number is
-  // how large the staff draws.
-  const SP = 10;
+  // how large the staff draws. It is also what the tab's six lines are spaced
+  // by: the two rows say the same phrase, and read as one thing only if their
+  // lines are ruled at one pitch. Opened up from 10 because the fret numbers on
+  // the tab are set larger now and were running into the lines either side of
+  // them — the staff follows, since a staff ruled tighter than the tab under it
+  // reads as the smaller of two rows rather than as the row it is.
+  const SP = 11.5;
   const HALF = SP / 2;
-  const NOTE_RX = SP * 0.62, NOTE_RY = SP * 0.44;
+  // The head is drawn a shade under its share of the wider space. Carried up
+  // with SP it came out heavier than the row wanted — the point of the wider
+  // spacing was room around the notes, and a head that grows with the gap does
+  // not give any. 0.9 is what it was set back to by eye against the drawn row.
+  const NOTE_RX = SP * 0.62 * 0.9, NOTE_RY = SP * 0.44 * 0.9;
   const STAFF_PAD = SP;
-  // A band above the staff for the chord names. Printed music writes the chord
-  // over the bar it sounds in, and the staff is the one place in the strip that
-  // does not already say which chord it is drawing — the diagrams above carry
-  // their own names, but by the time the eye is on the notes those are a row
-  // away.
-  // The band and the name in it are sized to the names in the diagram row above,
-  // so the same chord is the same size wherever the eye lands on it — the staff's
-  // own name was two thirds of that and read as a caption.
-  const NAME_BAND = SP * 2.1;
-  // A row of labelled dots over the staff, read the way the diagrams are: same
-  // hues, same words, one per note struck. Stacked upwards where a chord is
-  // struck, so the row is as tall as the thickest chord in the sheet.
+  // The row of labelled dots under the tab, read the way the diagrams are: same
+  // hues, same words, one per note struck. A chord gets a dot for every string
+  // of it that rings, so the row is as deep as the thickest voicing in the sheet.
   // The dot the diagrams draw, drawn here: same radius, same ink, and the same
   // rule for how large the word inside it is set — anything smaller reads as a
-  // different kind of thing and has to be squinted at.
+  // different kind of thing and has to be squinted at. Since the boards stopped
+  // labelling their own dots, this row is the only place the degrees are named,
+  // which is the other reason it is not shrunk.
   const LABEL_R = DOT_R;
   const LABEL_GAP = SP * 0.22;
   const labelSize = label => (label.length > 2 ? 10 : label.length > 1 ? 12 : 13);
   const labelBandHeight = stack => (stack
     ? stack * LABEL_R * 2 + (stack - 1) * LABEL_GAP + SP * 0.15
     : 0);
-  const NAME_SIZE = SP * 1.6;
+  // The chord name on the staff, and the band above the staff it stands in.
+  // Printed music writes the chord over the bar it sounds in, and the staff is
+  // the one place in the strip that does not already say which chord it is
+  // drawing — the diagrams below carry their own names, but by the time the eye
+  // is on the notes those are a row away.
+  // The name is the same 16px the names over those diagrams are set at — see
+  // .chord-name in style.css — so the same chord is the same size wherever the
+  // eye lands on it; the staff's own name was two thirds of that and read as a
+  // caption. That pairing is why the size is written out here rather than taken
+  // off SP: opening the staff's lines up is about the notes on them, and a chord
+  // name is not one. The band does come off the name, the band being the room
+  // the name stands in — the two cannot be let drift apart.
+  const NAME_SIZE = 16;
+  const NAME_BAND = NAME_SIZE * 1.3125;
   // The numeral under the staff, and how far its baseline sits off the foot of
-  // the canvas. It is set at the size of a chord name rather than smaller: the
-  // room below the staff is the stems' clearance and is already there, so
-  // nothing is saved by shrinking it, and a degree that has to be squinted at
-  // is not read at all.
-  const DEGREE_SIZE = SP * 1.5;
+  // the canvas. Set a shade under the chord name above it: the two say the same
+  // chord, once by name and once by number, and at one size they read as two
+  // names arguing. The name is what the chord is called and the numeral is how
+  // it is counted, so the numeral gives way — but only a little. What is read
+  // off a numeral is its case, minor being lower case, and lower case is where
+  // the height goes first: `ii` set small enough to be quiet was small enough
+  // to be a smudge, and a case nobody can read is a numeral saying nothing.
+  const DEGREE_SIZE = 14;
   const DEGREE_FOOT = SP * 0.4;
   // Set in a serif, which is not what anything else on the staff is set in and
   // is the point: the numeral's case is what it says about the chord, and in the
@@ -1654,7 +1697,7 @@ const Chords = (() => {
       loNote = loNote === null ? step : Math.min(loNote, step);
       any = true;
     };
-    // How many dots the label row has to stack: the most notes struck at once
+    // How deep the label row has to stack: the most strings ringing at once
     // anywhere in the sheet. Measured over the whole sheet rather than per bar,
     // since every bar's staff is drawn to one height or they do not line up.
     let stack = 0;
@@ -1663,9 +1706,12 @@ const Chords = (() => {
         for (const n of staffChord(chord.name, chord.markers, key).notes) reach(n.step);
         for (const ev of chord.notes || []) {
           for (const st of ev.stops) reach(stopNote(st, chord.name, key).step);
-          // Anything struck is counted, a voicing included — it gets a dot for
-          // its top voice. One dot deep either way, so this is on or off.
-          if (!ev.rest && !ev.tie && ev.stops.some(st => !st.dead)) stack = 1;
+          // A voicing gets a dot for every string of it that rings, so what is
+          // counted is how many that is. A knocked string has no pitch and no
+          // dot, and so is not counted either.
+          if (!ev.rest && !ev.tie) {
+            stack = Math.max(stack, ev.stops.filter(st => !st.dead).length);
+          }
         }
       }
     }
@@ -1701,7 +1747,8 @@ const Chords = (() => {
     const { svg, add } = svgCanvas(width, h, { 'aria-hidden': 'true' });
     for (let s = BOTTOM_LINE; s <= TOP_LINE; s += 2) {
       add('line', {
-        x1: 0, y1: y(s), x2: width, y2: y(s), stroke: '#4d4d4d', 'stroke-width': 1,
+        x1: 0, y1: y(s), x2: width, y2: y(s), stroke: '#4d4d4d',
+        'stroke-width': RULE_W,
       });
     }
     return { svg, add, y };
@@ -2548,9 +2595,15 @@ const Chords = (() => {
   // the music is; this says where it is on the neck, which is the half a
   // guitarist reads first and the reason a transcription is written on two rows
   // at all.
-  const TAB_SP = SP * 0.95;
+  // The six lines are ruled at the staff's own spacing rather than a shade
+  // under it. They were 0.95 of it, which is a difference nobody can see and
+  // which cost the fret numbers the room they needed — see TAB_NUM.
+  const TAB_SP = SP;
   const TAB_PAD = SP * 0.8;
-  const TAB_NUM = 11.5;
+  // The fret number, which is the half of a transcription a guitarist reads
+  // first and was the smallest type on the row. Set up from 11.5, and the lines
+  // opened up to take it.
+  const TAB_NUM = 12.65;
 
   // Room under the six lines for the row of dots — see tabBar. Only where the
   // sheet has something struck in it at all: `stack` is staffRange's word on
@@ -2570,15 +2623,16 @@ const Chords = (() => {
     if (width <= 0) return svg;
     const y = string => TAB_PAD + (string - 1) * TAB_SP;   // the 1st string on top
     for (let s = 1; s <= 6; s++) {
-      add('line', { x1: 0, y1: y(s), x2: width, y2: y(s), stroke: '#4d4d4d', 'stroke-width': 1 });
+      add('line', { x1: 0, y1: y(s), x2: width, y2: y(s),
+        stroke: '#4d4d4d', 'stroke-width': RULE_W });
     }
     const paced = beatWidth || width / BEATS_PER_BAR;
     const beat = paced * beatFit(items, width, paced);
     let carried = (carryIn && carryIn.length) ? carryIn : null;
     const hits = [];
     // The dots read under the tab, where the words under a tune go. One per
-    // event: the note struck, or the top of the voicing struck. See the push
-    // below for why a shape gets one dot rather than all of its notes.
+    // string struck, stacked under the event they belong to. See the push below
+    // for the order they are put in.
     const labels = [];
     const labelCy = TAB_PAD + 5 * TAB_SP + TAB_LABEL_PAD + LABEL_R;
     const walk = rulingWalk(heldName);
@@ -2604,28 +2658,32 @@ const Chords = (() => {
         const stops = !p.ev.tie ? p.ev.stops
           : (p.ev.stops && p.ev.stops.length) ? p.ev.stops : carried || [];
         if (!stops.length) continue;
-        // The top voice of what is struck, named under the tab — the one note in
-        // a voicing the ear follows, and the one a chord-melody is written for.
-        // Only one dot per event, whether one string was struck or four: the
-        // rest of the shape is in the diagram above, and printing all of it here
-        // would be the same thing twice as well as a row four dots deep.
+        // Every string of what is struck, named under the tab and stacked in
+        // pitch order — highest at the top, the way the same notes sit on the
+        // staff two rows up. It used to be the top voice alone, on the grounds
+        // that the rest of the shape was in the diagram below; but the diagram
+        // is where the hand goes, not what the chord is, and the boards have
+        // stopped labelling their dots at all. This row is now the one place a
+        // voicing is spelled out.
+        // Stacked downwards from a fixed top rather than up off a floor: what a
+        // reader compares along the row is the top voice, which is the line the
+        // ear follows, and hung from the top it stays on one level whether the
+        // chord under it is two notes deep or five.
         // A knocked string has no pitch to label — a degree under a knock said a
-        // note was sounding that never was — so the top is the top of what rings.
+        // note was sounding that never was — so it is left out and the ones
+        // ringing over it close up.
         if (stack && !p.ev.tie) {
           const pitch = st => OPEN_MIDI[st.string - 1] + st.fret;
-          let top = null;
-          for (const st of stops) {
-            if (st.dead) continue;
-            if (top === null || pitch(st) > pitch(top)) top = st;
-          }
-          if (top) {
-            const one = stopNote(top, name, key);
+          const ringing = stops.filter(st => !st.dead)
+            .slice().sort((a, b) => pitch(b) - pitch(a));
+          ringing.forEach((st, row) => {
+            const one = stopNote(st, name, key);
             labels.push({
-              x,
+              x, row,
               hue: colourDegree(one.pc, chord, mode, key),
               label: pitchLabel(one.pc, chord, mode, key),
             });
-          }
+          });
         }
         for (const st of stops) {
           const note = stopNote(st, name, key);
@@ -2643,8 +2701,15 @@ const Chords = (() => {
           // staff is what says the two are joined.
           // The line is broken behind the number rather than run through it —
           // at this size a digit sitting on a line is unreadable.
-          add('rect', { x: x - 8 * k, y: y(st.string) - 6 * k,
-            width: 16 * k, height: 12 * k, fill: '#000' });
+          // The break is measured off the number rather than fixed, so setting
+          // the digits larger keeps it the shape it always was. Held short of
+          // the gap between two strings: a chord puts a number on four lines at
+          // once, and breaks any taller than that gap meet and turn the six
+          // lines into one black column.
+          const mw = TAB_NUM * 1.39 * k;
+          const mh = Math.min(TAB_NUM * 1.04, TAB_SP * 0.94) * k;
+          add('rect', { x: x - mw / 2, y: y(st.string) - mh / 2,
+            width: mw, height: mh, fill: '#000' });
           add('text', {
             x, y: y(st.string), fill: ink, 'font-size': TAB_NUM * k, 'text-anchor': 'middle',
             'dominant-baseline': 'central', 'font-weight': 600,
@@ -2656,13 +2721,15 @@ const Chords = (() => {
     }
     for (const r of labels) {
       const fs = labelSize(r.label);
+      // labelCy is the top row, so a chord hangs from it — see the push above.
+      const cy = labelCy + r.row * (LABEL_R * 2 + LABEL_GAP);
       add('circle', {
         class: 'staff-label-dot',
-        cx: r.x, cy: labelCy, r: LABEL_R,
+        cx: r.x, cy, r: LABEL_R,
         fill: r.hue === null ? '#5f5f5f' : DEGREE_HUE[r.hue],
       });
       add('text', {
-        x: r.x, y: labelCy + fs * 0.355, fill: DOT_INK, 'font-size': fs,
+        x: r.x, y: cy + fs * 0.355, fill: DOT_INK, 'font-size': fs,
         'text-anchor': 'middle', 'font-weight': 600,
         'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
       }, r.label);
@@ -2975,5 +3042,6 @@ const Chords = (() => {
     BEATS_PER_BAR,
     stopShapes, rulingNames, rulingWalk, rulingBefore, rulingAt,
     isBassOnly, carriedStops, soundingBefore, markDeadCell,
+    DIA_SCALE,
   };
 })();

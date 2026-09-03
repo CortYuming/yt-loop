@@ -440,6 +440,16 @@ const DRAWN = {
   // A muted single note among plain ones, and a whole shape knocked — every
   // string of it crossed, which is the other thing the mark is for.
   'a-muted-note': '@0 C7 1/3+2/3+3/2+4/3:4 1/7x:8 1/8 2/8x+3/8x+4/7x 1/12',
+  // The row of dots under the tab, at every depth it has to draw. A five-string
+  // voicing sets how deep the row is for the whole bar; the four- and two-string
+  // ones and the single note after them hang from that same top rather than
+  // sitting on a floor, so what the row lines up along is the top voice. The
+  // knocked strings in the third stop take no dot and the ones ringing over them
+  // close up — a four-string shape with two crosses in it is two dots deep, not
+  // four with holes.
+  'a-voicing-under-the-tab':
+    '@0 Cm9 1/3+2/4+3/3+4/1+5/3:4 1/3+2/4+3/3+4/1:8 1/3+2/4 '
+    + 'F7 2/6+3/5x+4/6x+5/8:4 1/8:8 3/5+4/5',
 };
 
 // An editing case: open a sheet, do something, and say what the bar reads as
