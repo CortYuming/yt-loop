@@ -3736,6 +3736,43 @@ function noteLengthRow(rows, ev) {
   if (!noteCanBeam()) beamBtn.disabled = true;
 }
 
+// What a tap writes, rather than how long it lasts: a rest, a tie, a grace note,
+// and the two switches that change what the board does with the next press.
+function noteWriteRow(rows, ev) {
+  const writeRow = noteToolRow(rows, 'Write');
+  noteToolButton(writeRow, Chords.restGlyph(ev && !ev.free ? ev.d : restValue(), 0.8),
+    `${ev ? (ev.rest ? 'Turn this rest back into the note it was'
+      : 'Turn this note into a rest')
+      : 'Rest, of the selected duration'} (key R)`,
+    addNoteRest, ev && !!ev.rest, 'note-dur');
+  // Two heads under one curve, which is what a tie is drawn as.
+  const canTie = !ev || !!ev.tie || heldStops(noteSel).length > 0;
+  const tieBtn = noteToolButton(writeRow, Chords.tieGlyph(0.8),
+    `${ev ? (ev.tie ? 'Strike this note again instead of holding the one before it on'
+      : canTie ? 'Turn this into a tie, holding the note before it on'
+        : 'Nothing is ringing here for a tie to hold on')
+      : 'Hold the last note on for the selected duration'} (key T)`,
+    addNoteTie, ev && !!ev.tie, 'note-dur');
+  tieBtn.disabled = !canTie;
+  // Beside the rest and the tie, since all three are marks on a note rather than
+  // lengths: what is written here is how the note is played, not how long it is.
+  const graceBtn = noteToolButton(writeRow, Chords.graceGlyph(1),
+    'Grace note — struck just before the note it leans on, taking no time from '
+    + 'the bar (key G)',
+    toggleNoteGrace, noteGraceOn(), 'note-dur');
+  if (!noteCanGrace()) graceBtn.disabled = true;
+  // The cross the staff draws, on the button that turns tapping into muting.
+  noteToolButton(writeRow, Chords.deadGlyph(0.8),
+    'While on, a fret you tap mutes that string of the note — struck with the '
+    + 'string stopped, drawn as a cross. Tap it again to let it ring (key X)',
+    toggleNoteDeadMode, noteDeadMode, 'note-dur');
+  // Three notes on one stem: the button wears what it writes, the way the
+  // duration buttons do.
+  noteToolButton(writeRow, Chords.chordGlyph(1),
+    'While on, a tap piles onto the note — a double stop, or a chord (key S)',
+    () => { noteStack = !noteStack; renderNotePanel(); }, noteStack, 'note-dur');
+}
+
 // One labelled row of tools, hung on the panel's rows.
 function noteToolRow(rows, label) {
   const r = document.createElement('div');
@@ -3812,39 +3849,7 @@ function renderNotePanel() {
 
   noteLengthRow(rows, ev);
 
-  // ---- what to write ----
-  const writeRow = row('Write');
-  button(writeRow, Chords.restGlyph(ev && !ev.free ? ev.d : restValue(), 0.8),
-    `${ev ? (ev.rest ? 'Turn this rest back into the note it was'
-      : 'Turn this note into a rest')
-      : 'Rest, of the selected duration'} (key R)`,
-    addNoteRest, ev && !!ev.rest, 'note-dur');
-  // Two heads under one curve, which is what a tie is drawn as.
-  const canTie = !ev || !!ev.tie || heldStops(noteSel).length > 0;
-  const tieBtn = button(writeRow, Chords.tieGlyph(0.8),
-    `${ev ? (ev.tie ? 'Strike this note again instead of holding the one before it on'
-      : canTie ? 'Turn this into a tie, holding the note before it on'
-        : 'Nothing is ringing here for a tie to hold on')
-      : 'Hold the last note on for the selected duration'} (key T)`,
-    addNoteTie, ev && !!ev.tie, 'note-dur');
-  tieBtn.disabled = !canTie;
-  // Beside the rest and the tie, since all three are marks on a note rather than
-  // lengths: what is written here is how the note is played, not how long it is.
-  const graceBtn = button(writeRow, Chords.graceGlyph(1),
-    'Grace note — struck just before the note it leans on, taking no time from '
-    + 'the bar (key G)',
-    toggleNoteGrace, noteGraceOn(), 'note-dur');
-  if (!noteCanGrace()) graceBtn.disabled = true;
-  // The cross the staff draws, on the button that turns tapping into muting.
-  button(writeRow, Chords.deadGlyph(0.8),
-    'While on, a fret you tap mutes that string of the note — struck with the '
-    + 'string stopped, drawn as a cross. Tap it again to let it ring (key X)',
-    toggleNoteDeadMode, noteDeadMode, 'note-dur');
-  // Three notes on one stem: the button wears what it writes, the way the
-  // duration buttons do.
-  button(writeRow, Chords.chordGlyph(1),
-    'While on, a tap piles onto the note — a double stop, or a chord (key S)',
-    () => { noteStack = !noteStack; renderNotePanel(); }, noteStack, 'note-dur');
+  noteWriteRow(rows, ev);
 
   // ---- what to fix ----
   const fixRow = row('Fix');
