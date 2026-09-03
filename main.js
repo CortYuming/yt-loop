@@ -2068,6 +2068,10 @@ const CHORD_DRAG_SLOP = 6;
 const CHORD_TAP_MS = 250;
 const CHORD_TAP_SLOP = 12;
 let suppressChordClick = false;
+// A press on the row, from the moment it goes down until after the click it
+// fires — and the sheet box's tidy-up, held back until then. See chordPressEnded.
+let pressInStrip = false;
+let pendingNormalize = false;
 
 function chordDragX(drag, clientX) {
   return drag.baseX - (clientX - drag.fromX);
@@ -2116,6 +2120,9 @@ chordViewport.addEventListener('pointerdown', e => {
   // was swallowed instead. Cleared here, the leftover can only ever outlive the
   // gesture it came from by nothing at all.
   suppressChordClick = false;
+  // A press is in flight on the row. The sheet box tidies its text when it loses
+  // focus, and this press is what takes the focus off it — see chordPressEnded.
+  pressInStrip = true;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   if (chordAnchors.length === 0) return;   // a sheet with no times has no timeline
   // A press on a box or a button is aiming at that, not at the strip: the caret
@@ -2171,11 +2178,23 @@ function endChordDrag(e, seek) {
   else updateChordScroll(currentPlaybackTime());
 }
 
-chordViewport.addEventListener('pointerup', e => endChordDrag(e, true));
+// After the click this press is about, not before it: a redraw run between the
+// two replaces the element the press went down on, and then no click is fired at
+// all. See chordInput's blur.
+function chordPressEnded() {
+  setTimeout(() => {
+    pressInStrip = false;
+    if (!pendingNormalize) return;
+    pendingNormalize = false;
+    normalizeChordInput();
+  }, 0);
+}
+
+chordViewport.addEventListener('pointerup', e => { endChordDrag(e, true); chordPressEnded(); });
 // A cancelled pointer has no landing place — the browser took the gesture — so
 // the strip goes back to following the clock instead of seeking somewhere the
 // finger never chose.
-chordViewport.addEventListener('pointercancel', e => endChordDrag(e, false));
+chordViewport.addEventListener('pointercancel', e => { endChordDrag(e, false); chordPressEnded(); });
 
 chordViewport.addEventListener('click', e => {
   if (!suppressChordClick) return;
@@ -4341,7 +4360,15 @@ function normalizeChordInput() {
 }
 
 chordInput.addEventListener('paste', () => setTimeout(normalizeChordInput, 0));
-chordInput.addEventListener('blur', normalizeChordInput);
+// Tidying the text redraws the row, and the press that took the focus off this
+// box is very often a press on that row — the first tap on the staff after
+// 🎼 Edit is exactly that. Run there and then, the redraw threw away the note
+// under the finger before the mouse came up, so the browser fired no click and
+// the tap did nothing. So it waits for the press to finish.
+chordInput.addEventListener('blur', () => {
+  if (pressInStrip) { pendingNormalize = true; return; }
+  normalizeChordInput();
+});
 
 // Two halves of one pill with the live one lit, the same control Guitar Chord
 // Viewer uses for Degrees / Solfege. A lone button had to be read twice — once
