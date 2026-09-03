@@ -1385,81 +1385,13 @@ function drawChordStrip(fromCache) {
     barEl.style.width = `${width}px`;
     barEl.dataset.bar = String(i);
 
-    const head = document.createElement('div');
-    head.className = 'chord-bar-head';
-    // A bar goes in before this one, so the button is at that edge — the head's
-    // own left, where the bar line is. Anywhere else in the head it reads as
-    // belonging to the bar on the other side of it. Only while editing — see
-    // .editing-mode in style.css. + Bar adds to the end, which is how a
-    // transcription grows; this is for the bar found missing later.
-    const insertLabel = `Add a bar before bar ${i + 1}`;
-    const insertBtn = toolButton('chord-add', '+', insertLabel,
-      () => askInsertBar(i), true);
-    // The face is a bare +, so the name of the thing it adds is said here.
-    insertBtn.setAttribute('aria-label', insertLabel);
-    head.appendChild(insertBtn);
-    head.appendChild(barNumber(i, spans[i].start));
-    // A bar with a time on it carries the loop controls for that moment; one
-    // without is just its number.
-    if (spans[i].start !== null) head.appendChild(barTimePins(i, spans[i]));
-    const count = barBeatLabel(bar);
-    if (count) head.appendChild(count);
-    barEl.appendChild(head);
+    barEl.appendChild(buildBarHead(i, bar, spans[i]));
 
-    // The same bar again, as the notes it sounds. Each chord sits at the beat
-    // it starts on — the left edge of its cell — rather than under the middle
-    // of its diagram, since what the staff is showing is when as much as what.
-    // Past four chords the cells wrap and there are no beat edges to follow, so
-    // those are spread evenly across the bar instead.
+    // The same bar again, as the notes it sounds — see staffItems for where each
+    // chord lands across it.
     if (staffReach) {
-      const wide = bar.chords.length > SLOTS_PER_BAR;
-      let cellX = 0;
-      const items = bar.chords.map((chord, j) => {
-        const at = wide ? (j * width) / bar.chords.length : cellX;
-        cellX += weights[j] * slot;
-        // Which of this stretch's notes is being edited, so the strip can mark it.
-        const here = notePanelAt && notePanelAt.bar === i && notePanelAt.chord === j;
-        const sel = here ? noteSel : null;
-        // Writing at the end marks nothing, and then nothing on screen says where
-        // the next tap goes. So the note it will follow is marked too, in its own
-        // way: what is written there yet is not this note but the one after it.
-        const after = here && noteAfter === null && noteSel === null
-          && chord.notes && chord.notes.length ? chord.notes.length - 1 : null;
-        // Room held open after this note, for what is written next — the staff
-        // moves the notes after it over and marks the space.
-        const gap = here && noteAfter !== null ? noteAfter : null;
-        // Nothing written here yet, and the board open on it: the first beat is
-        // where the next tap lands, and with no note to mark there would be
-        // nothing at all on screen saying which stretch is being written into.
-        const caret = here && !(chord.notes && chord.notes.length);
-        return {
-          x: at, chord: j, name: chord.name, markers: chord.markers, notes: chord.notes,
-          sel, after, caret, gap,
-        };
-      });
-      // A bar is four slots wide, so one slot is one beat — which is what the
-      // notes inside a chord's stretch are placed by.
-      // A bar can open on a tie — a note held over the bar line — and then what
-      // it is holding was struck in the bar before it.
-      const carryIn = Chords.carriedStops(bars, i);
-      // And on a bass move — `/Bb` on a downbeat — and then the harmony it says
-      // has not changed was named in the bar before it. See Chords.rulingBefore.
-      const heldName = Chords.rulingBefore(bars, i);
-      // And a bar can end on one: the arc crossing the bar line is drawn as two
-      // halves, one in each bar, since each bar is a staff of its own.
-      const carryOut = barOpensOnTie(bars[i + 1])
-        && Chords.carriedStops(bars, i + 1).length > 0;
-      const staff = Chords.staffBar(
-        items, width, staffReach, key, effectiveChordMode(), slot, carryIn, carryOut,
-        heldName);
-      staff.setAttribute('class', 'chord-staff');
-      barEl.appendChild(staff);
-      if (showTab) {
-        const tab = Chords.tabBar(items, width, key, effectiveChordMode(), slot, carryIn,
-          staffReach && staffReach.stack, heldName);
-        tab.setAttribute('class', 'chord-tab');
-        barEl.appendChild(tab);
-      }
+      buildBarStaff(barEl, staffItems(bar, i, width, slot, weights),
+        bars, i, width, staffReach, key, slot, showTab);
     }
 
     // The cells are how a sheet is read: a chord's name with its shape drawn
@@ -1516,6 +1448,94 @@ function drawChordStrip(fromCache) {
   // The panel is drawn against the same parse, so it follows the strip rather
   // than keeping whatever it said before the sheet changed.
   if (notePanelAt) renderNotePanel();
+}
+
+// What sits above a bar's staff: the way to put a bar in before it, which bar
+// this is, the loop controls for the moment it starts on, and what it counts.
+function buildBarHead(i, bar, span) {
+  const head = document.createElement('div');
+  head.className = 'chord-bar-head';
+  // A bar goes in before this one, so the button is at that edge — the head's
+  // own left, where the bar line is. Anywhere else in the head it reads as
+  // belonging to the bar on the other side of it. Only while editing — see
+  // .editing-mode in style.css. + Bar adds to the end, which is how a
+  // transcription grows; this is for the bar found missing later.
+  const insertLabel = `Add a bar before bar ${i + 1}`;
+  const insertBtn = toolButton('chord-add', '+', insertLabel,
+    () => askInsertBar(i), true);
+  // The face is a bare +, so the name of the thing it adds is said here.
+  insertBtn.setAttribute('aria-label', insertLabel);
+  head.appendChild(insertBtn);
+  head.appendChild(barNumber(i, span.start));
+  // A bar with a time on it carries the loop controls for that moment; one
+  // without is just its number.
+  if (span.start !== null) head.appendChild(barTimePins(i, span));
+  const count = barBeatLabel(bar);
+  if (count) head.appendChild(count);
+  return head;
+}
+
+// A bar's chords as the staff wants them: where each one sits across the bar,
+// and what the board open on it has marked. Each chord sits at the beat it
+// starts on — the left edge of its cell — rather than under the middle of its
+// diagram, since what the staff is showing is when as much as what. Past four
+// chords the cells wrap and there are no beat edges to follow, so those are
+// spread evenly across the bar instead.
+function staffItems(bar, i, width, slot, weights) {
+  const wide = bar.chords.length > SLOTS_PER_BAR;
+  let cellX = 0;
+  return bar.chords.map((chord, j) => {
+    const at = wide ? (j * width) / bar.chords.length : cellX;
+    cellX += weights[j] * slot;
+    // Which of this stretch's notes is being edited, so the strip can mark it.
+    const here = notePanelAt && notePanelAt.bar === i && notePanelAt.chord === j;
+    const sel = here ? noteSel : null;
+    // Writing at the end marks nothing, and then nothing on screen says where
+    // the next tap goes. So the note it will follow is marked too, in its own
+    // way: what is written there yet is not this note but the one after it.
+    const after = here && noteAfter === null && noteSel === null
+      && chord.notes && chord.notes.length ? chord.notes.length - 1 : null;
+    // Room held open after this note, for what is written next — the staff
+    // moves the notes after it over and marks the space.
+    const gap = here && noteAfter !== null ? noteAfter : null;
+    // Nothing written here yet, and the board open on it: the first beat is
+    // where the next tap lands, and with no note to mark there would be
+    // nothing at all on screen saying which stretch is being written into.
+    const caret = here && !(chord.notes && chord.notes.length);
+    return {
+      x: at, chord: j, name: chord.name, markers: chord.markers, notes: chord.notes,
+      sel, after, caret, gap,
+    };
+  });
+}
+
+// The five lines and the tab row under them, hung on the bar. A bar is four
+// slots wide, so one slot is one beat — which is what the notes inside a
+// chord's stretch are placed by. What the bar carries in from the one before it
+// is worked out here, because a staff is drawn one bar at a time and the music
+// is not written that way.
+function buildBarStaff(barEl, items, bars, i, width, staffReach, key, slot, showTab) {
+  // A bar can open on a tie — a note held over the bar line — and then what it
+  // is holding was struck in the bar before it.
+  const carryIn = Chords.carriedStops(bars, i);
+  // And on a bass move — `/Bb` on a downbeat — and then the harmony it says has
+  // not changed was named in the bar before it. See Chords.rulingBefore.
+  const heldName = Chords.rulingBefore(bars, i);
+  // And a bar can end on one: the arc crossing the bar line is drawn as two
+  // halves, one in each bar, since each bar is a staff of its own.
+  const carryOut = barOpensOnTie(bars[i + 1])
+    && Chords.carriedStops(bars, i + 1).length > 0;
+  const staff = Chords.staffBar(
+    items, width, staffReach, key, effectiveChordMode(), slot, carryIn, carryOut,
+    heldName);
+  staff.setAttribute('class', 'chord-staff');
+  barEl.appendChild(staff);
+  if (showTab) {
+    const tab = Chords.tabBar(items, width, key, effectiveChordMode(), slot, carryIn,
+      staffReach && staffReach.stack, heldName);
+    tab.setAttribute('class', 'chord-tab');
+    barEl.appendChild(tab);
+  }
 }
 
 // What a bar's phrase actually counts, over the whole of it rather than one
@@ -2048,6 +2068,10 @@ const CHORD_DRAG_SLOP = 6;
 const CHORD_TAP_MS = 250;
 const CHORD_TAP_SLOP = 12;
 let suppressChordClick = false;
+// A press on the row, from the moment it goes down until after the click it
+// fires — and the sheet box's tidy-up, held back until then. See chordPressEnded.
+let pressInStrip = false;
+let pendingNormalize = false;
 
 function chordDragX(drag, clientX) {
   return drag.baseX - (clientX - drag.fromX);
@@ -2096,6 +2120,9 @@ chordViewport.addEventListener('pointerdown', e => {
   // was swallowed instead. Cleared here, the leftover can only ever outlive the
   // gesture it came from by nothing at all.
   suppressChordClick = false;
+  // A press is in flight on the row. The sheet box tidies its text when it loses
+  // focus, and this press is what takes the focus off it — see chordPressEnded.
+  pressInStrip = true;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   if (chordAnchors.length === 0) return;   // a sheet with no times has no timeline
   // A press on a box or a button is aiming at that, not at the strip: the caret
@@ -2151,11 +2178,23 @@ function endChordDrag(e, seek) {
   else updateChordScroll(currentPlaybackTime());
 }
 
-chordViewport.addEventListener('pointerup', e => endChordDrag(e, true));
+// After the click this press is about, not before it: a redraw run between the
+// two replaces the element the press went down on, and then no click is fired at
+// all. See chordInput's blur.
+function chordPressEnded() {
+  setTimeout(() => {
+    pressInStrip = false;
+    if (!pendingNormalize) return;
+    pendingNormalize = false;
+    normalizeChordInput();
+  }, 0);
+}
+
+chordViewport.addEventListener('pointerup', e => { endChordDrag(e, true); chordPressEnded(); });
 // A cancelled pointer has no landing place — the browser took the gesture — so
 // the strip goes back to following the clock instead of seeking somewhere the
 // finger never chose.
-chordViewport.addEventListener('pointercancel', e => endChordDrag(e, false));
+chordViewport.addEventListener('pointercancel', e => { endChordDrag(e, false); chordPressEnded(); });
 
 chordViewport.addEventListener('click', e => {
   if (!suppressChordClick) return;
@@ -2171,9 +2210,12 @@ function barAt(el) {
   return barEl ? Number(barEl.dataset.bar) : null;
 }
 
-// What a press on the row does. Two things are answered in either mode — a
-// chord's name goes out to the fretboard viewer, and a note is a way into the
-// panel — and the empty width between notes is answered only while editing.
+// What a press on the row does, the same in both modes: a chord's name goes out
+// to the fretboard viewer, and anywhere on the staff is a way into the panel —
+// a note selects itself, the width beside it opens the stretch. With the editor
+// shut the press opens it first. Reading a sheet and wanting to fix what is
+// under the finger is the same gesture either way, and a row that answered it in
+// one mode and ignored it in the other read as broken.
 chordStrip.addEventListener('click', e => {
   if (!e.target.closest) return;
   // A chord's name, where it is written on the staff: the way out to the viewer,
@@ -2197,53 +2239,41 @@ chordStrip.addEventListener('click', e => {
   // Asking for the mode first and then for the note again was two steps to say
   // one thing, so the note is asked for once and the mode only decides what
   // else has to happen around the selection.
+  // The note pressed, or — failing that — the stretch's own width around it.
+  // Both are read before anything else happens: opening the editor draws the row
+  // again, and the element these came off is gone by then.
   const hit = e.target.closest('.staff-hit');
-  if (hit) {
-    // Read before the strip is rebuilt: opening the editor draws it again, and
-    // the element these came off is gone by then.
-    const bar = barAt(hit);
-    if (bar === null) return;
-    e.preventDefault();
-    const chord = Number(hit.dataset.chord);
-    const note = Number(hit.dataset.note);
-    const wasShut = chordEditor.hidden;
-    // Opening the editor puts the box and the versions list above the strip, and
-    // everything under them moves down by their height — the note just pressed
-    // included, which walks out from under the finger that pressed it. So the
-    // page is scrolled by however far the strip actually moved, leaving what was
-    // pressed where it was pressed.
-    const wasAt = wasShut ? chordViewport.getBoundingClientRect().top : 0;
-    if (wasShut) {
-      // Opened on a shape, the board opens ready to write one. Correcting a
-      // chord starts with a tap on one of its strings, and with stacking off
-      // that first tap threw the rest of the shape away — the one press that
-      // meant "this string, not that one" wiped the four that were right. A
-      // single note opens as it always did, replacing.
-      noteStack = stopCountAt(bar, chord, note) >= 2;
-      openChordEditor(false);
-    }
-    selectNote(bar, chord, note);
-    if (wasShut) {
-      const moved = chordViewport.getBoundingClientRect().top - wasAt;
-      if (moved) window.scrollBy({ top: moved, behavior: 'instant' });
-      focusNotePanel();
-    }
-    return;
+  const slot = hit ? null : e.target.closest('.staff-slot');
+  const at = barAt(hit || slot);
+  if (at === null) return;
+  e.preventDefault();
+  const chord = hit ? Number(hit.dataset.chord) : Number(slot.dataset.slot);
+  const note = hit ? Number(hit.dataset.note) : null;
+  const wasShut = chordEditor.hidden;
+  // Opening the editor puts the box and the versions list above the strip, and
+  // everything under them moves down by their height — the note just pressed
+  // included, which walks out from under the finger that pressed it. So the
+  // page is scrolled by however far the strip actually moved, leaving what was
+  // pressed where it was pressed.
+  const wasAt = wasShut ? chordViewport.getBoundingClientRect().top : 0;
+  if (wasShut) {
+    // Opened on a shape, the board opens ready to write one. Correcting a
+    // chord starts with a tap on one of its strings, and with stacking off
+    // that first tap threw the rest of the shape away — the one press that
+    // meant "this string, not that one" wiped the four that were right. A
+    // single note opens as it always did, replacing.
+    noteStack = hit ? stopCountAt(at, chord, note) >= 2 : false;
+    openChordEditor(false);
   }
-  // Past here is editing only: with the editor closed the row is something you
-  // read, and the empty width between notes has nothing to open.
-  if (chordEditor.hidden) return;
-  // Anywhere else in a stretch's own width opens the board on it, at the place
-  // writing goes. It is the only way into a stretch with nothing in it: there is
-  // no note there to press.
-  const slot = e.target.closest('.staff-slot');
-  if (slot) {
-    const bar = barAt(slot);
-    if (bar !== null) {
-      e.preventDefault();
-      openNotePanel(bar, Number(slot.dataset.slot));
-      return;
-    }
+  // A note selects itself; the empty width beside one opens the board on that
+  // stretch, at the place writing goes. It is the only way into a stretch with
+  // nothing in it: there is no note there to press.
+  if (hit) selectNote(at, chord, note);
+  else openNotePanel(at, chord);
+  if (wasShut) {
+    const moved = chordViewport.getBoundingClientRect().top - wasAt;
+    if (moved) window.scrollBy({ top: moved, behavior: 'instant' });
+    focusNotePanel();
   }
 });
 
@@ -2800,14 +2830,48 @@ function putNote(ev) {
 // A tap on the board. With a note selected it replaces that note — which is how
 // one written on the wrong string is corrected — and otherwise it writes a new
 // one after the last, or into the gap the + opened.
+// A stop already lit is a stop taken off: pressing what is on is how you
+// unwrite it, stacking or replacing alike. It used to filter that string out and
+// put the same fret straight back, so the one press that plainly meant "not this
+// one" was the one press that did nothing. Emptied of every string the note
+// keeps its place and its length and becomes a rest — what was being corrected
+// is the fingering, not the beat — written the way the R button writes one.
+// A rest and a tie are turned away, because on them a lit cell means something
+// else: a rest keeps the shape it was made from so that pressing it again brings
+// the note back, and a tie's lit cells are the strings it is holding on from
+// before it. On either, a press is that note struck again, which is what the
+// stack and replace branches in pressStop do.
+// False where nothing was taken off, so the caller knows to go on.
+function unlightStop(ev, string, fret) {
+  if (ev.tie || ev.rest) return false;
+  const stops = ev.stops || [];
+  const lit = stops.findIndex(st => st.string === string && st.fret === fret);
+  if (lit < 0) return false;
+  stops.splice(lit, 1);
+  ev.stops = stops;
+  if (!stops.length) {
+    delete ev.free;
+    delete ev.grace;
+    ev.rest = true;
+  }
+  return true;
+}
+
+// A new note holding one stop, at the length the board is set to. No length at
+// all is the state a fingering is written in — held until the next note, the way
+// a chord is — and that is what `free` says.
+function newStopEvent(stop) {
+  return noteDur === NO_DUR
+    ? { d: 1, stops: [stop], free: true }
+    : { d: noteValue(), stops: [stop] };
+}
+
 function pressStop(string, fret) {
   const notes = noteEntries();
   // What a tap writes: a stop, muted while the ✕ button is on.
   const stop = () => (noteDeadMode ? { string, fret, dead: true } : { string, fret });
   if (noteAfter !== null) {
-    putNote(noteDur === NO_DUR
-      ? { d: 1, stops: [stop()], free: true }
-      : { d: noteValue(), stops: [stop()] });
+    putNote(newStopEvent(stop()));
     commitNotes();
     return;
   }
@@ -2828,32 +2892,12 @@ function pressStop(string, fret) {
       commitNotes();
       return;
     }
-    // A stop already lit is a stop taken off: pressing what is on is how you
-    // unwrite it, stacking or replacing alike. It used to filter that string out
-    // and put the same fret straight back, so the one press that plainly meant
-    // "not this one" was the one press that did nothing. Emptied of every string
-    // the note keeps its place and its length and becomes a rest — what was
-    // being corrected is the fingering, not the beat — written the way the R
-    // button writes one.
-    // A rest and a tie are both let through to the branches below, because on
-    // them a lit cell means something else: a rest keeps the shape it was made
-    // from so that pressing it again brings the note back, and a tie's lit cells
-    // are the strings it is holding on from before it. On either, a press is
-    // that note struck again, which is what the stack and replace branches do.
-    if (!ev.tie && !ev.rest) {
-      const stops = ev.stops || [];
-      const lit = stops.findIndex(st => st.string === string && st.fret === fret);
-      if (lit >= 0) {
-        stops.splice(lit, 1);
-        ev.stops = stops;
-        if (!stops.length) {
-          delete ev.free;
-          delete ev.grace;
-          ev.rest = true;
-        }
-        commitNotes();
-        return;
-      }
+    // A stop already lit is a stop taken off — see unlightStop. A rest and a tie
+    // fall through it to the branches below, where a press is that note struck
+    // again.
+    if (unlightStop(ev, string, fret)) {
+      commitNotes();
+      return;
     }
     if (noteStack && !ev.tie) {
       ev.stops = stackStop(ev.stops, string, fret);
@@ -2871,8 +2915,7 @@ function pressStop(string, fret) {
   const last = notes[notes.length - 1];
   if (noteStack && last && !last.rest && !last.tie) {
     last.stops = stackStop(last.stops, string, fret);
-  } else if (noteDur === NO_DUR) notes.push({ d: 1, stops: [stop()], free: true });
-  else notes.push({ d: noteValue(), stops: [stop()] });
+  } else notes.push(newStopEvent(stop()));
   commitNotes();
 }
 
@@ -3610,6 +3653,219 @@ function selectNote(barIndex, chordIndex, index) {
   markNoteSelection();
 }
 
+// The name over what is selected. On a note it names that note — a chord
+// changing there — and with nothing selected it names the stretch, which is the
+// chord this part of the bar started on. This is the box the cells used to hold,
+// moved to where the music is being written rather than printed a second time
+// above it.
+function noteChordRow(rows, chord, notes, ev) {
+  const nameRow = noteToolRow(rows, 'Chord');
+  // It writes on what is selected and on nothing else. With notes in the stretch
+  // and none of them selected there is no such thing, so the box is down: it used
+  // to rename the whole stretch instead, which is how naming a copied chord
+  // renamed the chord at the head of the bar. A stretch with nothing written in
+  // it is the one case with no note to point at — the name is then the only thing
+  // the box can be about, so there it stands open.
+  // The first note of a stretch is the stretch's own name: the same moment, and
+  // printed once at its head. So the box writes there rather than laying a second
+  // name over the one already drawn in that spot.
+  // The chord in force at each note, which is what the box is writing over. Not
+  // the ruling the board is labelled from: that reads through a bass move to the
+  // harmony still sounding, while the box is about the name written here.
+  const names = Chords.rulingNames(chord);
+  const headName = !!ev && noteSel === 0 && !ev.name;
+  const onStretch = !ev || headName;
+  const nameBox = shapeNameBox(chord,
+    onStretch ? { name: '', index: -1 }
+      : { name: names[noteSel] || chord.name || '', index: noteSel },
+    onStretch ? 'stretch' : 'note');
+  nameBox.disabled = !ev && notes.length > 0;
+  nameBox.title = nameBox.disabled
+    ? 'Select a note to write the chord it starts'
+    : onStretch
+      ? 'The chord this stretch starts on'
+      : 'The chord from this note on — leave it empty to keep the one already sounding';
+  nameRow.appendChild(nameBox);
+}
+
+// How long a thing is: the five note values, no length at all, and the three
+// marks that bend them. A note is selected and the row shows what that note is;
+// nothing is, and it shows what the next tap will write.
+function noteLengthRow(rows, ev) {
+  const lengthRow = noteToolRow(rows, 'Length');
+  const shown = ev
+    ? (ev.free ? NO_DUR
+      : (Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d))
+    : noteDur;
+  const shownDot = ev ? (!ev.free && Chords.isDottedDur(ev.d)) : noteDotted;
+  const shownTriplet = ev ? (!ev.free && !!ev.trip) : noteTriplet;
+  NOTE_DURATIONS.forEach(([d, name], i) => {
+    const b = noteToolButton(
+      lengthRow,
+      Chords.noteGlyph(d, false, 0.8, !ev && noteTriplet),
+      `${ev ? `Re-time this note as a ${name.toLowerCase()}` : name} (key ${i + 1})`,
+      () => setNoteDur(d), shown === d, 'note-dur',
+    );
+    const badge = document.createElement('span');
+    badge.className = 'note-key';
+    badge.textContent = String(i + 1);
+    b.appendChild(badge);
+  });
+  // No length at all — the state a fingering is written in, and the one thing
+  // the panel could not say about a note it was showing.
+  noteToolButton(lengthRow, 'None',
+    `${ev ? 'Give this note no length of its own' : 'No length'} — held until the next, `
+    + 'the way a chord is (key 0)',
+    () => setNoteDur(NO_DUR), shown === NO_DUR, 'note-dur note-none');
+  // The mark rather than the word, as the rest of the row is: the dot beside a
+  // head, which is where it sits on a staff.
+  noteToolButton(lengthRow, Chords.dotGlyph(0.8),
+    'Half again as long (key .)',
+    toggleNoteDot, shownDot, 'note-dur');
+  // The mark itself rather than the number: three stems under the beam the chosen
+  // value carries, so the button changes with the value it is about to bend.
+  const tripBtn = noteToolButton(lengthRow,
+    Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
+    'Triplet — a bracket over this note and the two after it, three in the time '
+    + 'of two (key ,). Press again to let the last note out, and again to take '
+    + 'the bracket off, so two notes under one 3 is two presses. What is inside '
+    + 'keeps its own value, so an eighth and a quarter under one 3 — a swung '
+    + 'beat — is written as it is played. Down where the bar has not three left '
+    + 'to bracket',
+    toggleNoteTriplet, shownTriplet, 'note-trip');
+  if (!noteCanTriplet()) tripBtn.disabled = true;
+  // Beaming, beside the triplet: both are about a run rather than a single note,
+  // and both are read off the shape drawn on the button. Nothing to join with no
+  // note selected, or on the last note of the bar, so it is down until there is
+  // something on the other side of the join.
+  const beamBtn = noteToolButton(lengthRow,
+    Chords.beamGlyph(2, shown === NO_DUR ? 0.5 : shown, 0.9),
+    'Beam — draw this note and the next under one beam, across the beat if it '
+    + 'falls there. Join the next pair too and the run grows (press again to part them)',
+    toggleNoteBeam, noteBeamOn(), 'note-trip');
+  if (!noteCanBeam()) beamBtn.disabled = true;
+}
+
+// What a tap writes, rather than how long it lasts: a rest, a tie, a grace note,
+// and the two switches that change what the board does with the next press.
+function noteWriteRow(rows, ev) {
+  const writeRow = noteToolRow(rows, 'Write');
+  noteToolButton(writeRow, Chords.restGlyph(ev && !ev.free ? ev.d : restValue(), 0.8),
+    `${ev ? (ev.rest ? 'Turn this rest back into the note it was'
+      : 'Turn this note into a rest')
+      : 'Rest, of the selected duration'} (key R)`,
+    addNoteRest, ev && !!ev.rest, 'note-dur');
+  // Two heads under one curve, which is what a tie is drawn as.
+  const canTie = !ev || !!ev.tie || heldStops(noteSel).length > 0;
+  const tieBtn = noteToolButton(writeRow, Chords.tieGlyph(0.8),
+    `${ev ? (ev.tie ? 'Strike this note again instead of holding the one before it on'
+      : canTie ? 'Turn this into a tie, holding the note before it on'
+        : 'Nothing is ringing here for a tie to hold on')
+      : 'Hold the last note on for the selected duration'} (key T)`,
+    addNoteTie, ev && !!ev.tie, 'note-dur');
+  tieBtn.disabled = !canTie;
+  // Beside the rest and the tie, since all three are marks on a note rather than
+  // lengths: what is written here is how the note is played, not how long it is.
+  const graceBtn = noteToolButton(writeRow, Chords.graceGlyph(1),
+    'Grace note — struck just before the note it leans on, taking no time from '
+    + 'the bar (key G)',
+    toggleNoteGrace, noteGraceOn(), 'note-dur');
+  if (!noteCanGrace()) graceBtn.disabled = true;
+  // The cross the staff draws, on the button that turns tapping into muting.
+  noteToolButton(writeRow, Chords.deadGlyph(0.8),
+    'While on, a fret you tap mutes that string of the note — struck with the '
+    + 'string stopped, drawn as a cross. Tap it again to let it ring (key X)',
+    toggleNoteDeadMode, noteDeadMode, 'note-dur');
+  // Three notes on one stem: the button wears what it writes, the way the
+  // duration buttons do.
+  noteToolButton(writeRow, Chords.chordGlyph(1),
+    'While on, a tap piles onto the note — a double stop, or a chord (key S)',
+    () => { noteStack = !noteStack; renderNotePanel(); }, noteStack, 'note-dur');
+}
+
+// Walking the caret, moving what it is on, and taking things back — everything
+// that acts on what is already written rather than adding to it. The switch that
+// labels the board rides at the end of it.
+function noteFixRow(rows, notes, ev, ruling, boardMode) {
+  const fixRow = noteToolRow(rows, 'Fix');
+  noteToolButton(fixRow, '◀', 'Select the note before (←)', () => stepNote(-1));
+  // Between the two arrows because it is the same walk: ◀ ▶ move to a note, this
+  // moves to the space after one. What is written there goes in rather than over.
+  const gapBtn = noteToolButton(fixRow, '+',
+    'Make room just after this note — the next tap, rest or tie goes in there, '
+    + 'and stacking piles onto it (key I)',
+    insertAfterNote, noteAfter !== null);
+  gapBtn.disabled = !notes.length;
+  noteToolButton(fixRow, '▶', 'Select the note after (→)', () => stepNote(1));
+  noteToolButton(fixRow, '▷▷|', 'Stop editing that note and write at the end (Esc)',
+    endNoteWriting, !ev && noteAfter === null);
+  noteToolGap(fixRow);
+  // Moving what is picked, rather than moving the pick. Beside the walk arrows
+  // because the two are read together — ◀ ▶ go to a thing, these take it with
+  // you — and told apart by the word on them: a chord is a name written on a
+  // moment, so what the button says is what is about to travel.
+  const carry = selectedIsChord() ? 'Chord' : 'Note';
+  const back = noteToolButton(fixRow, `⇦ ${carry}`,
+    `Swap this ${carry.toLowerCase()} with the one before it, chord name and all `
+    + '— nothing else on the sheet moves (Shift + ←)',
+    () => moveSelection(-1));
+  back.disabled = !canMoveSelection(-1);
+  const fwd = noteToolButton(fixRow, `${carry} ⇨`,
+    `Swap this ${carry.toLowerCase()} with the one after it, chord name and all `
+    + '— nothing else on the sheet moves (Shift + →)',
+    () => moveSelection(1));
+  fwd.disabled = !canMoveSelection(1);
+  noteToolGap(fixRow);
+  // The same again, whatever it is. A bar of one chord held while the tune moves
+  // is the ordinary shape of a sheet, and tapping out its six strings a second
+  // time is the tedious way to say so; a repeated note is the same story.
+  // It sits with delete rather than with the things that write: both of them act
+  // on whatever is selected, and between the two chord buttons this one read as
+  // if a chord were the only thing it would copy.
+  // The same marks the strip's own buttons use, so one copy and one delete are
+  // one thing wherever they are pressed.
+  const copyBtn = noteToolButton(fixRow, '⧉ Copy',
+    'Write the selected note again, just after it — a chord, a note, or a rest',
+    copyNote);
+  copyBtn.disabled = !ev;
+  const undo = noteToolButton(fixRow, '↺ Undo', 'Undo the last thing tapped here',
+    undoNote);
+  undo.disabled = !canUndoNote();
+  noteToolButton(fixRow, '🗑 Delete',
+    'Remove the selected note, or the last one (Backspace)', deleteNote);
+  // What the dots are labelled with, where they are being read. The same switch
+  // as the one over the strip and the same stored choice — a board labelled one
+  // way while the diagrams above it said another was two pictures of one thing.
+  fixRow.appendChild(noteModeSwitch(boardMode, !!ruling));
+}
+
+// One labelled row of tools, hung on the panel's rows.
+function noteToolRow(rows, label) {
+  const r = document.createElement('div');
+  r.className = 'note-row';
+  const name = document.createElement('span');
+  name.className = 'note-row-label';
+  name.textContent = label;
+  r.appendChild(name);
+  rows.appendChild(r);
+  return r;
+}
+
+// One tool in a row. `on` is the lit state — what the button is saying about the
+// note or the board right now — and `cls` any extra class the face wants.
+function noteToolButton(into, content, title, run, on, cls) {
+  return into.appendChild(
+    toolButton('note-tool' + (cls ? ` ${cls}` : '') + (on ? ' on' : ''),
+      content, title, run));
+}
+
+// A space between two groups of tools within one row.
+function noteToolGap(into) {
+  const d = document.createElement('span');
+  d.className = 'note-tool-gap';
+  into.appendChild(d);
+}
+
 function renderNotePanel() {
   if (!notePanel) return;
   const chord = noteStretch();
@@ -3627,52 +3883,7 @@ function renderNotePanel() {
 
   notePanel.hidden = false;
   notePanel.textContent = '';
-
-  // Thirds of a beat do not add up to whole numbers in binary — three triplet
-  // eighths come to 0.9999999999999999, and a bar split six ways gives a stretch
-  // 0.6666666666666666 of a beat — so what is printed is rounded to where the ear
-  // stops caring rather than where the arithmetic does.
-  const beatsText = n => String(Math.round(n * 1000) / 1000);
-
-  const head = document.createElement('p');
-  head.className = 'note-panel-head';
-  const what = document.createElement('span');
-  what.className = 'note-panel-what';
-  what.textContent = `♪ bar ${notePanelAt.bar + 1}, `
-    + `${beatsText(beats)} beat${beats === 1 ? '' : 's'}`;
-  const mode = document.createElement('span');
-  mode.className = 'note-panel-mode';
-  mode.textContent = noteAfter !== null
-    ? `writing after note ${noteAfter + 1} — a tap goes in there`
-    : ev
-      ? `editing note ${noteSel + 1} of ${notes.length} — a tap replaces it`
-      : 'adding at the end — a tap follows the last note';
-  // Naming is done where the name is drawn — over the shape it belongs to, in the
-  // strip — so there is no name box here. A box in the panel wrote a name nothing
-  // on screen pointed at, and what it renamed was the whole stretch: naming one
-  // stop renamed every chord in the bar.
-
-  const room = document.createElement('span');
-  // What is written against what there is room for. Overrunning is allowed —
-  // a phrase is often written before its bar's timing is right — but it is said
-  // out loud, since the overrun is drawn past the bar and reads as a mistake in
-  // the sheet otherwise.
-  room.className = 'note-panel-room' + (used > beats + 1e-6 ? ' over' : '');
-  room.textContent = `${notes.length} note${notes.length === 1 ? '' : 's'}, `
-    + `${beatsText(used)} beat${used === 1 ? '' : 's'} written`;
-  head.append(what, mode, room);
-  // The way out of the panel is not one of the tools: it sits where a window's
-  // close sits, rather than at the end of a row of things that write music.
-  const close = document.createElement('button');
-  close.type = 'button';
-  close.className = 'note-panel-close';
-  close.textContent = '×';
-  close.title = 'Close this panel (Esc)';
-  close.setAttribute('aria-label', 'Close this panel');
-  close.addEventListener('mousedown', e => e.preventDefault());
-  close.addEventListener('click', e => { e.preventDefault(); closeNotePanel(); });
-  head.appendChild(close);
-  notePanel.appendChild(head);
+  notePanel.appendChild(notePanelHead(notes, ev, beats, used));
 
   // Degrees are read against a chord. With no chord over these notes there is
   // nothing to read them against — every label would be counted from C, which
@@ -3696,224 +3907,19 @@ function renderNotePanel() {
   // which of them belonged together, and it only ever grew.
   const rows = document.createElement('div');
   rows.className = 'note-rows';
-  const row = label => {
-    const r = document.createElement('div');
-    r.className = 'note-row';
-    const name = document.createElement('span');
-    name.className = 'note-row-label';
-    name.textContent = label;
-    r.appendChild(name);
-    rows.appendChild(r);
-    return r;
-  };
-  const button = (into, content, title, run, on, cls) => into.appendChild(
-    toolButton('note-tool' + (cls ? ` ${cls}` : '') + (on ? ' on' : ''),
-      content, title, run));
-  const gap = into => {
-    const d = document.createElement('span');
-    d.className = 'note-tool-gap';
-    into.appendChild(d);
-  };
-
-  // ---- what chord ----
-  // The name over what is selected. On a note it names that note — a chord
-  // changing there — and with nothing selected it names the stretch, which is
-  // the chord this part of the bar started on. This is the box the cells used to
-  // hold, moved to where the music is being written rather than printed a second
-  // time above it.
-  const nameRow = row('Chord');
-  // It writes on what is selected and on nothing else. With notes in the stretch
-  // and none of them selected there is no such thing, so the box is down: it used
-  // to rename the whole stretch instead, which is how naming a copied chord
-  // renamed the chord at the head of the bar. A stretch with nothing written in
-  // it is the one case with no note to point at — the name is then the only thing
-  // the box can be about, so there it stands open.
-  // The first note of a stretch is the stretch's own name: the same moment, and
-  // printed once at its head. So the box writes there rather than laying a second
-  // name over the one already drawn in that spot.
-  // The chord in force at each note, which is what the box is writing over. Not
-  // the ruling worked out above for the board: that reads through a bass move to
-  // the harmony still sounding, while the box is about the name written here.
-  const names = Chords.rulingNames(chord);
-  const headName = !!ev && noteSel === 0 && !ev.name;
-  const onStretch = !ev || headName;
-  const nameBox = shapeNameBox(chord,
-    onStretch ? { name: '', index: -1 }
-      : { name: names[noteSel] || chord.name || '', index: noteSel },
-    onStretch ? 'stretch' : 'note');
-  nameBox.disabled = !ev && notes.length > 0;
-  nameBox.title = nameBox.disabled
-    ? 'Select a note to write the chord it starts'
-    : onStretch
-      ? 'The chord this stretch starts on'
-      : 'The chord from this note on — leave it empty to keep the one already sounding';
-  nameRow.appendChild(nameBox);
-
-  // ---- how long ----
-  const lengthRow = row('Length');
-  const shown = ev
-    ? (ev.free ? NO_DUR
-      : (Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d))
-    : noteDur;
-  const shownDot = ev ? (!ev.free && Chords.isDottedDur(ev.d)) : noteDotted;
-  const shownTriplet = ev ? (!ev.free && !!ev.trip) : noteTriplet;
-  NOTE_DURATIONS.forEach(([d, name], i) => {
-    const b = button(
-      lengthRow,
-      Chords.noteGlyph(d, false, 0.8, !ev && noteTriplet),
-      `${ev ? `Re-time this note as a ${name.toLowerCase()}` : name} (key ${i + 1})`,
-      () => setNoteDur(d), shown === d, 'note-dur',
-    );
-    const badge = document.createElement('span');
-    badge.className = 'note-key';
-    badge.textContent = String(i + 1);
-    b.appendChild(badge);
-  });
-  // No length at all — the state a fingering is written in, and the one thing
-  // the panel could not say about a note it was showing.
-  button(lengthRow, 'None',
-    `${ev ? 'Give this note no length of its own' : 'No length'} — held until the next, `
-    + 'the way a chord is (key 0)',
-    () => setNoteDur(NO_DUR), shown === NO_DUR, 'note-dur note-none');
-  // The mark rather than the word, as the rest of the row is: the dot beside a
-  // head, which is where it sits on a staff.
-  button(lengthRow, Chords.dotGlyph(0.8),
-    'Half again as long (key .)',
-    toggleNoteDot, shownDot, 'note-dur');
-  // The mark itself rather than the number: three stems under the beam the chosen
-  // value carries, so the button changes with the value it is about to bend.
-  const tripBtn = button(lengthRow, Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
-    'Triplet — a bracket over this note and the two after it, three in the time '
-    + 'of two (key ,). Press again to let the last note out, and again to take '
-    + 'the bracket off, so two notes under one 3 is two presses. What is inside '
-    + 'keeps its own value, so an eighth and a quarter under one 3 — a swung '
-    + 'beat — is written as it is played. Down where the bar has not three left '
-    + 'to bracket',
-    toggleNoteTriplet, shownTriplet, 'note-trip');
-  if (!noteCanTriplet()) tripBtn.disabled = true;
-  // Beaming, beside the triplet: both are about a run rather than a single note,
-  // and both are read off the shape drawn on the button. Nothing to join with no
-  // note selected, or on the last note of the bar, so it is down until there is
-  // something on the other side of the join.
-  const beamBtn = button(lengthRow, Chords.beamGlyph(2, shown === NO_DUR ? 0.5 : shown, 0.9),
-    'Beam — draw this note and the next under one beam, across the beat if it '
-    + 'falls there. Join the next pair too and the run grows (press again to part them)',
-    toggleNoteBeam, noteBeamOn(), 'note-trip');
-  if (!noteCanBeam()) beamBtn.disabled = true;
-
-  // ---- what to write ----
-  const writeRow = row('Write');
-  button(writeRow, Chords.restGlyph(ev && !ev.free ? ev.d : restValue(), 0.8),
-    `${ev ? (ev.rest ? 'Turn this rest back into the note it was'
-      : 'Turn this note into a rest')
-      : 'Rest, of the selected duration'} (key R)`,
-    addNoteRest, ev && !!ev.rest, 'note-dur');
-  // Two heads under one curve, which is what a tie is drawn as.
-  const canTie = !ev || !!ev.tie || heldStops(noteSel).length > 0;
-  const tieBtn = button(writeRow, Chords.tieGlyph(0.8),
-    `${ev ? (ev.tie ? 'Strike this note again instead of holding the one before it on'
-      : canTie ? 'Turn this into a tie, holding the note before it on'
-        : 'Nothing is ringing here for a tie to hold on')
-      : 'Hold the last note on for the selected duration'} (key T)`,
-    addNoteTie, ev && !!ev.tie, 'note-dur');
-  tieBtn.disabled = !canTie;
-  // Beside the rest and the tie, since all three are marks on a note rather than
-  // lengths: what is written here is how the note is played, not how long it is.
-  const graceBtn = button(writeRow, Chords.graceGlyph(1),
-    'Grace note — struck just before the note it leans on, taking no time from '
-    + 'the bar (key G)',
-    toggleNoteGrace, noteGraceOn(), 'note-dur');
-  if (!noteCanGrace()) graceBtn.disabled = true;
-  // The cross the staff draws, on the button that turns tapping into muting.
-  button(writeRow, Chords.deadGlyph(0.8),
-    'While on, a fret you tap mutes that string of the note — struck with the '
-    + 'string stopped, drawn as a cross. Tap it again to let it ring (key X)',
-    toggleNoteDeadMode, noteDeadMode, 'note-dur');
-  // Three notes on one stem: the button wears what it writes, the way the
-  // duration buttons do.
-  button(writeRow, Chords.chordGlyph(1),
-    'While on, a tap piles onto the note — a double stop, or a chord (key S)',
-    () => { noteStack = !noteStack; renderNotePanel(); }, noteStack, 'note-dur');
-
-  // ---- what to fix ----
-  const fixRow = row('Fix');
-  button(fixRow, '◀', 'Select the note before (←)', () => stepNote(-1));
-  // Between the two arrows because it is the same walk: ◀ ▶ move to a note, this
-  // moves to the space after one. What is written there goes in rather than over.
-  const gapBtn = button(fixRow, '+',
-    'Make room just after this note — the next tap, rest or tie goes in there, '
-    + 'and stacking piles onto it (key I)',
-    insertAfterNote, noteAfter !== null);
-  gapBtn.disabled = !notes.length;
-  button(fixRow, '▶', 'Select the note after (→)', () => stepNote(1));
-  button(fixRow, '▷▷|', 'Stop editing that note and write at the end (Esc)',
-    endNoteWriting, !ev && noteAfter === null);
-  gap(fixRow);
-  // Moving what is picked, rather than moving the pick. Beside the walk arrows
-  // because the two are read together — ◀ ▶ go to a thing, these take it with
-  // you — and told apart by the word on them: a chord is a name written on a
-  // moment, so what the button says is what is about to travel.
-  const carry = selectedIsChord() ? 'Chord' : 'Note';
-  const back = button(fixRow, `⇦ ${carry}`,
-    `Swap this ${carry.toLowerCase()} with the one before it, chord name and all `
-    + '— nothing else on the sheet moves (Shift + ←)',
-    () => moveSelection(-1));
-  back.disabled = !canMoveSelection(-1);
-  const fwd = button(fixRow, `${carry} ⇨`,
-    `Swap this ${carry.toLowerCase()} with the one after it, chord name and all `
-    + '— nothing else on the sheet moves (Shift + →)',
-    () => moveSelection(1));
-  fwd.disabled = !canMoveSelection(1);
-  gap(fixRow);
-  // The same again, whatever it is. A bar of one chord held while the tune moves
-  // is the ordinary shape of a sheet, and tapping out its six strings a second
-  // time is the tedious way to say so; a repeated note is the same story.
-  // It sits with delete rather than with the things that write: both of them act
-  // on whatever is selected, and between the two chord buttons this one read as
-  // if a chord were the only thing it would copy.
-  // The same marks the strip's own buttons use, so one copy and one delete are
-  // one thing wherever they are pressed.
-  const copyBtn = button(fixRow, '⧉ Copy',
-    'Write the selected note again, just after it — a chord, a note, or a rest',
-    copyNote);
-  copyBtn.disabled = !ev;
-  const undo = button(fixRow, '↺ Undo', 'Undo the last thing tapped here', undoNote);
-  undo.disabled = !canUndoNote();
-  button(fixRow, '🗑 Delete', 'Remove the selected note, or the last one (Backspace)',
-    deleteNote);
-  // What the dots are labelled with, where they are being read. The same switch
-  // as the one over the strip and the same stored choice — a board labelled one
-  // way while the diagrams above it said another was two pictures of one thing.
-  fixRow.appendChild(noteModeSwitch(boardMode, !!ruling));
+  noteChordRow(rows, chord, notes, ev);
+  noteLengthRow(rows, ev);
+  noteWriteRow(rows, ev);
+  noteFixRow(rows, notes, ev, ruling, boardMode);
   notePanel.appendChild(rows);
 
-  // The keys behind a ?, rather than a line of them under the tools. Every one of
-  // them is already written on the button it works, so the list is a reminder to
-  // ask for — and printed always, it was three lines of grey between the tools
-  // and the board they act on.
-  const help = document.createElement('div');
-  help.className = 'note-help';
-  const helpBtn = toolButton('note-help-toggle' + (noteKeysOpen ? ' on' : ''), '?',
-    'The keys, for the tools above', () => {
-      noteKeysOpen = !noteKeysOpen;
-      renderNotePanel();
-    });
-  helpBtn.setAttribute('aria-expanded', noteKeysOpen ? 'true' : 'false');
-  help.appendChild(helpBtn);
-  if (noteKeysOpen) {
-    const keys = document.createElement('p');
-    keys.className = 'note-keys';
-    keys.textContent = '← → select · Shift + ← → move it one place · '
-      + '1–5 duration (whole, half, quarter, eighth, sixteenth) · '
-      + '0 no length · . dot · , triplet · R rest · T tie · G grace · '
-      + 'X mute the strings you tap · '
-      + 'S stack · '
-      + 'I room after this note · Backspace delete · '
-      + 'Esc back to the end, then close';
-    help.appendChild(keys);
-  }
-  notePanel.appendChild(help);
+  notePanel.appendChild(noteHelpBox());
+  notePanel.appendChild(noteBoard(ruling, boardMode, ev));
+}
 
+// The neck, where the notes are tapped out — and where what is already written
+// can be read back.
+function noteBoard(ruling, boardMode, ev) {
   const boardWrap = document.createElement('div');
   boardWrap.className = 'note-board';
   const boardSvg = Chords.board(ruling, boardMode, currentChordKey());
@@ -3938,7 +3944,94 @@ function renderNotePanel() {
     if (!cell) return;
     pressStop(Number(cell.dataset.string), Number(cell.dataset.fret));
   });
-  notePanel.appendChild(boardWrap);
+  return boardWrap;
+}
+
+// The keys behind a ?, rather than a line of them under the tools. Every one of
+// them is already written on the button it works, so the list is a reminder to
+// ask for — and printed always, it was three lines of grey between the tools and
+// the board they act on.
+function noteHelpBox() {
+  const help = document.createElement('div');
+  help.className = 'note-help';
+  const helpBtn = toolButton('note-help-toggle' + (noteKeysOpen ? ' on' : ''), '?',
+    'The keys, for the tools above', () => {
+      noteKeysOpen = !noteKeysOpen;
+      renderNotePanel();
+    });
+  helpBtn.setAttribute('aria-expanded', noteKeysOpen ? 'true' : 'false');
+  help.appendChild(helpBtn);
+  if (noteKeysOpen) {
+    const keys = document.createElement('p');
+    keys.className = 'note-keys';
+    keys.textContent = '← → select · Shift + ← → move it one place · '
+      + '1–5 duration (whole, half, quarter, eighth, sixteenth) · '
+      + '0 no length · . dot · , triplet · R rest · T tie · G grace · '
+      + 'X mute the strings you tap · '
+      + 'S stack · '
+      + 'I room after this note · Backspace delete · '
+      + 'Esc back to the end, then close';
+    help.appendChild(keys);
+  }
+  return help;
+}
+
+// What the panel says about itself: which bar and stretch is open, what the next
+// tap will do to it, and how much of the bar is spoken for.
+// Naming is done where the name is drawn — over the shape it belongs to, in the
+// strip — so there is no name box here. A box in the panel wrote a name nothing
+// on screen pointed at, and what it renamed was the whole stretch: naming one
+// stop renamed every chord in the bar.
+function notePanelHead(notes, ev, beats, used) {
+  // Thirds of a beat do not add up to whole numbers in binary — three triplet
+  // eighths come to 0.9999999999999999, and a bar split six ways gives a stretch
+  // 0.6666666666666666 of a beat — so what is printed is rounded to where the ear
+  // stops caring rather than where the arithmetic does.
+  const beatsText = n => String(Math.round(n * 1000) / 1000);
+
+  const head = document.createElement('p');
+  head.className = 'note-panel-head';
+  const what = document.createElement('span');
+  what.className = 'note-panel-what';
+  what.textContent = `♪ bar ${notePanelAt.bar + 1}, `
+    + `${beatsText(beats)} beat${beats === 1 ? '' : 's'}`;
+  const mode = document.createElement('span');
+  mode.className = 'note-panel-mode';
+  mode.textContent = noteAfter !== null
+    ? `writing after note ${noteAfter + 1} — a tap goes in there`
+    : ev
+      ? `editing note ${noteSel + 1} of ${notes.length} — a tap replaces it`
+      : 'adding at the end — a tap follows the last note';
+
+  const room = document.createElement('span');
+  // What is written against what there is room for. Overrunning is allowed —
+  // a phrase is often written before its bar's timing is right — but it is said
+  // out loud, since the overrun is drawn past the bar and reads as a mistake in
+  // the sheet otherwise.
+  room.className = 'note-panel-room' + (used > beats + 1e-6 ? ' over' : '');
+  room.textContent = `${notes.length} note${notes.length === 1 ? '' : 's'}, `
+    + `${beatsText(used)} beat${used === 1 ? '' : 's'} written`;
+  head.append(what, mode, room);
+  // The way out of editing, not one of the tools: it sits where a window's close
+  // sits, rather than at the end of a row of things that write music. It puts
+  // the sheet back to being read — the panel only ever stands open while the
+  // editor does, so shutting the board and leaving the row full of boxes was a
+  // half-exit nobody wanted: the way back out was then the 🎼 Edit button, all
+  // the way up in the toolbar. Esc still steps back through the panel alone.
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'note-panel-close';
+  close.textContent = '×';
+  close.title = 'Stop editing this sheet';
+  close.setAttribute('aria-label', 'Stop editing this sheet');
+  close.addEventListener('mousedown', e => e.preventDefault());
+  close.addEventListener('click', e => {
+    e.preventDefault();
+    if (chordEditor.hidden) closeNotePanel();
+    else toggleChordEditor(false);
+  });
+  head.appendChild(close);
+  return head;
 }
 
 // Interval / Note / Solfège, small, at the end of the Fix row. It sets the same
@@ -4267,7 +4360,15 @@ function normalizeChordInput() {
 }
 
 chordInput.addEventListener('paste', () => setTimeout(normalizeChordInput, 0));
-chordInput.addEventListener('blur', normalizeChordInput);
+// Tidying the text redraws the row, and the press that took the focus off this
+// box is very often a press on that row — the first tap on the staff after
+// 🎼 Edit is exactly that. Run there and then, the redraw threw away the note
+// under the finger before the mouse came up, so the browser fired no click and
+// the tap did nothing. So it waits for the press to finish.
+chordInput.addEventListener('blur', () => {
+  if (pressInStrip) { pendingNormalize = true; return; }
+  normalizeChordInput();
+});
 
 // Two halves of one pill with the live one lit, the same control Guitar Chord
 // Viewer uses for Degrees / Solfege. A lone button had to be read twice — once

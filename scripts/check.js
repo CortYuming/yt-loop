@@ -93,7 +93,8 @@ const MAIN = fs.readFileSync(path.join(ROOT, 'main.js'), 'utf8');
 // the panel's two indexes, and write back into the same objects.
 const LIFTED = [
   // writing
-  'putNote', 'pressStop', 'stackStop', 'copyNote', 'deleteNote',
+  'putNote', 'pressStop', 'newStopEvent', 'unlightStop', 'stackStop', 'copyNote',
+  'deleteNote',
   'insertAfterNote', 'endNoteWriting',
   'addNoteRest', 'addNoteTie', 'markNote', 'heldStops',
   // lengths and marks
