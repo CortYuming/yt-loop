@@ -3875,32 +3875,7 @@ function renderNotePanel() {
   fixRow.appendChild(noteModeSwitch(boardMode, !!ruling));
   notePanel.appendChild(rows);
 
-  // The keys behind a ?, rather than a line of them under the tools. Every one of
-  // them is already written on the button it works, so the list is a reminder to
-  // ask for — and printed always, it was three lines of grey between the tools
-  // and the board they act on.
-  const help = document.createElement('div');
-  help.className = 'note-help';
-  const helpBtn = toolButton('note-help-toggle' + (noteKeysOpen ? ' on' : ''), '?',
-    'The keys, for the tools above', () => {
-      noteKeysOpen = !noteKeysOpen;
-      renderNotePanel();
-    });
-  helpBtn.setAttribute('aria-expanded', noteKeysOpen ? 'true' : 'false');
-  help.appendChild(helpBtn);
-  if (noteKeysOpen) {
-    const keys = document.createElement('p');
-    keys.className = 'note-keys';
-    keys.textContent = '← → select · Shift + ← → move it one place · '
-      + '1–5 duration (whole, half, quarter, eighth, sixteenth) · '
-      + '0 no length · . dot · , triplet · R rest · T tie · G grace · '
-      + 'X mute the strings you tap · '
-      + 'S stack · '
-      + 'I room after this note · Backspace delete · '
-      + 'Esc back to the end, then close';
-    help.appendChild(keys);
-  }
-  notePanel.appendChild(help);
+  notePanel.appendChild(noteHelpBox());
 
   const boardWrap = document.createElement('div');
   boardWrap.className = 'note-board';
@@ -3927,6 +3902,35 @@ function renderNotePanel() {
     pressStop(Number(cell.dataset.string), Number(cell.dataset.fret));
   });
   notePanel.appendChild(boardWrap);
+}
+
+// The keys behind a ?, rather than a line of them under the tools. Every one of
+// them is already written on the button it works, so the list is a reminder to
+// ask for — and printed always, it was three lines of grey between the tools and
+// the board they act on.
+function noteHelpBox() {
+  const help = document.createElement('div');
+  help.className = 'note-help';
+  const helpBtn = toolButton('note-help-toggle' + (noteKeysOpen ? ' on' : ''), '?',
+    'The keys, for the tools above', () => {
+      noteKeysOpen = !noteKeysOpen;
+      renderNotePanel();
+    });
+  helpBtn.setAttribute('aria-expanded', noteKeysOpen ? 'true' : 'false');
+  help.appendChild(helpBtn);
+  if (noteKeysOpen) {
+    const keys = document.createElement('p');
+    keys.className = 'note-keys';
+    keys.textContent = '← → select · Shift + ← → move it one place · '
+      + '1–5 duration (whole, half, quarter, eighth, sixteenth) · '
+      + '0 no length · . dot · , triplet · R rest · T tie · G grace · '
+      + 'X mute the strings you tap · '
+      + 'S stack · '
+      + 'I room after this note · Backspace delete · '
+      + 'Esc back to the end, then close';
+    help.appendChild(keys);
+  }
+  return help;
 }
 
 // What the panel says about itself: which bar and stretch is open, what the next
