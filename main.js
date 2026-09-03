@@ -3678,6 +3678,64 @@ function noteChordRow(rows, chord, notes, ev) {
   nameRow.appendChild(nameBox);
 }
 
+// How long a thing is: the five note values, no length at all, and the three
+// marks that bend them. A note is selected and the row shows what that note is;
+// nothing is, and it shows what the next tap will write.
+function noteLengthRow(rows, ev) {
+  const lengthRow = noteToolRow(rows, 'Length');
+  const shown = ev
+    ? (ev.free ? NO_DUR
+      : (Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d))
+    : noteDur;
+  const shownDot = ev ? (!ev.free && Chords.isDottedDur(ev.d)) : noteDotted;
+  const shownTriplet = ev ? (!ev.free && !!ev.trip) : noteTriplet;
+  NOTE_DURATIONS.forEach(([d, name], i) => {
+    const b = noteToolButton(
+      lengthRow,
+      Chords.noteGlyph(d, false, 0.8, !ev && noteTriplet),
+      `${ev ? `Re-time this note as a ${name.toLowerCase()}` : name} (key ${i + 1})`,
+      () => setNoteDur(d), shown === d, 'note-dur',
+    );
+    const badge = document.createElement('span');
+    badge.className = 'note-key';
+    badge.textContent = String(i + 1);
+    b.appendChild(badge);
+  });
+  // No length at all — the state a fingering is written in, and the one thing
+  // the panel could not say about a note it was showing.
+  noteToolButton(lengthRow, 'None',
+    `${ev ? 'Give this note no length of its own' : 'No length'} — held until the next, `
+    + 'the way a chord is (key 0)',
+    () => setNoteDur(NO_DUR), shown === NO_DUR, 'note-dur note-none');
+  // The mark rather than the word, as the rest of the row is: the dot beside a
+  // head, which is where it sits on a staff.
+  noteToolButton(lengthRow, Chords.dotGlyph(0.8),
+    'Half again as long (key .)',
+    toggleNoteDot, shownDot, 'note-dur');
+  // The mark itself rather than the number: three stems under the beam the chosen
+  // value carries, so the button changes with the value it is about to bend.
+  const tripBtn = noteToolButton(lengthRow,
+    Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
+    'Triplet — a bracket over this note and the two after it, three in the time '
+    + 'of two (key ,). Press again to let the last note out, and again to take '
+    + 'the bracket off, so two notes under one 3 is two presses. What is inside '
+    + 'keeps its own value, so an eighth and a quarter under one 3 — a swung '
+    + 'beat — is written as it is played. Down where the bar has not three left '
+    + 'to bracket',
+    toggleNoteTriplet, shownTriplet, 'note-trip');
+  if (!noteCanTriplet()) tripBtn.disabled = true;
+  // Beaming, beside the triplet: both are about a run rather than a single note,
+  // and both are read off the shape drawn on the button. Nothing to join with no
+  // note selected, or on the last note of the bar, so it is down until there is
+  // something on the other side of the join.
+  const beamBtn = noteToolButton(lengthRow,
+    Chords.beamGlyph(2, shown === NO_DUR ? 0.5 : shown, 0.9),
+    'Beam — draw this note and the next under one beam, across the beat if it '
+    + 'falls there. Join the next pair too and the run grows (press again to part them)',
+    toggleNoteBeam, noteBeamOn(), 'note-trip');
+  if (!noteCanBeam()) beamBtn.disabled = true;
+}
+
 // One labelled row of tools, hung on the panel's rows.
 function noteToolRow(rows, label) {
   const r = document.createElement('div');
@@ -3752,57 +3810,7 @@ function renderNotePanel() {
 
   noteChordRow(rows, chord, notes, ev);
 
-  // ---- how long ----
-  const lengthRow = row('Length');
-  const shown = ev
-    ? (ev.free ? NO_DUR
-      : (Chords.isDottedDur(ev.d) ? ev.d / 1.5 : ev.d))
-    : noteDur;
-  const shownDot = ev ? (!ev.free && Chords.isDottedDur(ev.d)) : noteDotted;
-  const shownTriplet = ev ? (!ev.free && !!ev.trip) : noteTriplet;
-  NOTE_DURATIONS.forEach(([d, name], i) => {
-    const b = button(
-      lengthRow,
-      Chords.noteGlyph(d, false, 0.8, !ev && noteTriplet),
-      `${ev ? `Re-time this note as a ${name.toLowerCase()}` : name} (key ${i + 1})`,
-      () => setNoteDur(d), shown === d, 'note-dur',
-    );
-    const badge = document.createElement('span');
-    badge.className = 'note-key';
-    badge.textContent = String(i + 1);
-    b.appendChild(badge);
-  });
-  // No length at all — the state a fingering is written in, and the one thing
-  // the panel could not say about a note it was showing.
-  button(lengthRow, 'None',
-    `${ev ? 'Give this note no length of its own' : 'No length'} — held until the next, `
-    + 'the way a chord is (key 0)',
-    () => setNoteDur(NO_DUR), shown === NO_DUR, 'note-dur note-none');
-  // The mark rather than the word, as the rest of the row is: the dot beside a
-  // head, which is where it sits on a staff.
-  button(lengthRow, Chords.dotGlyph(0.8),
-    'Half again as long (key .)',
-    toggleNoteDot, shownDot, 'note-dur');
-  // The mark itself rather than the number: three stems under the beam the chosen
-  // value carries, so the button changes with the value it is about to bend.
-  const tripBtn = button(lengthRow, Chords.tripletGlyph(shown === NO_DUR ? 1 : shown, 0.9),
-    'Triplet — a bracket over this note and the two after it, three in the time '
-    + 'of two (key ,). Press again to let the last note out, and again to take '
-    + 'the bracket off, so two notes under one 3 is two presses. What is inside '
-    + 'keeps its own value, so an eighth and a quarter under one 3 — a swung '
-    + 'beat — is written as it is played. Down where the bar has not three left '
-    + 'to bracket',
-    toggleNoteTriplet, shownTriplet, 'note-trip');
-  if (!noteCanTriplet()) tripBtn.disabled = true;
-  // Beaming, beside the triplet: both are about a run rather than a single note,
-  // and both are read off the shape drawn on the button. Nothing to join with no
-  // note selected, or on the last note of the bar, so it is down until there is
-  // something on the other side of the join.
-  const beamBtn = button(lengthRow, Chords.beamGlyph(2, shown === NO_DUR ? 0.5 : shown, 0.9),
-    'Beam — draw this note and the next under one beam, across the beat if it '
-    + 'falls there. Join the next pair too and the run grows (press again to part them)',
-    toggleNoteBeam, noteBeamOn(), 'note-trip');
-  if (!noteCanBeam()) beamBtn.disabled = true;
+  noteLengthRow(rows, ev);
 
   // ---- what to write ----
   const writeRow = row('Write');
