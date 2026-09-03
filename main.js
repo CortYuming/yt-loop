@@ -4483,12 +4483,21 @@ function getSheet(vid) {
   return (v && v.sheet) || '';
 }
 
+// The record a video gets the first time this browser has anything to keep for
+// it, made if it isn't there and returned either way. The title is the one the
+// caller knows — the player's, for a video being played here; none at all for
+// one arriving from a backup file, which carries its own.
+function ensureVideo(data, vid, title) {
+  if (!data.videos[vid]) {
+    data.videos[vid] = { title: title || '', sheet: '', history: [], revisions: [] };
+  }
+  return data.videos[vid];
+}
+
 function setSheet(vid, text) {
   if (!vid) return;
   const data = loadData();
-  if (!data.videos[vid]) {
-    data.videos[vid] = { title: currentVideoTitle || '', sheet: '', history: [], revisions: [] };
-  }
+  ensureVideo(data, vid, currentVideoTitle);
   data.videos[vid].sheet = text;
   if (vid === currentVideoId && currentVideoTitle) data.videos[vid].title = currentVideoTitle;
   saveData(data);
@@ -4506,10 +4515,7 @@ function getRevisions(vid) {
 function pushRevision(vid, text) {
   if (!vid) return false;
   const data = loadData();
-  if (!data.videos[vid]) {
-    data.videos[vid] = { title: currentVideoTitle || '', sheet: '', history: [], revisions: [] };
-  }
-  const v = data.videos[vid];
+  const v = ensureVideo(data, vid, currentVideoTitle);
   if (!Array.isArray(v.revisions)) v.revisions = [];
   if (v.revisions.length && v.revisions[0].text === text) return false;
   v.revisions.unshift({ id: newEntryId(), at: Date.now(), text });
@@ -4613,10 +4619,7 @@ function recordHistory() {
   const note  = noteInput.value.trim();
 
   const data = loadData();
-  if (!data.videos[currentVideoId]) {
-    data.videos[currentVideoId] = { title: currentVideoTitle || '', sheet: '', history: [] };
-  }
-  const video = data.videos[currentVideoId];
+  const video = ensureVideo(data, currentVideoId, currentVideoTitle);
   if (currentVideoTitle) video.title = currentVideoTitle;
 
   const existing = video.history.find(h => sameRange(h, start, end, speed));
@@ -5167,10 +5170,7 @@ importApplyBtn.addEventListener('click', () => {
   (perVideo ? vids : []).forEach(vid => {
     const src = pendingBackup.videos[vid];
     if (!src) return;
-    if (!data.videos[vid]) {
-      data.videos[vid] = { title: '', sheet: '', history: [], revisions: [] };
-    }
-    const dst = data.videos[vid];
+    const dst = ensureVideo(data, vid);
     // The title comes along with whatever is taken: without it a video new to
     // this browser would sit in History as a bare id until it is next played.
     if (src.title) dst.title = src.title;
