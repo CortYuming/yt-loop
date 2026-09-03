@@ -3643,6 +3643,41 @@ function selectNote(barIndex, chordIndex, index) {
   markNoteSelection();
 }
 
+// The name over what is selected. On a note it names that note — a chord
+// changing there — and with nothing selected it names the stretch, which is the
+// chord this part of the bar started on. This is the box the cells used to hold,
+// moved to where the music is being written rather than printed a second time
+// above it.
+function noteChordRow(rows, chord, notes, ev) {
+  const nameRow = noteToolRow(rows, 'Chord');
+  // It writes on what is selected and on nothing else. With notes in the stretch
+  // and none of them selected there is no such thing, so the box is down: it used
+  // to rename the whole stretch instead, which is how naming a copied chord
+  // renamed the chord at the head of the bar. A stretch with nothing written in
+  // it is the one case with no note to point at — the name is then the only thing
+  // the box can be about, so there it stands open.
+  // The first note of a stretch is the stretch's own name: the same moment, and
+  // printed once at its head. So the box writes there rather than laying a second
+  // name over the one already drawn in that spot.
+  // The chord in force at each note, which is what the box is writing over. Not
+  // the ruling the board is labelled from: that reads through a bass move to the
+  // harmony still sounding, while the box is about the name written here.
+  const names = Chords.rulingNames(chord);
+  const headName = !!ev && noteSel === 0 && !ev.name;
+  const onStretch = !ev || headName;
+  const nameBox = shapeNameBox(chord,
+    onStretch ? { name: '', index: -1 }
+      : { name: names[noteSel] || chord.name || '', index: noteSel },
+    onStretch ? 'stretch' : 'note');
+  nameBox.disabled = !ev && notes.length > 0;
+  nameBox.title = nameBox.disabled
+    ? 'Select a note to write the chord it starts'
+    : onStretch
+      ? 'The chord this stretch starts on'
+      : 'The chord from this note on — leave it empty to keep the one already sounding';
+  nameRow.appendChild(nameBox);
+}
+
 // One labelled row of tools, hung on the panel's rows.
 function noteToolRow(rows, label) {
   const r = document.createElement('div');
@@ -3715,39 +3750,7 @@ function renderNotePanel() {
   const button = noteToolButton;
   const gap = noteToolGap;
 
-  // ---- what chord ----
-  // The name over what is selected. On a note it names that note — a chord
-  // changing there — and with nothing selected it names the stretch, which is
-  // the chord this part of the bar started on. This is the box the cells used to
-  // hold, moved to where the music is being written rather than printed a second
-  // time above it.
-  const nameRow = row('Chord');
-  // It writes on what is selected and on nothing else. With notes in the stretch
-  // and none of them selected there is no such thing, so the box is down: it used
-  // to rename the whole stretch instead, which is how naming a copied chord
-  // renamed the chord at the head of the bar. A stretch with nothing written in
-  // it is the one case with no note to point at — the name is then the only thing
-  // the box can be about, so there it stands open.
-  // The first note of a stretch is the stretch's own name: the same moment, and
-  // printed once at its head. So the box writes there rather than laying a second
-  // name over the one already drawn in that spot.
-  // The chord in force at each note, which is what the box is writing over. Not
-  // the ruling worked out above for the board: that reads through a bass move to
-  // the harmony still sounding, while the box is about the name written here.
-  const names = Chords.rulingNames(chord);
-  const headName = !!ev && noteSel === 0 && !ev.name;
-  const onStretch = !ev || headName;
-  const nameBox = shapeNameBox(chord,
-    onStretch ? { name: '', index: -1 }
-      : { name: names[noteSel] || chord.name || '', index: noteSel },
-    onStretch ? 'stretch' : 'note');
-  nameBox.disabled = !ev && notes.length > 0;
-  nameBox.title = nameBox.disabled
-    ? 'Select a note to write the chord it starts'
-    : onStretch
-      ? 'The chord this stretch starts on'
-      : 'The chord from this note on — leave it empty to keep the one already sounding';
-  nameRow.appendChild(nameBox);
+  noteChordRow(rows, chord, notes, ev);
 
   // ---- how long ----
   const lengthRow = row('Length');
