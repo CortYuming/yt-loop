@@ -3773,6 +3773,62 @@ function noteWriteRow(rows, ev) {
     () => { noteStack = !noteStack; renderNotePanel(); }, noteStack, 'note-dur');
 }
 
+// Walking the caret, moving what it is on, and taking things back — everything
+// that acts on what is already written rather than adding to it. The switch that
+// labels the board rides at the end of it.
+function noteFixRow(rows, notes, ev, ruling, boardMode) {
+  const fixRow = noteToolRow(rows, 'Fix');
+  noteToolButton(fixRow, '◀', 'Select the note before (←)', () => stepNote(-1));
+  // Between the two arrows because it is the same walk: ◀ ▶ move to a note, this
+  // moves to the space after one. What is written there goes in rather than over.
+  const gapBtn = noteToolButton(fixRow, '+',
+    'Make room just after this note — the next tap, rest or tie goes in there, '
+    + 'and stacking piles onto it (key I)',
+    insertAfterNote, noteAfter !== null);
+  gapBtn.disabled = !notes.length;
+  noteToolButton(fixRow, '▶', 'Select the note after (→)', () => stepNote(1));
+  noteToolButton(fixRow, '▷▷|', 'Stop editing that note and write at the end (Esc)',
+    endNoteWriting, !ev && noteAfter === null);
+  noteToolGap(fixRow);
+  // Moving what is picked, rather than moving the pick. Beside the walk arrows
+  // because the two are read together — ◀ ▶ go to a thing, these take it with
+  // you — and told apart by the word on them: a chord is a name written on a
+  // moment, so what the button says is what is about to travel.
+  const carry = selectedIsChord() ? 'Chord' : 'Note';
+  const back = noteToolButton(fixRow, `⇦ ${carry}`,
+    `Swap this ${carry.toLowerCase()} with the one before it, chord name and all `
+    + '— nothing else on the sheet moves (Shift + ←)',
+    () => moveSelection(-1));
+  back.disabled = !canMoveSelection(-1);
+  const fwd = noteToolButton(fixRow, `${carry} ⇨`,
+    `Swap this ${carry.toLowerCase()} with the one after it, chord name and all `
+    + '— nothing else on the sheet moves (Shift + →)',
+    () => moveSelection(1));
+  fwd.disabled = !canMoveSelection(1);
+  noteToolGap(fixRow);
+  // The same again, whatever it is. A bar of one chord held while the tune moves
+  // is the ordinary shape of a sheet, and tapping out its six strings a second
+  // time is the tedious way to say so; a repeated note is the same story.
+  // It sits with delete rather than with the things that write: both of them act
+  // on whatever is selected, and between the two chord buttons this one read as
+  // if a chord were the only thing it would copy.
+  // The same marks the strip's own buttons use, so one copy and one delete are
+  // one thing wherever they are pressed.
+  const copyBtn = noteToolButton(fixRow, '⧉ Copy',
+    'Write the selected note again, just after it — a chord, a note, or a rest',
+    copyNote);
+  copyBtn.disabled = !ev;
+  const undo = noteToolButton(fixRow, '↺ Undo', 'Undo the last thing tapped here',
+    undoNote);
+  undo.disabled = !canUndoNote();
+  noteToolButton(fixRow, '🗑 Delete',
+    'Remove the selected note, or the last one (Backspace)', deleteNote);
+  // What the dots are labelled with, where they are being read. The same switch
+  // as the one over the strip and the same stored choice — a board labelled one
+  // way while the diagrams above it said another was two pictures of one thing.
+  fixRow.appendChild(noteModeSwitch(boardMode, !!ruling));
+}
+
 // One labelled row of tools, hung on the panel's rows.
 function noteToolRow(rows, label) {
   const r = document.createElement('div');
@@ -3841,70 +3897,13 @@ function renderNotePanel() {
   // which of them belonged together, and it only ever grew.
   const rows = document.createElement('div');
   rows.className = 'note-rows';
-  const row = label => noteToolRow(rows, label);
-  const button = noteToolButton;
-  const gap = noteToolGap;
-
   noteChordRow(rows, chord, notes, ev);
-
   noteLengthRow(rows, ev);
-
   noteWriteRow(rows, ev);
-
-  // ---- what to fix ----
-  const fixRow = row('Fix');
-  button(fixRow, '◀', 'Select the note before (←)', () => stepNote(-1));
-  // Between the two arrows because it is the same walk: ◀ ▶ move to a note, this
-  // moves to the space after one. What is written there goes in rather than over.
-  const gapBtn = button(fixRow, '+',
-    'Make room just after this note — the next tap, rest or tie goes in there, '
-    + 'and stacking piles onto it (key I)',
-    insertAfterNote, noteAfter !== null);
-  gapBtn.disabled = !notes.length;
-  button(fixRow, '▶', 'Select the note after (→)', () => stepNote(1));
-  button(fixRow, '▷▷|', 'Stop editing that note and write at the end (Esc)',
-    endNoteWriting, !ev && noteAfter === null);
-  gap(fixRow);
-  // Moving what is picked, rather than moving the pick. Beside the walk arrows
-  // because the two are read together — ◀ ▶ go to a thing, these take it with
-  // you — and told apart by the word on them: a chord is a name written on a
-  // moment, so what the button says is what is about to travel.
-  const carry = selectedIsChord() ? 'Chord' : 'Note';
-  const back = button(fixRow, `⇦ ${carry}`,
-    `Swap this ${carry.toLowerCase()} with the one before it, chord name and all `
-    + '— nothing else on the sheet moves (Shift + ←)',
-    () => moveSelection(-1));
-  back.disabled = !canMoveSelection(-1);
-  const fwd = button(fixRow, `${carry} ⇨`,
-    `Swap this ${carry.toLowerCase()} with the one after it, chord name and all `
-    + '— nothing else on the sheet moves (Shift + →)',
-    () => moveSelection(1));
-  fwd.disabled = !canMoveSelection(1);
-  gap(fixRow);
-  // The same again, whatever it is. A bar of one chord held while the tune moves
-  // is the ordinary shape of a sheet, and tapping out its six strings a second
-  // time is the tedious way to say so; a repeated note is the same story.
-  // It sits with delete rather than with the things that write: both of them act
-  // on whatever is selected, and between the two chord buttons this one read as
-  // if a chord were the only thing it would copy.
-  // The same marks the strip's own buttons use, so one copy and one delete are
-  // one thing wherever they are pressed.
-  const copyBtn = button(fixRow, '⧉ Copy',
-    'Write the selected note again, just after it — a chord, a note, or a rest',
-    copyNote);
-  copyBtn.disabled = !ev;
-  const undo = button(fixRow, '↺ Undo', 'Undo the last thing tapped here', undoNote);
-  undo.disabled = !canUndoNote();
-  button(fixRow, '🗑 Delete', 'Remove the selected note, or the last one (Backspace)',
-    deleteNote);
-  // What the dots are labelled with, where they are being read. The same switch
-  // as the one over the strip and the same stored choice — a board labelled one
-  // way while the diagrams above it said another was two pictures of one thing.
-  fixRow.appendChild(noteModeSwitch(boardMode, !!ruling));
+  noteFixRow(rows, notes, ev, ruling, boardMode);
   notePanel.appendChild(rows);
 
   notePanel.appendChild(noteHelpBox());
-
   notePanel.appendChild(noteBoard(ruling, boardMode, ev));
 }
 
