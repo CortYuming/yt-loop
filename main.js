@@ -1390,30 +1390,8 @@ function drawChordStrip(fromCache) {
     // The same bar again, as the notes it sounds — see staffItems for where each
     // chord lands across it.
     if (staffReach) {
-      const items = staffItems(bar, i, width, slot, weights);
-      // A bar is four slots wide, so one slot is one beat — which is what the
-      // notes inside a chord's stretch are placed by.
-      // A bar can open on a tie — a note held over the bar line — and then what
-      // it is holding was struck in the bar before it.
-      const carryIn = Chords.carriedStops(bars, i);
-      // And on a bass move — `/Bb` on a downbeat — and then the harmony it says
-      // has not changed was named in the bar before it. See Chords.rulingBefore.
-      const heldName = Chords.rulingBefore(bars, i);
-      // And a bar can end on one: the arc crossing the bar line is drawn as two
-      // halves, one in each bar, since each bar is a staff of its own.
-      const carryOut = barOpensOnTie(bars[i + 1])
-        && Chords.carriedStops(bars, i + 1).length > 0;
-      const staff = Chords.staffBar(
-        items, width, staffReach, key, effectiveChordMode(), slot, carryIn, carryOut,
-        heldName);
-      staff.setAttribute('class', 'chord-staff');
-      barEl.appendChild(staff);
-      if (showTab) {
-        const tab = Chords.tabBar(items, width, key, effectiveChordMode(), slot, carryIn,
-          staffReach && staffReach.stack, heldName);
-        tab.setAttribute('class', 'chord-tab');
-        barEl.appendChild(tab);
-      }
+      buildBarStaff(barEl, staffItems(bar, i, width, slot, weights),
+        bars, i, width, staffReach, key, slot, showTab);
     }
 
     // The cells are how a sheet is read: a chord's name with its shape drawn
@@ -1529,6 +1507,35 @@ function staffItems(bar, i, width, slot, weights) {
       sel, after, caret, gap,
     };
   });
+}
+
+// The five lines and the tab row under them, hung on the bar. A bar is four
+// slots wide, so one slot is one beat — which is what the notes inside a
+// chord's stretch are placed by. What the bar carries in from the one before it
+// is worked out here, because a staff is drawn one bar at a time and the music
+// is not written that way.
+function buildBarStaff(barEl, items, bars, i, width, staffReach, key, slot, showTab) {
+  // A bar can open on a tie — a note held over the bar line — and then what it
+  // is holding was struck in the bar before it.
+  const carryIn = Chords.carriedStops(bars, i);
+  // And on a bass move — `/Bb` on a downbeat — and then the harmony it says has
+  // not changed was named in the bar before it. See Chords.rulingBefore.
+  const heldName = Chords.rulingBefore(bars, i);
+  // And a bar can end on one: the arc crossing the bar line is drawn as two
+  // halves, one in each bar, since each bar is a staff of its own.
+  const carryOut = barOpensOnTie(bars[i + 1])
+    && Chords.carriedStops(bars, i + 1).length > 0;
+  const staff = Chords.staffBar(
+    items, width, staffReach, key, effectiveChordMode(), slot, carryIn, carryOut,
+    heldName);
+  staff.setAttribute('class', 'chord-staff');
+  barEl.appendChild(staff);
+  if (showTab) {
+    const tab = Chords.tabBar(items, width, key, effectiveChordMode(), slot, carryIn,
+      staffReach && staffReach.stack, heldName);
+    tab.setAttribute('class', 'chord-tab');
+    barEl.appendChild(tab);
+  }
 }
 
 // What a bar's phrase actually counts, over the whole of it rather than one
