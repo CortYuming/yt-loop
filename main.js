@@ -2191,9 +2191,12 @@ function barAt(el) {
   return barEl ? Number(barEl.dataset.bar) : null;
 }
 
-// What a press on the row does. Two things are answered in either mode — a
-// chord's name goes out to the fretboard viewer, and a note is a way into the
-// panel — and the empty width between notes is answered only while editing.
+// What a press on the row does, the same in both modes: a chord's name goes out
+// to the fretboard viewer, and anywhere on the staff is a way into the panel —
+// a note selects itself, the width beside it opens the stretch. With the editor
+// shut the press opens it first. Reading a sheet and wanting to fix what is
+// under the finger is the same gesture either way, and a row that answered it in
+// one mode and ignored it in the other read as broken.
 chordStrip.addEventListener('click', e => {
   if (!e.target.closest) return;
   // A chord's name, where it is written on the staff: the way out to the viewer,
@@ -2217,53 +2220,41 @@ chordStrip.addEventListener('click', e => {
   // Asking for the mode first and then for the note again was two steps to say
   // one thing, so the note is asked for once and the mode only decides what
   // else has to happen around the selection.
+  // The note pressed, or — failing that — the stretch's own width around it.
+  // Both are read before anything else happens: opening the editor draws the row
+  // again, and the element these came off is gone by then.
   const hit = e.target.closest('.staff-hit');
-  if (hit) {
-    // Read before the strip is rebuilt: opening the editor draws it again, and
-    // the element these came off is gone by then.
-    const bar = barAt(hit);
-    if (bar === null) return;
-    e.preventDefault();
-    const chord = Number(hit.dataset.chord);
-    const note = Number(hit.dataset.note);
-    const wasShut = chordEditor.hidden;
-    // Opening the editor puts the box and the versions list above the strip, and
-    // everything under them moves down by their height — the note just pressed
-    // included, which walks out from under the finger that pressed it. So the
-    // page is scrolled by however far the strip actually moved, leaving what was
-    // pressed where it was pressed.
-    const wasAt = wasShut ? chordViewport.getBoundingClientRect().top : 0;
-    if (wasShut) {
-      // Opened on a shape, the board opens ready to write one. Correcting a
-      // chord starts with a tap on one of its strings, and with stacking off
-      // that first tap threw the rest of the shape away — the one press that
-      // meant "this string, not that one" wiped the four that were right. A
-      // single note opens as it always did, replacing.
-      noteStack = stopCountAt(bar, chord, note) >= 2;
-      openChordEditor(false);
-    }
-    selectNote(bar, chord, note);
-    if (wasShut) {
-      const moved = chordViewport.getBoundingClientRect().top - wasAt;
-      if (moved) window.scrollBy({ top: moved, behavior: 'instant' });
-      focusNotePanel();
-    }
-    return;
+  const slot = hit ? null : e.target.closest('.staff-slot');
+  const at = barAt(hit || slot);
+  if (at === null) return;
+  e.preventDefault();
+  const chord = hit ? Number(hit.dataset.chord) : Number(slot.dataset.slot);
+  const note = hit ? Number(hit.dataset.note) : null;
+  const wasShut = chordEditor.hidden;
+  // Opening the editor puts the box and the versions list above the strip, and
+  // everything under them moves down by their height — the note just pressed
+  // included, which walks out from under the finger that pressed it. So the
+  // page is scrolled by however far the strip actually moved, leaving what was
+  // pressed where it was pressed.
+  const wasAt = wasShut ? chordViewport.getBoundingClientRect().top : 0;
+  if (wasShut) {
+    // Opened on a shape, the board opens ready to write one. Correcting a
+    // chord starts with a tap on one of its strings, and with stacking off
+    // that first tap threw the rest of the shape away — the one press that
+    // meant "this string, not that one" wiped the four that were right. A
+    // single note opens as it always did, replacing.
+    noteStack = hit ? stopCountAt(at, chord, note) >= 2 : false;
+    openChordEditor(false);
   }
-  // Past here is editing only: with the editor closed the row is something you
-  // read, and the empty width between notes has nothing to open.
-  if (chordEditor.hidden) return;
-  // Anywhere else in a stretch's own width opens the board on it, at the place
-  // writing goes. It is the only way into a stretch with nothing in it: there is
-  // no note there to press.
-  const slot = e.target.closest('.staff-slot');
-  if (slot) {
-    const bar = barAt(slot);
-    if (bar !== null) {
-      e.preventDefault();
-      openNotePanel(bar, Number(slot.dataset.slot));
-      return;
-    }
+  // A note selects itself; the empty width beside one opens the board on that
+  // stretch, at the place writing goes. It is the only way into a stretch with
+  // nothing in it: there is no note there to press.
+  if (hit) selectNote(at, chord, note);
+  else openNotePanel(at, chord);
+  if (wasShut) {
+    const moved = chordViewport.getBoundingClientRect().top - wasAt;
+    if (moved) window.scrollBy({ top: moved, behavior: 'instant' });
+    focusNotePanel();
   }
 });
 
