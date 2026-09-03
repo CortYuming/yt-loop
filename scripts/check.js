@@ -109,7 +109,7 @@ const LIFTED = [
   // the triplet as one thing
   'tripletGroupPlaces', 'noteCopy', 'freeTripId',
   // bars
-  'roundTo', 'addBar', 'insertBar', 'barBeats', 'barBeatLabel',
+  'roundTo', 'commitChordEdit', 'addBar', 'insertBar', 'barBeats', 'barBeatLabel',
   'setBarStart', 'barTimeBounds',
 ];
 // Read to the brace that closes the declaration rather than to the next line
@@ -1365,8 +1365,8 @@ const BASS = [
 // first bar line after the new Start. These run the real functions over stub
 // boxes, because which box moved is the whole of the rule.
 const rangeModule = (() => {
-  const src = ['formatTime', 'parseTime', 'refusesRange', 'rangeIsEmpty', 'linkEndFor',
-    'nextBarEdge', 'endForStart', 'takesRange'].map(liftOne).join('\n');
+  const src = ['formatTime', 'parseTime', 'formRange', 'refusesRange', 'rangeIsEmpty',
+    'linkEndFor', 'nextBarEdge', 'endForStart', 'takesRange'].map(liftOne).join('\n');
   const make = new Function('shim', `
     const RANGE_EPS = 0.005;
     const startInput = shim.startInput;

@@ -45,6 +45,19 @@ let intentionalPlay = false;
 // provokes is claimed here and put straight back to paused.
 let seekWhilePaused = false;
 
+// The two boxes read as numbers. Null when either one does not hold a time —
+// which is every caller's answer too, since a range with one end missing is not
+// a range. Whether the pair also has to run forwards is the caller's own
+// question: the loop and the history want a Start before the End, the duration
+// display and the emptiness check want to say something about a pair that does
+// not.
+function formRange() {
+  const start = parseTime(startInput.value);
+  const end = parseTime(endInput.value);
+  if (start === null || end === null || isNaN(start) || isNaN(end)) return null;
+  return { start, end };
+}
+
 // Where the loop runs, worked out afresh every time it is asked for. The toggle
 // says whether to loop and the two boxes say where, so there is nothing to keep
 // in step and nothing that can go stale: a range that stops making sense means
@@ -59,10 +72,9 @@ let seekWhilePaused = false;
 // switching the toggle off and on again did.
 function loopRange() {
   if (!loopToggle || !loopToggle.checked) return null;
-  const s = parseTime(startInput.value);
-  const e = parseTime(endInput.value);
-  if (s === null || e === null || isNaN(s) || isNaN(e) || s >= e) return null;
-  return { start: s, end: e };
+  const r = formRange();
+  if (!r || r.start >= r.end) return null;
+  return r;
 }
 
 // Everything that has to be recomputed after the form's values change. The loop
@@ -169,10 +181,9 @@ function takesRange(box, text) {
 // takes the value or turns it away. See the share-link landing, which drops an
 // End it cannot use rather than carrying it in.
 function rangeIsEmpty() {
-  const s = parseTime(startInput.value);
-  const e = parseTime(endInput.value);
-  if (s === null || e === null || isNaN(s) || isNaN(e)) return false;
-  return s >= e;
+  const r = formRange();
+  if (!r) return false;
+  return r.start >= r.end;
 }
 
 // Said on the button the finger is already on, since that is the one place on
@@ -435,12 +446,11 @@ window.onYouTubeIframeAPIReady = () => {
 // so it should stay cleared rather than being refilled from the link.
 function adoptNoteFromHistory() {
   if (!currentVideoId) return false;
-  const s = parseTime(startInput.value);
-  const e = parseTime(endInput.value);
-  if (s === null || e === null || isNaN(s) || isNaN(e)) return false;
+  const r = formRange();
+  if (!r) return false;
   const video = loadData().videos[currentVideoId];
   if (!video) return false;
-  const match = video.history.find(h => sameRange(h, s, e, effectiveSpeed()));
+  const match = video.history.find(h => sameRange(h, r.start, r.end, effectiveSpeed()));
   if (!match) return false;
   noteInput.value = match.note || '';
   return true;
@@ -616,7 +626,7 @@ function onPlayerStateChange(e) {
   // undefined and the guard silently matches every state.
   if (state !== -1) runPendingLoad();
 
-  if (state === (window.YT && YT.PlayerState.PLAYING)) {
+  if (isPlaying(state)) {
     if (seekWhilePaused) {
       seekWhilePaused = false;
       player.pauseVideo();
@@ -669,8 +679,7 @@ function updatePlayButton() {
     playLoopBtn.textContent = '⏳ 1s…';
     return;
   }
-  const state = safeState();
-  if (state === (window.YT && YT.PlayerState.PLAYING)) {
+  if (isPlaying()) {
     playLoopBtn.textContent = '⏸ Pause';
   } else {
     playLoopBtn.textContent = '▶ Play';
@@ -746,7 +755,7 @@ function enforceLoopEnd() {
   if (!player || typeof player.getCurrentTime !== 'function') return;
   // Cheapest question first: this runs 40 times a second whether or not
   // anything is playing, and reading the range means parsing two strings.
-  if (safeState() !== (window.YT && YT.PlayerState.PLAYING)) return;
+  if (!isPlaying()) return;
   const loop = loopRange();
   if (!loop) return;
   let t;
@@ -805,6 +814,15 @@ function safeState() {
   try { return player.getPlayerState(); } catch (e) { return -1; }
 }
 
+// Is it playing? The guard against YT not having loaded rides along, since
+// YT.PlayerState.PLAYING is undefined until it has and an unguarded comparison
+// would then match a player that reports undefined for its own state. Takes a
+// state when the caller already holds one — the state handler is handed one —
+// and asks the player otherwise.
+function isPlaying(state = safeState()) {
+  return state === (window.YT && YT.PlayerState.PLAYING);
+}
+
 // ============================================================
 // Editing a value
 // ============================================================
@@ -861,13 +879,12 @@ document.addEventListener('animationend', e => {
 // Duration display (end − start)
 // ============================================================
 function updateDurationDisplay() {
-  const s = parseTime(startInput.value);
-  const e = parseTime(endInput.value);
-  if (s === null || e === null || isNaN(s) || isNaN(e) || e <= s) {
+  const r = formRange();
+  if (!r || r.end <= r.start) {
     durationDisplay.textContent = '—';
     return;
   }
-  durationDisplay.textContent = formatTime(e - s);
+  durationDisplay.textContent = formatTime(r.end - r.start);
 }
 startInput.addEventListener('input', () => { refreshUI(); handleValueEdit(startInput); });
 endInput.addEventListener('input',   () => { refreshUI(); handleValueEdit(endInput); });
@@ -960,8 +977,7 @@ playLoopBtn.addEventListener('click', () => {
     return;
   }
   if (cancelPendingPlay()) { updatePlayButton(); return; }
-  const state = safeState();
-  if (state === (window.YT && YT.PlayerState.PLAYING)) {
+  if (isPlaying()) {
     player.pauseVideo();
     return;
   }
@@ -1376,18 +1392,11 @@ function drawChordStrip(fromCache) {
     // belonging to the bar on the other side of it. Only while editing — see
     // .editing-mode in style.css. + Bar adds to the end, which is how a
     // transcription grows; this is for the bar found missing later.
-    const insertBtn = document.createElement('button');
-    insertBtn.type = 'button';
-    insertBtn.className = 'chord-add';
-    insertBtn.textContent = '+';
-    insertBtn.title = `Add a bar before bar ${i + 1}`;
-    insertBtn.setAttribute('aria-label', `Add a bar before bar ${i + 1}`);
-    insertBtn.addEventListener('mousedown', e => e.preventDefault());
-    insertBtn.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      askInsertBar(i);
-    });
+    const insertLabel = `Add a bar before bar ${i + 1}`;
+    const insertBtn = toolButton('chord-add', '+', insertLabel,
+      () => askInsertBar(i), true);
+    // The face is a bare +, so the name of the thing it adds is said here.
+    insertBtn.setAttribute('aria-label', insertLabel);
     head.appendChild(insertBtn);
     head.appendChild(barNumber(i, spans[i].start));
     // A bar with a time on it carries the loop controls for that moment; one
@@ -1557,6 +1566,18 @@ function barOpensOnTie(bar) {
   return false;
 }
 
+// The three steps that follow an edit made on the row rather than in the text
+// box: the cached spans are worked out per parse, so a bar added or a bar line
+// moved leaves them describing the sheet as it was — recompute, write the text
+// back out, and redraw from the cache rather than from the text just written.
+// `source` reaches writeSheetFromCache, which uses it to decide what the edit
+// was for the history it keeps.
+function commitChordEdit(source) {
+  chordCache.spans = Chords.resolveSpans(chordCache.bars);
+  writeSheetFromCache(source);
+  renderChordStrip(true);
+}
+
 // A bar that isn't there yet. It starts where the last one ends, which is what
 // a transcription does — bar after bar — and at the playhead when there is no
 // last one to follow. The bar arrives holding one empty chord, so it is a cell
@@ -1564,32 +1585,23 @@ function barOpensOnTie(bar) {
 // sheet still keeps nothing until something is actually typed or tapped.
 function addBar() {
   const bars = chordCache.bars;
-  const spans = Chords.resolveSpans(bars);
-  const last = spans[spans.length - 1];
+  // The cache's own spans, not a fresh resolve: they are the resolve of these
+  // same bars, kept in step by every edit that touches them.
+  const last = chordCache.spans[chordCache.spans.length - 1];
   const after = last ? (last.end !== null ? last.end : last.start) : null;
   const start = roundTo(
     after === null ? settledTime(currentPlaybackTime()) : after, 2);
   bars.push({ start, end: null, chords: [{ name: '', markers: null }] });
-  // The cached spans are worked out per parse, and this adds a bar to that parse
-  // without going back through it — so they are recomputed here or the new bar
-  // has no timing at all.
-  chordCache.spans = Chords.resolveSpans(bars);
-  writeSheetFromCache();
-  renderChordStrip(true);
+  commitChordEdit();
   // Straight into the bar just made: the button was pressed to write something,
   // and the board is where writing happens.
   openNotePanel(chordCache.bars.length - 1, 0);
 }
 
 function addBarButton() {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'chord-add-bar';
-  b.textContent = '+ Bar';
-  b.title = 'Add a bar, starting where the last one ends';
-  b.addEventListener('mousedown', e => e.preventDefault());
-  b.addEventListener('click', e => { e.preventDefault(); addBar(); });
-  return b;
+  // No stop: this one sits past the last bar, with no cell under it to guard.
+  return toolButton('chord-add-bar', '+ Bar',
+    'Add a bar, starting where the last one ends', addBar);
 }
 
 // When the new bar starts, asked before it is made. The video is somewhere in
@@ -1637,9 +1649,7 @@ function insertBar(at, start) {
     end: null,
     chords: [{ name: '', markers: null }],
   });
-  chordCache.spans = Chords.resolveSpans(bars);
-  writeSheetFromCache();
-  renderChordStrip(true);
+  commitChordEdit();
   // Straight into the bar just made: it was asked for in order to write in it.
   openNotePanel(at, 0);
 }
@@ -1658,20 +1668,8 @@ function barNumber(index, start) {
     label.textContent = text;
     return label;
   }
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'chord-bar-no';
-  b.textContent = text;
-  b.title = `Jump to bar ${text} — ${formatTime(start)}`;
-  // Same reason as the chord ops: taking focus can blur an open box, which
-  // writes the sheet back and redraws the strip out from under this click.
-  b.addEventListener('mousedown', e => e.preventDefault());
-  b.addEventListener('click', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    seekToTime(start);
-  });
-  return b;
+  return toolButton('chord-bar-no', text, `Jump to bar ${text} — ${formatTime(start)}`,
+    () => seekToTime(start), true);
 }
 
 // The time in a bar head, which is also how a loop is marked out from the
@@ -1693,11 +1691,15 @@ function barTimePins(index, span) {
   const wrap = document.createElement('span');
   wrap.className = 'chord-bar-time';
 
-  const face = document.createElement('button');
-  face.type = 'button';
-  face.className = 'chord-time-face';
-  face.textContent = formatTime(time);
-  face.title = 'Use this time as the loop start or end';
+  const face = toolButton('chord-time-face', formatTime(time),
+    'Use this time as the loop start or end', () => {
+      const wasOpen = wrap.classList.contains('open');
+      closeChordTimePins();
+      if (!wasOpen) {
+        wrap.classList.add('open');
+        openTimePins = wrap;
+      }
+    }, true);
 
   const pins = document.createElement('span');
   pins.className = 'chord-time-pins';
@@ -1708,20 +1710,10 @@ function barTimePins(index, span) {
   refused.className = 'chord-time-err';
   refused.hidden = true;
   const pin = (text, title, input, at) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'chord-time-pin';
-    b.textContent = text;
-    b.title = at === null
-      ? 'This bar has no end yet — give the next bar a time, or write this one as @start-end'
-      : title;
-    b.disabled = at === null;
-    // Same reason as the chord ops: taking focus can blur an open box, which
-    // writes the sheet back and redraws the strip out from under this click.
-    b.addEventListener('mousedown', e => e.preventDefault());
-    b.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
+    const known = at !== null;
+    const b = toolButton('chord-time-pin', text, known ? title
+      : 'This bar has no end yet — give the next bar a time, or write this one as @start-end',
+    () => {
       const value = formatTime(at);
       // A bar picked as the Start after the range's End brings the End along —
       // walking Start down the sheet is the whole point of these — and only an
@@ -1741,7 +1733,8 @@ function barTimePins(index, span) {
       refreshUI();
       handleValueEdit(input);
       closeChordTimePins();
-    });
+    }, true);
+    b.disabled = !known;
     row.appendChild(b);
   };
   pin('start📍', 'Set this bar\'s start as the loop start', startInput, span.start);
@@ -1753,18 +1746,6 @@ function barTimePins(index, span) {
   // listening, not by editing, and having to open the sheet's text box first put
   // the fix a long way from the noticing.
   pins.appendChild(barTimeEditor(index, time));
-
-  face.addEventListener('mousedown', e => e.preventDefault());
-  face.addEventListener('click', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    const wasOpen = wrap.classList.contains('open');
-    closeChordTimePins();
-    if (!wasOpen) {
-      wrap.classList.add('open');
-      openTimePins = wrap;
-    }
-  });
 
   wrap.appendChild(face);
   wrap.appendChild(pins);
@@ -1847,9 +1828,7 @@ function setBarStart(index, t) {
   if (prev && prev.end !== null && was !== null && Math.abs(prev.end - was) <= RANGE_EPS) {
     prev.end = start;
   }
-  chordCache.spans = Chords.resolveSpans(bars);
-  writeSheetFromCache('bar-time');
-  renderChordStrip(true);
+  commitChordEdit('bar-time');
 }
 
 // The box the time is typed in, with the current playback position on a button
@@ -1893,22 +1872,15 @@ function barTimeEditor(index, time) {
     setBarStart(index, t);
   };
 
-  const now = document.createElement('button');
-  now.type = 'button';
-  now.className = 'chord-time-pin';
-  now.textContent = 'now📍';
-  now.title = 'Fill in the current playback time';
-  now.addEventListener('mousedown', e => e.preventDefault());
-  now.addEventListener('click', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Where the row is, not what the player says — the same reading the strip
-    // itself is drawn against. See askInsertBar.
-    box.value = formatTime(settledTime(currentPlaybackTime()));
-    err.hidden = true;
-    ok.classList.add('dirty');
-    box.focus();
-  });
+  const now = toolButton('chord-time-pin', 'now📍',
+    'Fill in the current playback time', () => {
+      // Where the row is, not what the player says — the same reading the strip
+      // itself is drawn against. See askInsertBar.
+      box.value = formatTime(settledTime(currentPlaybackTime()));
+      err.hidden = true;
+      ok.classList.add('dirty');
+      box.focus();
+    }, true);
 
   const ok = document.createElement('button');
   ok.type = 'button';
@@ -1957,44 +1929,36 @@ function currentPlaybackTime() {
   try { return player.getCurrentTime(); } catch (e) { return 0; }
 }
 
-// Where a moment in the music sits along the track. Outside the sheet the
-// nearest bar's speed carries on, so it drifts in and out rather than sticking.
-function chordXForTime(t) {
+// Reading one of an anchor's two numbers off the other. Both axes ascend — the
+// anchors are built left to right and time runs with them — so a single walk
+// does either direction, with `from` naming the axis being searched and `to`
+// the one being read. Outside the sheet the nearest pair's slope carries on, so
+// a point past either end drifts in and out rather than sticking.
+function chordInterp(v, from, to) {
   const a = chordAnchors;
   if (a.length === 0) return 0;
-  if (a.length === 1) return a[0].x;
+  if (a.length === 1) return a[0][to];
   const last = a.length - 1;
-  const between = (i, j) => {
-    const span = a[j].time - a[i].time;
-    return span > 0 ? (a[j].x - a[i].x) / span : 0;
+  const slope = (i, j) => {
+    const span = a[j][from] - a[i][from];
+    return span > 0 ? (a[j][to] - a[i][to]) / span : 0;
   };
-  if (t <= a[0].time) return a[0].x + (t - a[0].time) * between(0, 1);
-  if (t >= a[last].time) return a[last].x + (t - a[last].time) * between(last - 1, last);
+  // Off `at`, along the slope the pair (i, j) describes. Past the ends the
+  // anchor and the pair are not the same two: the walk leans on the last pair
+  // there is and keeps going.
+  const readAt = (at, i, j) => a[at][to] + (v - a[at][from]) * slope(i, j);
+  if (v <= a[0][from]) return readAt(0, 0, 1);
+  if (v >= a[last][from]) return readAt(last, last - 1, last);
   for (let i = 0; i < last; i++) {
-    if (t < a[i + 1].time) return a[i].x + (t - a[i].time) * between(i, i + 1);
+    if (v < a[i + 1][from]) return readAt(i, i, i + 1);
   }
-  return a[last].x;
+  return a[last][to];
 }
 
-// The inverse: where along the track a point sits, in seconds. Anchors are
-// built left to right, so their x is already ascending and the same walk works
-// on either axis.
-function chordTimeForX(x) {
-  const a = chordAnchors;
-  if (a.length === 0) return 0;
-  if (a.length === 1) return a[0].time;
-  const last = a.length - 1;
-  const between = (i, j) => {
-    const span = a[j].x - a[i].x;
-    return span > 0 ? (a[j].time - a[i].time) / span : 0;
-  };
-  if (x <= a[0].x) return a[0].time + (x - a[0].x) * between(0, 1);
-  if (x >= a[last].x) return a[last].time + (x - a[last].x) * between(last - 1, last);
-  for (let i = 0; i < last; i++) {
-    if (x < a[i + 1].x) return a[i].time + (x - a[i].x) * between(i, i + 1);
-  }
-  return a[last].time;
-}
+// Where a moment in the music sits along the track, and the inverse: where
+// along the track a point sits, in seconds.
+function chordXForTime(t) { return chordInterp(t, 'time', 'x'); }
+function chordTimeForX(x) { return chordInterp(x, 'x', 'time'); }
 
 // A transform and nothing else, so the compositor can carry it without a
 // layout pass. Both the clock and the dragging hand come through here.
@@ -2045,8 +2009,7 @@ function settledTime(t) {
   // yet reports 0 for as long as it stays stopped, and giving up on the seek then
   // snaps the row back to the head of the track — the drag looks undone, until
   // the video is played once and the clock starts telling the truth.
-  if (safeState() === (window.YT && YT.PlayerState.PLAYING)
-      && performance.now() > pendingSeek.until) {
+  if (isPlaying() && performance.now() > pendingSeek.until) {
     pendingSeek = null;
     return t;
   }
@@ -2114,7 +2077,7 @@ function seekToTime(t) {
   // seekTo while PLAYING bounces the player through BUFFERING back to PLAYING;
   // claim that as ours so the state handler doesn't read it as someone else
   // starting playback and pause it for the warm-up delay.
-  const playing = safeState() === (window.YT && YT.PlayerState.PLAYING);
+  const playing = isPlaying();
   if (playing) intentionalPlay = true;
   else seekWhilePaused = true;
   player.seekTo(time, true);
@@ -2201,9 +2164,16 @@ chordViewport.addEventListener('click', e => {
   e.stopPropagation();
 }, true);
 
-// A note in the strip is a way into the panel: clicking one opens the stretch it
-// belongs to and selects it. Only while editing — with the editor closed the
-// strip is something you read, and a click on it is the fretboard-viewer link.
+// Which bar an element in the row belongs to. Null when it belongs to none —
+// which every caller treats as "not a press on the sheet" rather than bar 0.
+function barAt(el) {
+  const barEl = el && el.closest('.chord-bar');
+  return barEl ? Number(barEl.dataset.bar) : null;
+}
+
+// What a press on the row does. Two things are answered in either mode — a
+// chord's name goes out to the fretboard viewer, and a note is a way into the
+// panel — and the empty width between notes is answered only while editing.
 chordStrip.addEventListener('click', e => {
   if (!e.target.closest) return;
   // A chord's name, where it is written on the staff: the way out to the viewer,
@@ -2213,8 +2183,8 @@ chordStrip.addEventListener('click', e => {
   // that answers a press in one mode and ignores it in the other reads as broken.
   const named = e.target.closest('.staff-name');
   if (named) {
-    const barEl = named.closest('.chord-bar');
-    const bar = barEl && chordCache.bars[Number(barEl.dataset.bar)];
+    const at = barAt(named);
+    const bar = at === null ? null : chordCache.bars[at];
     const chord = bar && bar.chords[Number(named.dataset.chord)];
     if (chord) {
       e.preventDefault();
@@ -2222,56 +2192,56 @@ chordStrip.addEventListener('click', e => {
       return;
     }
   }
-  // With the editor closed a note is still a way in: pressing one opens editing
-  // on that note. Asking for the mode first and then for the note again is two
-  // steps to say one thing, and the note pressed is the note meant.
-  if (chordEditor.hidden) {
-    const shut = e.target.closest('.staff-hit');
-    if (!shut) return;
-    const barEl = shut.closest('.chord-bar');
-    if (!barEl) return;
-    e.preventDefault();
+  // A note is a way in whichever mode the row is in: with the editor open it
+  // moves the selection, and with it closed it opens editing on that note.
+  // Asking for the mode first and then for the note again was two steps to say
+  // one thing, so the note is asked for once and the mode only decides what
+  // else has to happen around the selection.
+  const hit = e.target.closest('.staff-hit');
+  if (hit) {
     // Read before the strip is rebuilt: opening the editor draws it again, and
     // the element these came off is gone by then.
-    const bar = Number(barEl.dataset.bar);
-    const chord = Number(shut.dataset.chord);
-    const note = Number(shut.dataset.note);
-    // Opened on a shape, the board opens ready to write one. Correcting a chord
-    // starts with a tap on one of its strings, and with stacking off that first
-    // tap threw the rest of the shape away — the one press that meant "this
-    // string, not that one" wiped the four that were right. A single note opens
-    // as it always did, replacing.
-    noteStack = stopCountAt(bar, chord, note) >= 2;
+    const bar = barAt(hit);
+    if (bar === null) return;
+    e.preventDefault();
+    const chord = Number(hit.dataset.chord);
+    const note = Number(hit.dataset.note);
+    const wasShut = chordEditor.hidden;
     // Opening the editor puts the box and the versions list above the strip, and
     // everything under them moves down by their height — the note just pressed
     // included, which walks out from under the finger that pressed it. So the
     // page is scrolled by however far the strip actually moved, leaving what was
     // pressed where it was pressed.
-    const wasAt = chordViewport.getBoundingClientRect().top;
-    openChordEditor(false);
+    const wasAt = wasShut ? chordViewport.getBoundingClientRect().top : 0;
+    if (wasShut) {
+      // Opened on a shape, the board opens ready to write one. Correcting a
+      // chord starts with a tap on one of its strings, and with stacking off
+      // that first tap threw the rest of the shape away — the one press that
+      // meant "this string, not that one" wiped the four that were right. A
+      // single note opens as it always did, replacing.
+      noteStack = stopCountAt(bar, chord, note) >= 2;
+      openChordEditor(false);
+    }
     selectNote(bar, chord, note);
-    const moved = chordViewport.getBoundingClientRect().top - wasAt;
-    if (moved) window.scrollBy({ top: moved, behavior: 'instant' });
-    focusNotePanel();
+    if (wasShut) {
+      const moved = chordViewport.getBoundingClientRect().top - wasAt;
+      if (moved) window.scrollBy({ top: moved, behavior: 'instant' });
+      focusNotePanel();
+    }
     return;
   }
-  const hit = e.target.closest('.staff-hit');
-  if (hit) {
-    const barEl = hit.closest('.chord-bar');
-    if (!barEl) return;
-    e.preventDefault();
-    selectNote(Number(barEl.dataset.bar), Number(hit.dataset.chord), Number(hit.dataset.note));
-    return;
-  }
+  // Past here is editing only: with the editor closed the row is something you
+  // read, and the empty width between notes has nothing to open.
+  if (chordEditor.hidden) return;
   // Anywhere else in a stretch's own width opens the board on it, at the place
   // writing goes. It is the only way into a stretch with nothing in it: there is
   // no note there to press.
   const slot = e.target.closest('.staff-slot');
   if (slot) {
-    const barEl = slot.closest('.chord-bar');
-    if (barEl) {
+    const bar = barAt(slot);
+    if (bar !== null) {
       e.preventDefault();
-      openNotePanel(Number(barEl.dataset.bar), Number(slot.dataset.slot));
+      openNotePanel(bar, Number(slot.dataset.slot));
       return;
     }
   }
@@ -2622,11 +2592,11 @@ function chordMarkersToStop(chord) {
   (chord.markers || []).forEach((fret, i) => {
     if (fret !== null) stops.push({ string: i + 1, fret });
   });
-  if (!stops.length) return -1;
+  // A name with no frets under it is already written the one way.
+  if (!stops.length) return;
   chord.notes = chord.notes || [];
   chord.notes.unshift({ d: 1, stops, free: true });
   chord.markers = null;
-  return 0;
 }
 
 // MIGRATION (temporary): the same turn for a whole sheet at once. Every chord
@@ -2681,9 +2651,7 @@ function markNoteSelection() {
   const after = noteAfter !== null ? null
     : (noteSel === null && notes.length ? notes.length - 1 : null);
   for (const hit of chordStrip.querySelectorAll('.staff-hit')) {
-    const barEl = hit.closest('.chord-bar');
-    const here = !!notePanelAt && !!barEl
-      && Number(barEl.dataset.bar) === notePanelAt.bar
+    const here = !!notePanelAt && barAt(hit) === notePanelAt.bar
       && Number(hit.dataset.chord) === notePanelAt.chord;
     const index = Number(hit.dataset.note);
     hit.classList.toggle('on', here && index === noteSel);
@@ -2692,9 +2660,7 @@ function markNoteSelection() {
   // And the mark for a stretch with nothing in it, which is where writing starts
   // when there is no note to write after.
   for (const caret of chordStrip.querySelectorAll('.staff-caret')) {
-    const barEl = caret.closest('.chord-bar');
-    const on = !notes.length && !!notePanelAt && !!barEl
-      && Number(barEl.dataset.bar) === notePanelAt.bar
+    const on = !notes.length && !!notePanelAt && barAt(caret) === notePanelAt.bar
       && Number(caret.dataset.caret) === notePanelAt.chord;
     caret.classList.toggle('on', on);
   }
@@ -2714,7 +2680,7 @@ function markNoteSelection() {
 function keepCaretInView() {
   if (!notePanelAt || chordEditor.hidden || !getChordsVisible()) return;
   if (chordViewport.hidden || chordDrag) return;
-  if (safeState() === (window.YT && YT.PlayerState.PLAYING)) return;
+  if (isPlaying()) return;
   // What is being written on, in the order the marks mean: the note selected,
   // the empty stretch's caret, then the place after the last note — which is
   // where writing sits when nothing is selected.
@@ -2774,8 +2740,9 @@ function commitNotes() {
   // than at each caller: everything the board does comes through this door.
   pushNoteUndo();
   writeSheetFromCache('notes');
+  // The redraw ends by drawing the panel against the same parse, so the panel is
+  // not asked for again here — see the tail of drawChordStrip.
   renderChordStrip(true);
-  renderNotePanel();
 }
 
 // Back to writing at the end of the stretch: nothing selected, and no room being
@@ -2784,8 +2751,10 @@ function endNoteWriting() {
   const wasOpen = noteAfter !== null;
   noteSel = null;
   noteAfter = null;
+  // A redraw draws the panel itself; without one the panel still has to hear
+  // that nothing is selected any more.
   if (wasOpen) renderChordStrip(true);
-  renderNotePanel();
+  else renderNotePanel();
   markNoteSelection();
 }
 
@@ -2803,7 +2772,6 @@ function insertAfterNote() {
   noteAfter = at;
   noteSel = null;
   renderChordStrip(true);
-  renderNotePanel();
   markNoteSelection();
 }
 
@@ -4461,12 +4429,21 @@ function getSheet(vid) {
   return (v && v.sheet) || '';
 }
 
+// The record a video gets the first time this browser has anything to keep for
+// it, made if it isn't there and returned either way. The title is the one the
+// caller knows — the player's, for a video being played here; none at all for
+// one arriving from a backup file, which carries its own.
+function ensureVideo(data, vid, title) {
+  if (!data.videos[vid]) {
+    data.videos[vid] = { title: title || '', sheet: '', history: [], revisions: [] };
+  }
+  return data.videos[vid];
+}
+
 function setSheet(vid, text) {
   if (!vid) return;
   const data = loadData();
-  if (!data.videos[vid]) {
-    data.videos[vid] = { title: currentVideoTitle || '', sheet: '', history: [], revisions: [] };
-  }
+  ensureVideo(data, vid, currentVideoTitle);
   data.videos[vid].sheet = text;
   if (vid === currentVideoId && currentVideoTitle) data.videos[vid].title = currentVideoTitle;
   saveData(data);
@@ -4484,10 +4461,7 @@ function getRevisions(vid) {
 function pushRevision(vid, text) {
   if (!vid) return false;
   const data = loadData();
-  if (!data.videos[vid]) {
-    data.videos[vid] = { title: currentVideoTitle || '', sheet: '', history: [], revisions: [] };
-  }
-  const v = data.videos[vid];
+  const v = ensureVideo(data, vid, currentVideoTitle);
   if (!Array.isArray(v.revisions)) v.revisions = [];
   if (v.revisions.length && v.revisions[0].text === text) return false;
   v.revisions.unshift({ id: newEntryId(), at: Date.now(), text });
@@ -4582,19 +4556,16 @@ function migrateLegacyData() {
 // the list readable when you loop the same four bars twenty times.
 function recordHistory() {
   if (!currentVideoId) return;
-  const start = parseTime(startInput.value);
-  const end   = parseTime(endInput.value);
-  if (start === null || end === null || isNaN(start) || isNaN(end) || start >= end) return;
+  const r = formRange();
+  if (!r || r.start >= r.end) return;
+  const { start, end } = r;
   // The chosen speed, not the ramp's live one — a ramp run would otherwise log
   // a separate entry for every lap it climbs.
   const speed = effectiveSpeed();
   const note  = noteInput.value.trim();
 
   const data = loadData();
-  if (!data.videos[currentVideoId]) {
-    data.videos[currentVideoId] = { title: currentVideoTitle || '', sheet: '', history: [] };
-  }
-  const video = data.videos[currentVideoId];
+  const video = ensureVideo(data, currentVideoId, currentVideoTitle);
   if (currentVideoTitle) video.title = currentVideoTitle;
 
   const existing = video.history.find(h => sameRange(h, start, end, speed));
@@ -4622,10 +4593,10 @@ function recordHistory() {
 // it — null when nothing was written.
 function updateLiveEntry() {
   if (!liveEntryId || !currentVideoId) return null;
-  if (safeState() !== (window.YT && YT.PlayerState.PLAYING)) return null;
-  const start = parseTime(startInput.value);
-  const end   = parseTime(endInput.value);
-  if (start === null || end === null || isNaN(start) || isNaN(end) || start >= end) return null;
+  if (!isPlaying()) return null;
+  const r = formRange();
+  if (!r || r.start >= r.end) return null;
+  const { start, end } = r;
   const speed = effectiveSpeed();
   const note  = noteInput.value.trim();
 
@@ -4924,8 +4895,7 @@ document.addEventListener('keydown', e => {
   if (e.code === 'Space') {
     e.preventDefault();
     if (cancelPendingPlay()) { updatePlayButton(); return; }
-    const state = safeState();
-    if (state === (window.YT && YT.PlayerState.PLAYING)) player.pauseVideo();
+    if (isPlaying()) player.pauseVideo();
     else startPlaybackWithDelay();
   } else if (e.key === 'a' || e.key === 'A') {
     // Not S, which is stack while the note panel is open: one key doing two
@@ -5146,10 +5116,7 @@ importApplyBtn.addEventListener('click', () => {
   (perVideo ? vids : []).forEach(vid => {
     const src = pendingBackup.videos[vid];
     if (!src) return;
-    if (!data.videos[vid]) {
-      data.videos[vid] = { title: '', sheet: '', history: [], revisions: [] };
-    }
-    const dst = data.videos[vid];
+    const dst = ensureVideo(data, vid);
     // The title comes along with whatever is taken: without it a video new to
     // this browser would sit in History as a bare id until it is next played.
     if (src.title) dst.title = src.title;

@@ -2968,12 +2968,12 @@ const Chords = (() => {
     romanNumeral,
     staffRange, staffBar, staffHead, staffHeadWidth,
     // single notes
-    parseNoteToken, parseDur, durText, notesToText, noteBeats, eventDur, isDottedDur,
+    noteBeats, eventDur, isDottedDur,
     tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, beatWeights,
-    isTripletDur, tripletBase, tripletGroups, tripletGlyph, beamGlyph, graceGlyph, deadGlyph,
+    tripletBase, tripletGroups, tripletGlyph, beamGlyph, graceGlyph, deadGlyph,
     dotGlyph, tieGlyph,
     BEATS_PER_BAR,
-    stopsToMarkers, stopShapes, rulingNames, rulingWalk, rulingBefore, rulingAt,
+    stopShapes, rulingNames, rulingWalk, rulingBefore, rulingAt,
     isBassOnly, carriedStops, soundingBefore, markDeadCell,
   };
 })();
