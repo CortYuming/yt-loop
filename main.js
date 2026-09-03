@@ -3877,6 +3877,12 @@ function renderNotePanel() {
 
   notePanel.appendChild(noteHelpBox());
 
+  notePanel.appendChild(noteBoard(ruling, boardMode, ev));
+}
+
+// The neck, where the notes are tapped out — and where what is already written
+// can be read back.
+function noteBoard(ruling, boardMode, ev) {
   const boardWrap = document.createElement('div');
   boardWrap.className = 'note-board';
   const boardSvg = Chords.board(ruling, boardMode, currentChordKey());
@@ -3901,7 +3907,7 @@ function renderNotePanel() {
     if (!cell) return;
     pressStop(Number(cell.dataset.string), Number(cell.dataset.fret));
   });
-  notePanel.appendChild(boardWrap);
+  return boardWrap;
 }
 
 // The keys behind a ?, rather than a line of them under the tools. Every one of
