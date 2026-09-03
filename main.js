@@ -3643,6 +3643,33 @@ function selectNote(barIndex, chordIndex, index) {
   markNoteSelection();
 }
 
+// One labelled row of tools, hung on the panel's rows.
+function noteToolRow(rows, label) {
+  const r = document.createElement('div');
+  r.className = 'note-row';
+  const name = document.createElement('span');
+  name.className = 'note-row-label';
+  name.textContent = label;
+  r.appendChild(name);
+  rows.appendChild(r);
+  return r;
+}
+
+// One tool in a row. `on` is the lit state — what the button is saying about the
+// note or the board right now — and `cls` any extra class the face wants.
+function noteToolButton(into, content, title, run, on, cls) {
+  return into.appendChild(
+    toolButton('note-tool' + (cls ? ` ${cls}` : '') + (on ? ' on' : ''),
+      content, title, run));
+}
+
+// A space between two groups of tools within one row.
+function noteToolGap(into) {
+  const d = document.createElement('span');
+  d.className = 'note-tool-gap';
+  into.appendChild(d);
+}
+
 function renderNotePanel() {
   if (!notePanel) return;
   const chord = noteStretch();
@@ -3684,24 +3711,9 @@ function renderNotePanel() {
   // which of them belonged together, and it only ever grew.
   const rows = document.createElement('div');
   rows.className = 'note-rows';
-  const row = label => {
-    const r = document.createElement('div');
-    r.className = 'note-row';
-    const name = document.createElement('span');
-    name.className = 'note-row-label';
-    name.textContent = label;
-    r.appendChild(name);
-    rows.appendChild(r);
-    return r;
-  };
-  const button = (into, content, title, run, on, cls) => into.appendChild(
-    toolButton('note-tool' + (cls ? ` ${cls}` : '') + (on ? ' on' : ''),
-      content, title, run));
-  const gap = into => {
-    const d = document.createElement('span');
-    d.className = 'note-tool-gap';
-    into.appendChild(d);
-  };
+  const row = label => noteToolRow(rows, label);
+  const button = noteToolButton;
+  const gap = noteToolGap;
 
   // ---- what chord ----
   // The name over what is selected. On a note it names that note — a chord
