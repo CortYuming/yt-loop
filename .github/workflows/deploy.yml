@@ -29,10 +29,7 @@ jobs:
       - name: Check the sheet notation
         run: node scripts/check.js
       - name: Assemble the site with a fresh cache buster
-        run: |
-          mkdir _site
-          cp index.html main.js chords.js sheet.js style.css _site/
-          ./scripts/bump-cache-buster.sh _site
+        run: ./scripts/assemble-site.sh _site
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

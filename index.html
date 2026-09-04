@@ -245,10 +245,11 @@
 
 <!-- The version query is a cache buster: GitHub Pages serves assets with max-age=600, so a
      deploy without it leaves browsers on the old script for up to 10 minutes.
-     The deploy workflow rewrites every value to a hash of the file it points at, so the
-     numbers committed here are placeholders and need no hand editing. Run
-     scripts/bump-cache-buster.sh to refresh them locally. A hand-kept counter used to get
-     reused across changes, which left the browser on stale files while they were tested. -->
+     scripts/assemble-site.sh rewrites every value to a hash of the file it points at, so
+     the numbers committed here are placeholders and need no hand editing. A hand-kept counter
+     used to get reused across changes, which left the browser on stale files while they were
+     tested. These ?v= references are also the deploy's only list of files to copy, so a new
+     script or stylesheet belongs here and nowhere else. -->
 <script src="chords.js?v=b822515e"></script>
 <script src="sheet.js?v=00000000"></script>
 <script src="main.js?v=f9d99aa0"></script>
