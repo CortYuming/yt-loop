@@ -42,6 +42,10 @@ header,
 .player-wrap,
 .controls,
 .chord-toolbar,
+/* The Note box moved out of the controls and into the chord section, whose own
+   children are capped one by one — .chord-viewport is deliberately not, since the
+   strip wants every pixel. Without this the box alone ran the full window. */
+.chords > .note-row,
 .chord-editor,
 .note-panel,
 .loops,
@@ -143,6 +147,14 @@ button.primary:hover {
   flex-wrap: wrap;
 }
 .controls .row.buttons { margin-top: 4px; }
+/* Sharing is something you do once a session, not while you play. Sized under
+   the transport beside them, so the row reads as two jobs rather than four
+   buttons of equal weight. */
+#shareBtn,
+#shareMdBtn {
+  padding: 3px 8px;
+  font-size: 12px;
+}
 
 .start-end-row {
   gap: 12px;
@@ -187,6 +199,8 @@ button.primary:hover {
   color: var(--sub);
   margin-top: 8px;
 }
+/* First in the controls, not last — see index.html. */
+.controls > .hint { margin-top: 0; margin-bottom: 10px; }
 
 .speed-slider {
   display: inline-flex;
@@ -470,10 +484,14 @@ button.pin {
 /* ---------- Chord sheet ---------- */
 /* The section heading moved into the toolbar: between the video and the
    controls, a whole row for one word was height the sheet could be using. */
+/* The word is the jump: clicking it scrolls the sheet up to the top of the
+   window, which is what F does from the keyboard. */
 .chord-label {
   font-size: 14px;
   font-weight: bold;
+  cursor: pointer;
 }
+.chord-label:hover { color: var(--blue); }
 /* Smaller than the Loop switch — this one is a corner of a toolbar, not a
    control you reach for mid-phrase. */
 .toggle-switch.small .toggle-track { width: 28px; height: 16px; }
@@ -597,7 +615,8 @@ button.pin {
   font-size: 11px;
   font-family: "SF Mono", Menlo, Consolas, monospace;
 }
-.chord-editor { margin-bottom: 12px; }
+/* Under the strip rather than over it, so the gap it needs is the one above. */
+.chord-editor { margin-block: 12px; }
 .chord-editor textarea {
   width: 100%;
   background: var(--panel);
@@ -1262,14 +1281,14 @@ footer {
 .note-panel-close:hover { border-color: var(--border); color: var(--text); }
 /* A row per job — how long, what to write, what to fix — with the job named at
    the left, so a button says which of the three it belongs to by where it is. */
-.note-rows { display: flex; flex-direction: column; gap: 6px; }
-.note-row {
+.note-panel-rows { display: flex; flex-direction: column; gap: 6px; }
+.note-panel-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
 }
-.note-row-label {
+.note-panel-row-label {
   flex: none;
   width: 46px;
   color: var(--sub);

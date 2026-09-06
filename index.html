@@ -24,6 +24,14 @@
   </section>
 
   <section class="controls" hidden>
+    <!-- At the head of the controls rather than the foot of them: F scrolls the
+         page so the row below this one sits at the top, and a block of grey text
+         between Start / End and the sheet's own toolbar split the three rows that
+         landing is meant to keep together. -->
+    <div class="hint">
+      Space: play / pause &nbsp;·&nbsp; A: jump to start &nbsp;·&nbsp; L: loop on / off &nbsp;·&nbsp; F: jump to the sheet &nbsp;·&nbsp; ← →: seek 0.05s (Shift: 1s) &nbsp;·&nbsp; Shift + ← → in Start/End: nudge the value by 0.05s
+    </div>
+
     <div class="row buttons">
       <button id="playLoopBtn">▶ Play</button>
       <label class="toggle-switch">
@@ -85,21 +93,12 @@
       </div>
     </div>
 
-    <div class="row note-row">
-      <label class="field-group note-field">
-        <span class="field-label">Note</span>
-        <input type="text" id="noteInput" maxlength="30" placeholder="e.g. chorus, solo, hard part" />
-      </label>
-    </div>
 
-    <div class="hint">
-      Space: play / pause &nbsp;·&nbsp; A: jump to start &nbsp;·&nbsp; L: loop on / off &nbsp;·&nbsp; ← →: seek 0.05s (Shift: 1s) &nbsp;·&nbsp; Shift + ← → in Start/End: nudge the value by 0.05s
-    </div>
   </section>
 
   <section class="chords" hidden>
     <div class="row chord-toolbar">
-      <span class="chord-label">Sheet</span>
+      <span class="chord-label" title="Bring the sheet to the top (F)">Sheet</span>
       <label class="toggle-switch small" title="Show the sheet">
         <input type="checkbox" id="chordShowToggle" checked />
         <span class="toggle-track"><span class="toggle-thumb"></span></span>
@@ -164,6 +163,22 @@
       </span>
     </div>
 
+    <div class="chord-viewport" id="chordViewport">
+      <div class="chord-track" id="chordStrip"></div>
+      <div class="chord-playhead"></div>
+    </div>
+
+    <!-- The ♪ panel: the whole neck, for writing the notes played over one
+         chord. Under the strip rather than in it, since the strip scrolls. -->
+    <div class="note-panel" id="notePanel" hidden></div>
+
+    <div class="row note-row">
+      <label class="field-group note-field">
+        <span class="field-label">Note</span>
+        <input type="text" id="noteInput" maxlength="30" placeholder="e.g. chorus, solo, hard part" />
+      </label>
+    </div>
+
     <div class="chord-editor" hidden>
       <textarea id="chordInput" rows="6" spellcheck="false"
                 placeholder="@43.50 Bb9:1.1.1.0.. Eb9:.6.6.5.6. | @45.90 D7+9:.6.5.4.5."></textarea>
@@ -184,14 +199,6 @@
       </div>
     </div>
 
-    <div class="chord-viewport" id="chordViewport">
-      <div class="chord-track" id="chordStrip"></div>
-      <div class="chord-playhead"></div>
-    </div>
-
-    <!-- The ♪ panel: the whole neck, for writing the notes played over one
-         chord. Under the strip rather than in it, since the strip scrolls. -->
-    <div class="note-panel" id="notePanel" hidden></div>
   </section>
 
   <section class="loops">

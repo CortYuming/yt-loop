@@ -242,6 +242,7 @@ function fillDefaultEnd() {
 const urlInput        = document.getElementById('urlInput');
 const loadBtn         = document.getElementById('loadBtn');
 const controls        = document.querySelector('.controls');
+const buttonsRow      = document.querySelector('.controls .row.buttons');
 const currentTimeEl   = document.getElementById('currentTime');
 const durationDisplay = document.getElementById('durationDisplay');
 const speedSelect     = document.getElementById('speedSelect');
@@ -263,6 +264,7 @@ const shareMdBtn      = document.getElementById('shareMdBtn');
 const loopList        = document.getElementById('loopList');
 const chordSection    = document.querySelector('.chords');
 const chordToolbar    = document.querySelector('.chord-toolbar');
+const chordLabel      = document.querySelector('.chord-label');
 const chordEditor     = document.querySelector('.chord-editor');
 const chordEditBtn    = document.getElementById('chordEditBtn');
 const chordInput      = document.getElementById('chordInput');
@@ -2128,12 +2130,6 @@ chordStrip.addEventListener('click', e => {
   const chord = hit ? Number(hit.dataset.chord) : Number(slot.dataset.slot);
   const note = hit ? Number(hit.dataset.note) : null;
   const wasShut = chordEditor.hidden;
-  // Opening the editor puts the box and the versions list above the strip, and
-  // everything under them moves down by their height — the note just pressed
-  // included, which walks out from under the finger that pressed it. So the
-  // page is scrolled by however far the strip actually moved, leaving what was
-  // pressed where it was pressed.
-  const wasAt = wasShut ? chordViewport.getBoundingClientRect().top : 0;
   if (wasShut) {
     // Opened on a shape, the board opens ready to write one. Correcting a
     // chord starts with a tap on one of its strings, and with stacking off
@@ -2148,11 +2144,11 @@ chordStrip.addEventListener('click', e => {
   // nothing in it: there is no note there to press.
   if (hit) selectNote(at, chord, note);
   else openNotePanel(at, chord);
-  if (wasShut) {
-    const moved = chordViewport.getBoundingClientRect().top - wasAt;
-    if (moved) window.scrollBy({ top: moved, behavior: 'instant' });
-    focusNotePanel();
-  }
+  // The editor opens below the strip, so the strip stays where it is and the
+  // note just pressed stays under the finger that pressed it. While the editor
+  // sat above, opening it pushed the strip down by its whole height, and the
+  // page had to be scrolled by that much to undo the shove.
+  if (wasShut) focusNotePanel();
 });
 
 window.addEventListener('resize', () => {
@@ -2736,9 +2732,9 @@ function noteFixRow(rows, notes, ev, ruling, boardMode) {
 // One labelled row of tools, hung on the panel's rows.
 function noteToolRow(rows, label) {
   const r = document.createElement('div');
-  r.className = 'note-row';
+  r.className = 'note-panel-row';
   const name = document.createElement('span');
-  name.className = 'note-row-label';
+  name.className = 'note-panel-row-label';
   name.textContent = label;
   r.appendChild(name);
   rows.appendChild(r);
@@ -2800,7 +2796,7 @@ function renderNotePanel() {
   // to write, and what to fix. One row of fifteen buttons said nothing about
   // which of them belonged together, and it only ever grew.
   const rows = document.createElement('div');
-  rows.className = 'note-rows';
+  rows.className = 'note-panel-rows';
   noteChordRow(rows, chord, notes, ev);
   noteLengthRow(rows, ev);
   noteWriteRow(rows, ev);
@@ -3228,6 +3224,19 @@ function toggleChordEditor(focusInput) {
   syncChordEditMode();
   renderChordStrip();
 }
+
+// The sheet to the top of the window. What lands there is the row of play
+// controls, not the sheet's own toolbar: reading the sheet and trimming the
+// range are the same sitting, and the clock and Start / End lie between the two
+// — put the toolbar at the top and they are the rows that go off the screen.
+function jumpToSheet() {
+  buttonsRow.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+
+// The word Sheet is the way there. Left a span rather than made a button: a
+// focused button takes Space, and Space is play / pause. From the keyboard it is
+// F, which needs no focus at all.
+chordLabel.addEventListener('click', jumpToSheet);
 
 chordEditBtn.addEventListener('click', () => toggleChordEditor(true));
 
@@ -3912,6 +3921,12 @@ document.addEventListener('keydown', e => {
     // The guard above means this never fires while a box holds the caret.
     e.preventDefault();
     toggleChordEditor(false);
+  } else if (e.key === 'f' || e.key === 'F') {
+    // Reading the sheet is the whole of a practice session, and the page opens
+    // with a video above it. Next to E, since going to the sheet and opening it
+    // to write are the two halves of the same move.
+    e.preventDefault();
+    jumpToSheet();
   } else if (e.key === 'ArrowLeft') {
     e.preventDefault();
     const step = e.shiftKey ? 1 : 0.05;
