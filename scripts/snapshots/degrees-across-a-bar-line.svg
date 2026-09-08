@@ -20,6 +20,8 @@
   <line x1="118.417" y1="56.65" x2="118.417" y2="56.65" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="23.417" y1="56.65" x2="118.417" y2="56.65" stroke="#dcdcdc" stroke-width="3.91"></line>
   <text x="10.583" y="233.75" class="staff-degree" fill="#ddd" font-size="14" text-anchor="start" font-family="Georgia, serif" font-weight="600">III</text>
+  <circle class="staff-degree-dot" cx="43.864999999999995" cy="228.99" r="8.8" fill="#9cc267"></circle>
+  <text x="43.864999999999995" y="233.60500000000002" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">m</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="238.35" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="238.35" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>

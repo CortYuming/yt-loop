@@ -54,8 +54,14 @@
   <line x1="662.3122500000001" y1="102.65" x2="662.3122500000001" y2="62.4" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="388.5" y1="62.4" x2="662.3122500000001" y2="62.4" stroke="#dcdcdc" stroke-width="3.91"></line>
   <text x="10.583" y="233.75" class="staff-degree" fill="#ddd" font-size="14" text-anchor="start" font-family="Georgia, serif" font-weight="600">III</text>
+  <circle class="staff-degree-dot" cx="43.864999999999995" cy="228.99" r="8.8" fill="#9cc267"></circle>
+  <text x="43.864999999999995" y="233.60500000000002" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">m</text>
   <text x="193.1245" y="233.75" class="staff-degree" fill="#ddd" font-size="14" text-anchor="start" font-family="Georgia, serif" font-weight="600">♭VII</text>
+  <circle class="staff-degree-dot" cx="244.83050000000003" cy="228.99" r="8.8" fill="#d888cf"></circle>
+  <text x="244.83050000000003" y="233.25" fill="#ffffff" font-size="12" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">li</text>
   <text x="375.66600000000005" y="233.75" class="staff-degree" fill="#ddd" font-size="14" text-anchor="start" font-family="Georgia, serif" font-weight="600">VI</text>
+  <circle class="staff-degree-dot" cx="407.12800000000004" cy="228.99" r="8.8" fill="#9b7ce6"></circle>
+  <text x="407.12800000000004" y="233.60500000000002" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">l</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="238.35" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="238.35" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>

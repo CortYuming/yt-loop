@@ -1551,6 +1551,24 @@ const Chords = (() => {
   // that cannot be read as markup. Generic `serif` is the fallback anyway, and
   // every one it resolves to has the serifs and the dot this is here for.
   const DEGREE_FONT = 'Georgia, serif';
+  // The gap between a numeral and the dot that follows it, and how wide the
+  // numeral in front of that dot is. The canvas is built with no document to
+  // measure text in, so the width is added up character by character instead —
+  // a numeral is only ever made of these six, and each is written as a fraction
+  // of the size it is set at, measured off the face they are actually set in.
+  // The accidentals are a full em where the letters are half of one: Georgia
+  // carries no ♭ or ♯, so those two come out of whatever the fallback is, and
+  // guessing them at letter width put the dot on top of the numeral it follows.
+  const SOLFA_GAP = SP * 0.5;
+  const NUMERAL_ADVANCE = { I: 0.446, V: 0.762, i: 0.354, v: 0.567, '♭': 1, '♯': 1 };
+  function numeralWidth(numeral) {
+    let w = 0;
+    // A character the table has no width for is counted as a full em, which is
+    // wider than anything a numeral is made of — a dot placed too far out is
+    // read; one placed too near is read over the numeral.
+    for (const c of numeral) w += (NUMERAL_ADVANCE[c] || 1) * DEGREE_SIZE;
+    return w;
+  }
   // Accidentals are the small print of a staff and were the first thing to go
   // unreadable, so they are sized against the staff rather than left at
   // whatever a note-sized glyph happens to be.
@@ -2555,11 +2573,43 @@ const Chords = (() => {
     for (const n of names) {
       const numeral = romanNumeral(n.name, key);
       if (!numeral) continue;
+      const baseline = foot - DEGREE_FOOT;
       add('text', {
-        x: n.x, y: foot - DEGREE_FOOT, class: 'staff-degree',
+        x: n.x, y: baseline, class: 'staff-degree',
         fill: '#ddd', 'font-size': DEGREE_SIZE, 'text-anchor': 'start',
         'font-family': DEGREE_FONT, 'font-weight': 600,
       }, numeral);
+      // And the same chord's root once more, as the syllable the key makes of
+      // it: the dot the boards and the label row wear, in the hue and the word
+      // they wear it in. The numeral says which degree the chord is and the dot
+      // says which note that lands on, which is the step a player has to make
+      // for themselves reading numbers off a sheet in a key they are not in yet.
+      // Only the root — a dot for every tone would be the label row again, and
+      // that row is already drawn under the tab for the notes that are played.
+      // Counted from key.tonic rather than from romanTonic: the numeral is read
+      // from the tonic the sheet names, but solfège here is la-based throughout
+      // — see parseKeyName — and a do that moved between the two rows would be
+      // two readings of the same word on one staff.
+      const chord = parseChord(n.name);
+      if (!chord) continue;
+      const hue = colourDegree(chord.root, chord, 'solfa', key);
+      if (hue === null) continue;
+      const label = pitchLabel(chord.root, chord, 'solfa', key);
+      const fs = labelSize(label);
+      const cx = n.x + numeralWidth(numeral) + SOLFA_GAP + LABEL_R;
+      // Centred on the numeral's own body rather than on its baseline, so the
+      // two read as one row. 0.34 of the size is about where the middle of a
+      // capital sits above the line it stands on.
+      const cy = baseline - DEGREE_SIZE * 0.34;
+      add('circle', {
+        class: 'staff-degree-dot',
+        cx, cy, r: LABEL_R, fill: DEGREE_HUE[hue],
+      });
+      add('text', {
+        x: cx, y: cy + fs * 0.355, fill: DOT_INK, 'font-size': fs,
+        'text-anchor': 'middle', 'font-weight': 600,
+        'font-family': '-apple-system, BlinkMacSystemFont, sans-serif',
+      }, label);
     }
 
     addSlots(add, items, width, Number(svg.getAttribute('height')) || 0);

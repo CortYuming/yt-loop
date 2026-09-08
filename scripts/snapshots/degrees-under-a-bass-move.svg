@@ -55,7 +55,11 @@
   <line x1="662.3122500000001" y1="102.65" x2="662.3122500000001" y2="50.9" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="388.5" y1="50.9" x2="662.3122500000001" y2="50.9" stroke="#dcdcdc" stroke-width="3.91"></line>
   <text x="10.583" y="233.75" class="staff-degree" fill="#ddd" font-size="14" text-anchor="start" font-family="Georgia, serif" font-weight="600">III</text>
+  <circle class="staff-degree-dot" cx="43.864999999999995" cy="228.99" r="8.8" fill="#9cc267"></circle>
+  <text x="43.864999999999995" y="233.60500000000002" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">m</text>
   <text x="375.66600000000005" y="233.75" class="staff-degree" fill="#ddd" font-size="14" text-anchor="start" font-family="Georgia, serif" font-weight="600">VI</text>
+  <circle class="staff-degree-dot" cx="407.12800000000004" cy="228.99" r="8.8" fill="#9b7ce6"></circle>
+  <text x="407.12800000000004" y="233.60500000000002" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">l</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="238.35" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="238.35" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
@@ -190,7 +194,11 @@
   <line x1="662.3122500000001" y1="108.4" x2="662.3122500000001" y2="56.65" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="388.5" y1="56.65" x2="662.3122500000001" y2="56.65" stroke="#dcdcdc" stroke-width="3.91"></line>
   <text x="10.583" y="233.75" class="staff-degree" fill="#ddd" font-size="14" text-anchor="start" font-family="Georgia, serif" font-weight="600">II</text>
+  <circle class="staff-degree-dot" cx="37.620999999999995" cy="228.99" r="8.8" fill="#e6a45c"></circle>
+  <text x="37.620999999999995" y="233.60500000000002" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">r</text>
   <text x="375.66600000000005" y="233.75" class="staff-degree" fill="#ddd" font-size="14" text-anchor="start" font-family="Georgia, serif" font-weight="600">V</text>
+  <circle class="staff-degree-dot" cx="400.88400000000007" cy="228.99" r="8.8" fill="#6ea6de"></circle>
+  <text x="400.88400000000007" y="233.60500000000002" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">s</text>
   <rect class="staff-slot" x="0" y="0" width="760" height="238.35" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="4" y="0" width="26" height="238.35" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="4" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>

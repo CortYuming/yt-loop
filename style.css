@@ -1448,7 +1448,7 @@ footer {
    music, not the colours. Held further back than that and the hues stop being
    told apart, which is the whole of what they are for. The labels on them are
    white and sit on top, so they stay legible either way. */
-.diagram-dot, .staff-label-dot { opacity: 0.8; }
+.diagram-dot, .staff-label-dot, .staff-degree-dot { opacity: 0.8; }
 
 /* Where the note being edited is stopped, drawn on the neck. A white ring
    around the dot rather than a brighter dot: the whole board is lit now, so
