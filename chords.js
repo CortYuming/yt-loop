@@ -172,22 +172,81 @@ const Chords = (() => {
     return MAJOR_STEPS.has((semi - key.tonic + 12) % 12);
   }
 
-  // Which of a pitch's two names it goes by. The key spells what it already
-  // spells: in B♭, the B of a C7 is the signature's B♭ and writing A♯ there
-  // asks the reader to play a letter the staff never mentioned. Everything
-  // else — the notes a key has no opinion about — is spelled by the chord that
-  // is sounding: a B♭7 in C is B♭ and A♭, not A♯ and G♯, whatever the key
-  // signature does elsewhere. Neither alone is enough, which is how this came
-  // to be two rules in two places that disagreed; it is one now, and the staff
-  // and the names under the tab both ask it, so they cannot come out saying
-  // different things about the same note.
+  // Which of a pitch's two names a chord on its own would give it. The key
+  // spells what it already spells: in B♭, the B of a C7 is the signature's B♭
+  // and writing A♯ there asks the reader to play a letter the staff never
+  // mentioned. Everything else follows the chord's own accidental. One
+  // accidental for a whole chord cannot tell a ♭7 from a ♯9 though — C7 came
+  // out spelling its own seventh A♯ — so the notes are spelled a degree at a
+  // time now and this is the fallback and the numeral's reading: a roman
+  // numeral is spelling a root and nothing else, which is the one question a
+  // single accidental per chord answers correctly.
   function spellsFlat(semi, chord, key) {
     if (key && (!chord || inKey(semi, key))) return key.accidental === '♭';
     return !!chord && accidentalFor(chord) === '♭';
   }
 
+  // ---------- a note spelled from its degree ----------
+  const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];   // C D E F G A B
+  const LETTER_OF = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+  // A degree is a distance in letters before it is anything else: a seventh is
+  // six letters up from the root whether it is a ♭7 or a Δ7. That is the thing
+  // an accidental picked per chord had no way to say.
+  const DEGREE_STEP = { 1: 0, 2: 1, 9: 1, 3: 2, 4: 3, 11: 3, 5: 4, 6: 5, 13: 5, 7: 6 };
+  // Which degree each semitone above the root is read as. Over a major third
+  // the note a semitone above the 9th is the ♯9 a blues is built on, and the
+  // one above the 11th is a ♯11; over a minor third those same two pitches are
+  // the ♭3 the chord already has and a ♭5. Eight semitones up is read as a ♭13
+  // rather than the ♯5 that also names it, because the ♭13 is a letter clear of
+  // the 5th — D7's is a B against its A, G7's an E against its D — where a ♯5
+  // would sit on the 5th's own line, and a name written C7♯5 says ♯5 through
+  // its own tension anyway. The key is not consulted here at all: this is only
+  // ever asked about the notes the key has no opinion about.
+  const MAJOR_DEGREES = [1, 9, 9, 9, 3, 11, 11, 5, 13, 13, 7, 7];
+  const MINOR_DEGREES = [1, 9, 9, 3, 3, 11, 5, 5, 13, 13, 7, 7];
+
+  function degreeAt(rel, chord) {
+    // A tension written into the name has already settled how it is read: the
+    // ♯5 of a C7♯5 is a fifth, not the ♭13 the table would make of it.
+    for (const t of chord.tensions) if (t.adjusted === rel) return t.n;
+    const isMinor = chord.tones.includes(3) && !chord.tones.includes(4);
+    return (isMinor ? MINOR_DEGREES : MAJOR_DEGREES)[rel];
+  }
+
+  // The letter comes from the degree, counted up from the root's own letter,
+  // and the accidental is whatever it takes to get from that letter to the
+  // pitch actually sounding. In that order a C7's ♭7 lands on B and reads B♭,
+  // where an accidental picked per chord put it on A♯ — the 6th's own place on
+  // the staff, so the sheet could not say which of the two had been played. It
+  // holds wherever the root is: F♯7's ♭7 is six letters up from F, which is E,
+  // and E is the note already, so it takes no accidental at all.
+  // Null where the spelling is correct but not readable — a double accidental
+  // (C♯7's ♯9 really is D♯♯) or an accidental on a letter whose plain form is
+  // the same key (C♭, F♭, B♯) — and the caller falls back to spellsFlat.
+  // The second of those is not only a matter of reading: staffNote places a
+  // note from the octave its pitch falls in and the letter it is spelled with,
+  // so a spelling that crosses an octave boundary — C♭ for the B under it, B♯
+  // for the C over it — would be drawn a seventh away from where it sounds.
+  // Ruled out here rather than there, where it would be a drawing bug.
+  function spellByDegree(semi, chord) {
+    const step = DEGREE_STEP[degreeAt((semi - chord.root + 12) % 12, chord)];
+    if (step === undefined) return null;
+    const letter = (LETTER_OF[chord.rootLabel[0].toUpperCase()] + step) % 7;
+    const alt = ((semi - LETTER_PC[letter]) % 12 + 18) % 12 - 6;
+    if (alt < -1 || alt > 1) return null;
+    if (alt !== 0 && LETTER_PC.includes(semi)) return null;
+    return 'CDEFGAB'[letter] + (alt < 0 ? '♭' : alt > 0 ? '♯' : '');
+  }
+
+  // What the key spells the key spells; the rest is the chord's, one note at a
+  // time. The staff and the names under the tab both ask this, so they cannot
+  // come out saying different things about the same note.
   function spellName(semi, chord, key) {
-    return spellsFlat(semi, chord, key) ? NOTES_FLAT[semi] : NOTES_SHARP[semi];
+    if (key && (!chord || inKey(semi, key))) {
+      return key.accidental === '♭' ? NOTES_FLAT[semi] : NOTES_SHARP[semi];
+    }
+    return (chord && spellByDegree(semi, chord))
+      || (spellsFlat(semi, chord, key) ? NOTES_FLAT[semi] : NOTES_SHARP[semi]);
   }
 
   function contextualName(semi, chord) {

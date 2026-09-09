@@ -32,9 +32,9 @@
   <line x1="390.0716282410165" y1="68.15" x2="473.4909711807623" y2="68.15" stroke="#dcdcdc" stroke-width="3.91"></line>
   <ellipse cx="580.3273141205084" cy="147.5" rx="6.417" ry="4.553999999999999" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
   <ellipse cx="580.3273141205084" cy="130.25" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
-  <text x="569.9103141205084" y="108.8945" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
-  <ellipse cx="580.3273141205084" cy="113" rx="6.417" ry="4.553999999999999" fill="#c3b4ea" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="586.7443141205084" y1="147.5" x2="586.7443141205084" y2="73.9" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <text x="569.9103141205084" y="118.75" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
+  <ellipse cx="580.3273141205084" cy="118.75" rx="6.417" ry="4.553999999999999" fill="#c3b4ea" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="586.7443141205084" y1="147.5" x2="586.7443141205084" y2="79.65" stroke="#dcdcdc" stroke-width="1.4"></line>
   <text x="10.583" y="233.75" class="staff-degree" fill="#ddd" font-size="14" text-anchor="start" font-family="Georgia, serif" font-weight="600">II</text>
   <circle class="staff-degree-dot" cx="37.620999999999995" cy="228.99" r="8.8" fill="#e6a45c"></circle>
   <text x="37.620999999999995" y="233.60500000000002" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">r</text>

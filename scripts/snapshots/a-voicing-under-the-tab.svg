@@ -28,8 +28,8 @@
   <line x1="273.20750000000004" y1="146.35" x2="273.20750000000004" y2="186.6" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="185.666" y1="186.6" x2="273.20750000000004" y2="186.6" stroke="#dcdcdc" stroke-width="3.91"></line>
   <ellipse cx="397" cy="141.75" rx="6.417" ry="4.553999999999999" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="392.37976" y1="125.78708" x2="401.62024" y2="134.71292" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
-  <line x1="392.37976" y1="134.71292" x2="401.62024" y2="125.78708" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
+  <line x1="405.21376" y1="131.53708" x2="414.45424" y2="140.46292" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
+  <line x1="405.21376" y1="140.46292" x2="414.45424" y2="131.53708" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
   <line x1="392.37976" y1="114.28708" x2="401.62024" y2="123.21292" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
   <line x1="392.37976" y1="123.21292" x2="401.62024" y2="114.28708" stroke="#9aa0a0" stroke-width="1.9" stroke-linecap="round"></line>
   <ellipse cx="397" cy="101.5" rx="6.417" ry="4.553999999999999" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>

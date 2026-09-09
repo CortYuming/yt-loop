@@ -11,10 +11,10 @@
   <line x1="23.417" y1="141.75" x2="23.417" y2="102.65" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="23.417" y1="102.65" x2="23.417" y2="102.65" stroke="#dcdcdc" stroke-width="1.4"></line>
   <path d="M23.417 102.65 q 10.35 5.75 8.049999999999999 17.25" fill="none" stroke="#dcdcdc" stroke-width="2.9325"></path>
-  <text x="67.43016666666666" y="130.25" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
-  <ellipse cx="77.84716666666667" cy="130.25" rx="6.417" ry="4.553999999999999" fill="#c3b4ea" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="77.84716666666667" cy="118.75" rx="6.417" ry="4.553999999999999" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="71.43016666666666" y1="118.75" x2="71.43016666666666" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <text x="67.43016666666666" y="120.3945" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
+  <ellipse cx="77.84716666666667" cy="124.5" rx="6.417" ry="4.553999999999999" fill="#c3b4ea" stroke="none" stroke-width="1.8"></ellipse>
+  <ellipse cx="90.68116666666667" cy="118.75" rx="6.417" ry="4.553999999999999" fill="#d888cf" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="71.43016666666666" y1="118.75" x2="71.43016666666666" y2="163.6" stroke="#dcdcdc" stroke-width="1.4"></line>
   <path d="M196.09150000000002 111.85 l 5.75 8.049999999999999 l -5.75 5.75 l 6.8999999999999995 10.35" fill="none" stroke="#c8c8c8" stroke-width="2.76"></path>
   <path d="M378.63300000000004 111.85 l 5.75 8.049999999999999 l -5.75 5.75 l 6.8999999999999995 10.35" fill="none" stroke="#c8c8c8" stroke-width="2.76"></path>
   <path d="M561.1745 111.85 l 5.75 8.049999999999999 l -5.75 5.75 l 6.8999999999999995 10.35" fill="none" stroke="#c8c8c8" stroke-width="2.76"></path>

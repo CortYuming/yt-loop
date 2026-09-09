@@ -406,6 +406,23 @@ const DRAWN = {
   // knocked strings in the third stop take no dot and the ones ringing over them
   // close up — a four-string shape with two crosses in it is two dots deep, not
   // four with holes.
+  // A seventh is six letters up from the root whatever sign it ends up taking,
+  // which is what spelling a note from its degree is for. C7's ♭7 is a B and
+  // reads B♭, where an accidental picked per chord put it on A♯ — the 6th's own
+  // place on the staff, so a sheet could not say which of the two had been
+  // played. Dm(maj7)'s Δ7 is a C and reads C♯ instead of sitting on the root's
+  // own line as a D♭. F♯7's ♭7 is six letters up from F, which is E, and E is
+  // the note already, so it takes no sign at all — the rule holds wherever the
+  // root is, and a table of twelve names could not have said that. The C69 at
+  // the end is the same ♭7 as a blue note over a chord that has no seventh of
+  // its own, which is where it is most often played and was A♯ there too.
+  // Drawn with the names on, since the staff and the dot under it are the two
+  // readings that have to agree.
+  'a-seventh-spelled-from-its-degree': {
+    mode: 'note',
+    sheet: 'key: C\n@0 C7 2/1+3/3+4/2+5/3:4 DmM7 1/1+2/2+3/2+4/0:4 '
+      + 'F#7 2/2+3/3+4/2+6/2:4 C69 3/3:4',
+  },
   'a-voicing-under-the-tab':
     '@0 Cm9 1/3+2/4+3/3+4/1+5/3:4 1/3+2/4+3/3+4/1:8 1/3+2/4 '
     + 'F7 2/6+3/5x+4/6x+5/8:4 1/8:8 3/5+4/5',

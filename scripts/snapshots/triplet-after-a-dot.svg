@@ -32,12 +32,12 @@
   <line x1="485.583" y1="101.5" x2="485.583" y2="152.1" stroke="#dcdcdc" stroke-width="1.4"></line>
   <text x="544.9163333333333" y="130.25" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♮</text>
   <ellipse cx="555.3333333333334" cy="130.25" rx="6.417" ry="4.553999999999999" fill="#edbde6" stroke="none" stroke-width="1.8"></ellipse>
-  <text x="544.9163333333333" y="108.8945" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
-  <ellipse cx="555.3333333333334" cy="113" rx="6.417" ry="4.553999999999999" fill="#6d8f45" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="548.9163333333333" y1="113" x2="548.9163333333333" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <text x="529.9433333333334" y="118.75" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
+  <ellipse cx="555.3333333333334" cy="118.75" rx="6.417" ry="4.553999999999999" fill="#6d8f45" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="548.9163333333333" y1="118.75" x2="548.9163333333333" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
   <ellipse cx="618.6666666666667" cy="130.25" rx="6.417" ry="4.553999999999999" fill="#edbde6" stroke="none" stroke-width="1.8"></ellipse>
-  <ellipse cx="618.6666666666667" cy="113" rx="6.417" ry="4.553999999999999" fill="#6d8f45" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="612.2496666666667" y1="113" x2="612.2496666666667" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <ellipse cx="618.6666666666667" cy="118.75" rx="6.417" ry="4.553999999999999" fill="#6d8f45" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="612.2496666666667" y1="118.75" x2="612.2496666666667" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="485.583" y1="152.1" x2="485.583" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="548.9163333333333" y1="169.35" x2="548.9163333333333" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="612.2496666666667" y1="169.35" x2="612.2496666666667" y2="169.35" stroke="#dcdcdc" stroke-width="1.4"></line>

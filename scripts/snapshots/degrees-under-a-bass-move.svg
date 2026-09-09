@@ -39,9 +39,9 @@
   <ellipse cx="473.35375000000005" cy="118.75" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
   <ellipse cx="473.35375000000005" cy="101.5" rx="6.417" ry="4.553999999999999" fill="#c3b4ea" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="460.9367500000001" y1="90" x2="485.77075" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
-  <text x="462.9367500000001" y="90" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
-  <ellipse cx="473.35375000000005" cy="90" rx="6.417" ry="4.553999999999999" fill="#b07f45" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="479.77075" y1="136" x2="479.77075" y2="50.9" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <text x="462.9367500000001" y="80.1445" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
+  <ellipse cx="473.35375000000005" cy="84.25" rx="6.417" ry="4.553999999999999" fill="#b07f45" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="479.77075" y1="136" x2="479.77075" y2="45.15" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="552.2075" y1="159" x2="577.0415" y2="159" stroke="#8a8a8a" stroke-width="1.4"></line>
   <text x="554.2075" y="159" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
   <ellipse cx="564.6245" cy="159" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
@@ -49,11 +49,11 @@
   <text x="645.47825" y="141.75" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
   <ellipse cx="655.89525" cy="141.75" rx="6.417" ry="4.553999999999999" fill="#9b7ce6" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="662.3122500000001" y1="141.75" x2="662.3122500000001" y2="102.65" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="388.5" y1="131.4" x2="388.5" y2="50.9" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="479.77075" y1="50.9" x2="479.77075" y2="50.9" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="571.0415" y1="119.9" x2="571.0415" y2="50.9" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="662.3122500000001" y1="102.65" x2="662.3122500000001" y2="50.9" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="388.5" y1="50.9" x2="662.3122500000001" y2="50.9" stroke="#dcdcdc" stroke-width="3.91"></line>
+  <line x1="388.5" y1="131.4" x2="388.5" y2="45.15" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="479.77075" y1="45.15" x2="479.77075" y2="45.15" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="571.0415" y1="119.9" x2="571.0415" y2="45.15" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="662.3122500000001" y1="102.65" x2="662.3122500000001" y2="45.15" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="388.5" y1="45.15" x2="662.3122500000001" y2="45.15" stroke="#dcdcdc" stroke-width="3.91"></line>
   <text x="10.583" y="233.75" class="staff-degree" fill="#ddd" font-size="14" text-anchor="start" font-family="Georgia, serif" font-weight="600">III</text>
   <circle class="staff-degree-dot" cx="43.864999999999995" cy="228.99" r="8.8" fill="#9cc267"></circle>
   <text x="43.864999999999995" y="233.60500000000002" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">m</text>
@@ -70,10 +70,10 @@
   <rect class="staff-hit" x="460.35375000000005" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="5"></rect>
   <rect class="staff-hit" x="551.6245" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="6"></rect>
   <rect class="staff-hit" x="642.89525" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="7"></rect>
-  <text x="10.583" y="35.1" class="staff-name" data-chord="0" data-note="" data-name="E7#9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E7♯9</text>
-  <text x="193.1245" y="35.1" class="staff-name" data-chord="0" data-note="2" data-name="/Bb" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Bb</text>
-  <text x="375.66600000000005" y="35.1" class="staff-name" data-chord="0" data-note="4" data-name="A7#5b9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">A7♯5♭9</text>
-  <text x="558.2075" y="35.1" class="staff-name" data-chord="0" data-note="6" data-name="/C#" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/C#</text>
+  <text x="10.583" y="29.35" class="staff-name" data-chord="0" data-note="" data-name="E7#9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">E7♯9</text>
+  <text x="193.1245" y="29.35" class="staff-name" data-chord="0" data-note="2" data-name="/Bb" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Bb</text>
+  <text x="375.66600000000005" y="29.35" class="staff-name" data-chord="0" data-note="4" data-name="A7#5b9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">A7♯5♭9</text>
+  <text x="558.2075" y="29.35" class="staff-name" data-chord="0" data-note="6" data-name="/C#" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/C#</text>
 </svg>
 <svg width="760" height="156.765" viewBox="0 0 760 156.765" aria-hidden="true">
   <line x1="0" y1="9.200000000000001" x2="760" y2="9.200000000000001" stroke="#4d4d4d" stroke-width="1.7"></line>
@@ -180,19 +180,20 @@
   <ellipse cx="473.35375000000005" cy="124.5" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
   <text x="462.9367500000001" y="113" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
   <ellipse cx="473.35375000000005" cy="113" rx="6.417" ry="4.553999999999999" fill="#c3b4ea" stroke="none" stroke-width="1.8"></ellipse>
-  <text x="462.9367500000001" y="95.75" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♯</text>
-  <ellipse cx="473.35375000000005" cy="95.75" rx="6.417" ry="4.553999999999999" fill="#b07f45" stroke="none" stroke-width="1.8"></ellipse>
-  <line x1="479.77075" y1="141.75" x2="479.77075" y2="56.65" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="460.9367500000001" y1="90" x2="485.77075" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <text x="462.9367500000001" y="85.8945" fill="#9a9a9a" font-size="24.150000000000002" text-anchor="end" dominant-baseline="central" font-family="-apple-system, BlinkMacSystemFont, sans-serif">♭</text>
+  <ellipse cx="473.35375000000005" cy="90" rx="6.417" ry="4.553999999999999" fill="#b07f45" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="479.77075" y1="141.75" x2="479.77075" y2="50.9" stroke="#dcdcdc" stroke-width="1.4"></line>
   <line x1="552.2075" y1="159" x2="577.0415" y2="159" stroke="#8a8a8a" stroke-width="1.4"></line>
   <ellipse cx="564.6245" cy="164.75" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="571.0415" y1="164.75" x2="571.0415" y2="125.65" stroke="#dcdcdc" stroke-width="1.4"></line>
   <ellipse cx="655.89525" cy="147.5" rx="6.417" ry="4.553999999999999" fill="#9b7ce6" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="662.3122500000001" y1="147.5" x2="662.3122500000001" y2="108.4" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="388.5" y1="137.15" x2="388.5" y2="56.65" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="479.77075" y1="56.65" x2="479.77075" y2="56.65" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="571.0415" y1="125.65" x2="571.0415" y2="56.65" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="662.3122500000001" y1="108.4" x2="662.3122500000001" y2="56.65" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="388.5" y1="56.65" x2="662.3122500000001" y2="56.65" stroke="#dcdcdc" stroke-width="3.91"></line>
+  <line x1="388.5" y1="137.15" x2="388.5" y2="50.9" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="479.77075" y1="50.9" x2="479.77075" y2="50.9" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="571.0415" y1="125.65" x2="571.0415" y2="50.9" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="662.3122500000001" y1="108.4" x2="662.3122500000001" y2="50.9" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="388.5" y1="50.9" x2="662.3122500000001" y2="50.9" stroke="#dcdcdc" stroke-width="3.91"></line>
   <text x="10.583" y="233.75" class="staff-degree" fill="#ddd" font-size="14" text-anchor="start" font-family="Georgia, serif" font-weight="600">II</text>
   <circle class="staff-degree-dot" cx="37.620999999999995" cy="228.99" r="8.8" fill="#e6a45c"></circle>
   <text x="37.620999999999995" y="233.60500000000002" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">r</text>
@@ -208,10 +209,10 @@
   <rect class="staff-hit" x="460.35375000000005" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="4"></rect>
   <rect class="staff-hit" x="551.6245" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="5"></rect>
   <rect class="staff-hit" x="642.89525" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="6"></rect>
-  <text x="10.583" y="40.85" class="staff-name" data-chord="0" data-note="" data-name="D9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">D9</text>
-  <text x="193.1245" y="40.85" class="staff-name" data-chord="0" data-note="2" data-name="/Ab" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Ab</text>
-  <text x="375.66600000000005" y="40.85" class="staff-name" data-chord="0" data-note="3" data-name="G7#5b9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">G7♯5♭9</text>
-  <text x="558.2075" y="40.85" class="staff-name" data-chord="0" data-note="5" data-name="/B" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/B</text>
+  <text x="10.583" y="35.1" class="staff-name" data-chord="0" data-note="" data-name="D9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">D9</text>
+  <text x="193.1245" y="35.1" class="staff-name" data-chord="0" data-note="2" data-name="/Ab" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/Ab</text>
+  <text x="375.66600000000005" y="35.1" class="staff-name" data-chord="0" data-note="3" data-name="G7#5b9" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">G7♯5♭9</text>
+  <text x="558.2075" y="35.1" class="staff-name" data-chord="0" data-note="5" data-name="/B" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">/B</text>
 </svg>
 <svg width="760" height="156.765" viewBox="0 0 760 156.765" aria-hidden="true">
   <line x1="0" y1="9.200000000000001" x2="760" y2="9.200000000000001" stroke="#4d4d4d" stroke-width="1.7"></line>
