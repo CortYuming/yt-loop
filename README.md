@@ -90,8 +90,10 @@ Within a bar the four beats split the way chord-vamp splits them — 2 chords in
 open index.html
 
 # Or serve it (needed on some browsers for iframe API):
-python3 -m http.server 8000
-# then visit http://localhost:8000
+# 8800 rather than 8000, which other things tend to be holding;
+# if 8800 is taken too, go up — 8801, 8802 …
+python3 -m http.server 8800
+# then visit http://localhost:8800
 ```
 
 ## Checks
