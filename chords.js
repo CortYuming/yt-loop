@@ -3201,7 +3201,10 @@ const Chords = (() => {
     return {
       text: cells.length ? `|${cells.join('|')}|` : '',
       spans: spans.map(s => ({ start: s.start, end: s.end })),
-      key: key ? key.tonic : null
+      // The key as the sheet spells it -- `Bb`, `F#m`. chord-vamp offers the
+      // same list of keys, so the name it is picked by here is the name it is
+      // picked by there; a semitone alone could not say major from minor.
+      key: key ? key.label : null
     };
   }
 

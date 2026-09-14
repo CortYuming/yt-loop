@@ -211,14 +211,14 @@ pressed. Nothing is stored for chord-vamp to find later and nothing is watched,
 so a sheet edited since gets across by pressing the button again.
 
 ```
-../chord-vamp/?v=<videoId>&k=<bars>&t=<times>&key=<0-11>&title=<video title>
+../chord-vamp/?v=<videoId>&k=<bars>&t=<times>&key=<key>&title=<video title>
 ```
 
 | Piece | Meaning |
 |-------|---------|
 | `k` | The bars as chord-vamp writes them: `\|Bb7 Eb9\|D7+9\|`. Fingerings, single notes, rests and ties are left behind — it plays chords |
 | `t` | One entry per bar, in step with `k`: `0.00-2.10,2.10-4.20`. The start alone where the end cannot be worked out, and empty for a bar nobody has timed. A bar deliberately left short of the next one keeps its own end |
-| `key` | The key as a semitone, 0 = C. Absent where the sheet names none |
+| `key` | The key as the sheet spells it — `Bb`, `F#m`. chord-vamp offers the same list of keys, so the name it is picked by here is the name it is picked by there, and a minor key stays minor: a semitone alone could not say C from Am. Absent where the sheet names none |
 | `title` | What the video is called, so chord-vamp's header can say what it is showing |
 
 A bass move (`/Bb`) names no chord of its own, so it is written out against the

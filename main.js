@@ -1098,7 +1098,7 @@ function buildVampUrl(vid) {
     return s.end === null ? s.start.toFixed(2) : `${s.start.toFixed(2)}-${s.end.toFixed(2)}`;
   });
   if (times.some(Boolean)) params.set('t', times.join(','));
-  if (chart.key !== null) params.set('key', String(chart.key));
+  if (chart.key) params.set('key', chart.key);
   const title = resolveVideoTitle(vid);
   if (title) params.set('title', title.slice(0, VAMP_TITLE_MAX));
 
@@ -1759,6 +1759,30 @@ function jumpToBar() {
   barJumpInput.classList.remove('bad');
   seekToTime(span.start);
 }
+
+// chord-vamp sending this player to a bar. It is reading a chart made from this
+// tab's sheet, so a bar number there is a bar number here, and what arrives is
+// the range that bar covers. Sent as a message rather than as a link into this
+// tab: a link reloads the page, and waiting for YouTube to load the video again
+// is the whole of what is being avoided — the video is already sitting there at
+// the right frame.
+//
+// Same origin only. The two apps are neighbours under one host; a message from
+// anywhere else is not one of ours, whatever it says.
+//
+// A bar the sheet gives no end — the last one, with nothing after it to borrow a
+// length from — is a jump and not a range: the boxes are left as they are rather
+// than made to hold a Start past their End.
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin) return;
+  const msg = e.data;
+  if (!msg || msg.type !== 'yt-loop:seek') return;
+  const start = Number(msg.start);
+  if (!isFinite(start)) return;
+  const end = Number(msg.end);
+  if (isFinite(end) && end > start) applyLoopToForm({ start, end });
+  seekToTime(start);
+});
 
 if (barJumpInput) {
   barJumpInput.addEventListener('keydown', e => {

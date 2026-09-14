@@ -1639,8 +1639,11 @@ const TIMES = [
   { name: 'chord-vamp: 貼り付けたリンクはコード名になる',
     got: () => Chords.vampChart('@0 [Bb9](https://cortyuming.github.io/guitar-chord-viewer/?c=Bb9&m=1.1.1.0..) F13').text,
     want: '|Bb9 F13|' },
-  { name: 'chord-vamp: キーは半音の番号で渡す',
-    got: () => Chords.vampChart('key: Bb\n@0 Bb7').key, want: 10 },
+  { name: 'chord-vamp: キーは譜面の綴りのまま渡す',
+    got: () => Chords.vampChart('key: Bb\n@0 Bb7').key, want: 'Bb' },
+  // A semitone alone cannot say major from minor -- Am and C are one tonic.
+  { name: 'chord-vamp: マイナーキーもそのまま渡す',
+    got: () => Chords.vampChart('key: F#m\n@0 F#m7').key, want: 'F#m' },
   { name: 'chord-vamp: キーのない譜面は渡すものがない',
     got: () => Chords.vampChart('@0 Bb7').key, want: null },
   // The last bar has no bar after it to take an end from, so it borrows the
@@ -1651,7 +1654,7 @@ const TIMES = [
   { name: 'chord-vamp のリンク',
     got: () => { share.sheet('key: Bb\n@0.00 Bb7 Eb9|@2.10 D7+9'); share.title(''); return share.buildVampUrl('abc123'); },
     want: 'https://cortyuming.github.io/chord-vamp/?v=abc123&k=%7CBb7+Eb9%7CD7%2B9%7C'
-      + '&t=0.00-2.10%2C2.10-4.20&key=10' },
+      + '&t=0.00-2.10%2C2.10-4.20&key=Bb' },
   { name: 'chord-vamp のリンク: 題名も連れていく',
     got: () => { share.sheet('@0.00 Bb7'); share.title('Four on Six'); return share.buildVampUrl('abc123'); },
     want: 'https://cortyuming.github.io/chord-vamp/?v=abc123&k=%7CBb7%7C&t=0.00&title=Four+on+Six' },
