@@ -24,6 +24,11 @@ const HISTORY_PER_VIDEO = 5;
 // length, which also covers notes saved before the cap existed.
 const NOTE_MAX = 30;
 
+// What this window is called, so a link from chord-vamp lands in the tab already
+// showing the video rather than opening another one beside it. chord-vamp opens
+// its links with this as the target; the two have to agree on the spelling.
+window.name = 'yt-loop';
+
 // A video's title, riding along to chord-vamp so its header can name what it is
 // showing. Longer than a note because it is not typed by hand, and short enough
 // that a title never crowds out the sheet in a link that carries both.
@@ -1765,30 +1770,6 @@ function jumpToBar() {
   barJumpInput.classList.remove('bad');
   seekToTime(span.start);
 }
-
-// chord-vamp sending this player to a bar. It is reading a chart made from this
-// tab's sheet, so a bar number there is a bar number here, and what arrives is
-// the range that bar covers. Sent as a message rather than as a link into this
-// tab: a link reloads the page, and waiting for YouTube to load the video again
-// is the whole of what is being avoided — the video is already sitting there at
-// the right frame.
-//
-// Same origin only. The two apps are neighbours under one host; a message from
-// anywhere else is not one of ours, whatever it says.
-//
-// A bar the sheet gives no end — the last one, with nothing after it to borrow a
-// length from — is a jump and not a range: the boxes are left as they are rather
-// than made to hold a Start past their End.
-window.addEventListener('message', e => {
-  if (e.origin !== location.origin) return;
-  const msg = e.data;
-  if (!msg || msg.type !== 'yt-loop:seek') return;
-  const start = Number(msg.start);
-  if (!isFinite(start)) return;
-  const end = Number(msg.end);
-  if (isFinite(end) && end > start) applyLoopToForm({ start, end });
-  seekToTime(start);
-});
 
 if (barJumpInput) {
   barJumpInput.addEventListener('keydown', e => {

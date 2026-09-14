@@ -228,6 +228,10 @@ being dropped: bar numbers are how the two apps talk about the same passage, and
 one missing bar shifts every number after it.
 
 The button is disabled until the sheet has a chord in it. The tab it opens is
-named, so a second press lands in the tab the first one opened, and it is opened
-with an opener — that is what lets chord-vamp send this player to a bar instead
-of loading the video again in a tab of its own.
+named, so a second press lands in the tab the first one opened rather than
+stacking windows up.
+
+Coming back the other way, chord-vamp's bar numbers are links into this app, and
+this window names itself `yt-loop` so one of them lands in the tab already
+showing the video. Landing on a link that names a Start seeks there, sheet and
+all, rather than filling the boxes and leaving the video at the beginning.
