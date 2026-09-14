@@ -442,6 +442,12 @@ window.onYouTubeIframeAPIReady = () => {
       if (!adoptNoteFromHistory() && n) noteInput.value = n.slice(0, NOTE_MAX);
       adoptSheetFromLink(params.get('k'));
       refreshUI();
+      // A link naming a Start is a link to that moment, not only a range to set
+      // the boxes to. Filling them and leaving the video on frame 0 reads as a
+      // jump that did not happen — which is exactly what a bar number in
+      // chord-vamp looks like when it lands here. Seeks paused: nothing starts
+      // playing on its own, and ▶ still warms up the way it always did.
+      if (linkStart !== undefined && !isNaN(linkStart)) seekToTime(linkStart);
     });
   } else {
     renderHistory();
