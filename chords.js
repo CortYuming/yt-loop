@@ -3160,9 +3160,55 @@ const Chords = (() => {
     }
   }
 
+  // ============================================================
+  // Handing a sheet to chord-vamp
+  // ============================================================
+  // chord-vamp plays chord progressions and knows nothing of fingerings,
+  // single notes, or the notation they are written in. What it does read is a
+  // line of bars — `|F13|Bb9|` — so a sheet is reduced to that here, in the
+  // one place that understands the notation, and handed over in a link at the
+  // moment the button is pressed. Nothing is stored and nothing is watched:
+  // the sheet stays the sheet, and pressing the button again is how a changed
+  // one gets across.
+  //
+  // Every bar comes back, empty ones included. The bar numbers are how the
+  // two apps talk about the same passage — chord-vamp's bar 9 has to be this
+  // sheet's bar 9 — and a bar dropped for holding no chords would shift every
+  // number after it.
+  //
+  // A bass move (`/Bb`) names no chord of its own, so it is written out
+  // against the chord still in force: `F13/Bb`. Read as it stands it is not a
+  // chord at all, and chord-vamp would drop the bar's only name.
+  function vampChart(text) {
+    const bars = parseSheet(text);
+    const spans = resolveSpans(bars);
+    const key = parseKey(text);
+    let ruling = '';
+    const cells = bars.map(bar => {
+      const names = [];
+      for (const chord of (bar.chords || [])) {
+        const name = String(chord.name || '').trim();
+        if (!name) continue;
+        if (isBassOnly(name)) {
+          names.push(ruling ? ruling + name : name);
+          continue;
+        }
+        ruling = name;
+        names.push(name);
+      }
+      return names.join(' ');
+    });
+    return {
+      text: cells.length ? `|${cells.join('|')}|` : '',
+      spans: spans.map(s => ({ start: s.start, end: s.end })),
+      key: key ? key.tonic : null
+    };
+  }
+
   return {
     parseTime,
     parseSheet, resolveSpans, chordTimes, slotWeights, barWeights, toCompact, viewerUrl, diagram, fretWindows,
+    vampChart,
     readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
     romanNumeral,
     staffRange, staffBar, staffHead, staffHeadWidth,

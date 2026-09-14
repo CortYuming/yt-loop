@@ -1259,11 +1259,12 @@ const READ = [
 // carries is checked to the character.
 const share = (() => {
   const src = ['formatTime', 'buildShareUrl', 'buildShareLabel', 'buildShareMarkdown',
-    'barRangeFor'].map(liftOne).join('\n');
+    'barRangeFor', 'buildVampUrl'].map(liftOne).join('\n');
   // The real bar numbering rather than a stub of it: which bars a range covers is
   // the part of the label that can be wrong, so it is run over a real sheet.
   return new Function('shim', 'Chords', `
     const NOTE_MAX = 30;
+    const VAMP_TITLE_MAX = 100;
     const RANGE_EPS = 0.005;
     const location = shim.location;
     // Both read the browser's storage in the app; a case says them outright.
@@ -1271,8 +1272,15 @@ const share = (() => {
     function getSheet() { return shim.sheet; }
     ${src}
     return { formatTime, buildShareUrl, buildShareLabel, buildShareMarkdown, barRangeFor,
+      buildVampUrl,
       title(t) { shim.title = t; }, sheet(t) { shim.sheet = t; } };`)({
-    location: { origin: 'https://cortyuming.github.io', pathname: '/yt-loop/' },
+    // `href` as well as the two halves of it: the chord-vamp link is written
+    // relative to the page, so it is resolved against where the page is.
+    location: {
+      origin: 'https://cortyuming.github.io',
+      pathname: '/yt-loop/',
+      href: 'https://cortyuming.github.io/yt-loop/',
+    },
     title: '',
     sheet: '',
   }, Chords);
@@ -1611,6 +1619,52 @@ const TIMES = [
   // not a note — see markFreeNotes — so the lengths are written out here.
   { name: '拍数: 区間をまたいで数える',
     got: () => open('@0 Cm7 1/5:8t F7 1/7:8t G7 1/9:8t').api.beats(), want: 1 },
+  // ---------- the sheet as chord-vamp reads it ----------
+  // chord-vamp plays chords and nothing else, so what crosses over is the chord
+  // names and where each bar falls. Every phrase below was written in the
+  // notation this app grew, and the point of each case is what survives the
+  // crossing and what does not.
+  { name: 'chord-vamp: 単音もフレットも落ちてコード名だけ残る',
+    got: () => Chords.vampChart('@0 Bb7:1.1.1.0.. Eb9 1/8:8 1/10|@2 D7+9').text,
+    want: '|Bb7 Eb9|D7+9|' },
+  // `/Bb` names no chord, so on its own chord-vamp would read the bar as empty.
+  { name: 'chord-vamp: ベース移動は効いているコードに付けて渡す',
+    got: () => Chords.vampChart('@0 E7#9 6/0:8|@2-4 /Bb 6/6:8').text,
+    want: '|E7#9|E7#9/Bb|' },
+  // The bar numbers are how the two apps name the same passage, so a bar with
+  // nothing in it still takes its place in the row.
+  { name: 'chord-vamp: コードのない小節も空のまま残る',
+    got: () => Chords.vampChart('@0 C7|@2|@4 F7').text,
+    want: '|C7||F7|' },
+  { name: 'chord-vamp: 貼り付けたリンクはコード名になる',
+    got: () => Chords.vampChart('@0 [Bb9](https://cortyuming.github.io/guitar-chord-viewer/?c=Bb9&m=1.1.1.0..) F13').text,
+    want: '|Bb9 F13|' },
+  { name: 'chord-vamp: キーは半音の番号で渡す',
+    got: () => Chords.vampChart('key: Bb\n@0 Bb7').key, want: 10 },
+  { name: 'chord-vamp: キーのない譜面は渡すものがない',
+    got: () => Chords.vampChart('@0 Bb7').key, want: null },
+  // The last bar has no bar after it to take an end from, so it borrows the
+  // length of the one before it — the same rule the strip is drawn by.
+  { name: 'chord-vamp: 小節の区間',
+    got: () => Chords.vampChart('@0.00 Bb7|@2.10 D7+9').spans,
+    want: [{ start: 0, end: 2.1 }, { start: 2.1, end: 4.2 }] },
+  { name: 'chord-vamp のリンク',
+    got: () => { share.sheet('key: Bb\n@0.00 Bb7 Eb9|@2.10 D7+9'); share.title(''); return share.buildVampUrl('abc123'); },
+    want: 'https://cortyuming.github.io/chord-vamp/?v=abc123&k=%7CBb7+Eb9%7CD7%2B9%7C'
+      + '&t=0.00-2.10%2C2.10-4.20&key=10' },
+  { name: 'chord-vamp のリンク: 題名も連れていく',
+    got: () => { share.sheet('@0.00 Bb7'); share.title('Four on Six'); return share.buildVampUrl('abc123'); },
+    want: 'https://cortyuming.github.io/chord-vamp/?v=abc123&k=%7CBb7%7C&t=0.00&title=Four+on+Six' },
+  // Nothing has been timed yet, so there is no bar to send anyone to.
+  { name: 'chord-vamp のリンク: 時刻のない譜面は区間を持たない',
+    got: () => { share.sheet('Cm7|F7'); share.title(''); return share.buildVampUrl('abc123'); },
+    want: 'https://cortyuming.github.io/chord-vamp/?v=abc123&k=%7CCm7%7CF7%7C' },
+  { name: 'chord-vamp のリンク: コードのない譜面は作らない',
+    got: () => { share.sheet(''); share.title(''); return share.buildVampUrl('abc123'); },
+    want: null },
+  { name: 'chord-vamp のリンク: 動画がなければ作らない',
+    got: () => { share.sheet('@0 Bb7'); return share.buildVampUrl(''); }, want: null },
+
   { name: '共有の markdown',
     got: () => {
       share.title('Autumn Leaves');
