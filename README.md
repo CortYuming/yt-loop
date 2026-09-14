@@ -199,3 +199,39 @@ only where this browser has none, the same rule the note follows.
 
 GitHub Pages answers a URL of 8,000 characters and refuses one of 9,000, which
 works out to roughly 90 bars of four chords — a whole tune, with room to spare.
+
+## Opening a sheet in chord-vamp
+
+**chord-vamp ↗** at the end of the sheet toolbar opens the sheet in
+[chord-vamp](https://cortyuming.github.io/chord-vamp/), which plays a chord
+progression with a bass and a kit under it. The sheet stays here: what crosses
+over is the bars as chord names, where each one starts and ends, the key, and
+the video's title, all written into the link at the moment the button is
+pressed. Nothing is stored for chord-vamp to find later and nothing is watched,
+so a sheet edited since gets across by pressing the button again.
+
+```
+../chord-vamp/?v=<videoId>&k=<bars>&t=<times>&key=<key>&title=<video title>
+```
+
+| Piece | Meaning |
+|-------|---------|
+| `k` | The bars as chord-vamp writes them: `\|Bb7 Eb9\|D7+9\|`. Fingerings, single notes, rests and ties are left behind — it plays chords |
+| `t` | One entry per bar, in step with `k`: `0.00-2.10,2.10-4.20`. The start alone where the end cannot be worked out, and empty for a bar nobody has timed. A bar deliberately left short of the next one keeps its own end |
+| `key` | The key as the sheet spells it — `Bb`, `F#m`. chord-vamp offers the same list of keys, so the name it is picked by here is the name it is picked by there, and a minor key stays minor: a semitone alone could not say C from Am. Absent where the sheet names none |
+| `title` | What the video is called, so chord-vamp's header can say what it is showing |
+
+A bass move (`/Bb`) names no chord of its own, so it is written out against the
+chord still in force — `E7#9/Bb` — which is the harmony chord-vamp would
+otherwise lose. A bar holding no chords crosses as an empty bar rather than
+being dropped: bar numbers are how the two apps talk about the same passage, and
+one missing bar shifts every number after it.
+
+The button is disabled until the sheet has a chord in it. The tab it opens is
+named, so a second press lands in the tab the first one opened rather than
+stacking windows up.
+
+Coming back the other way, chord-vamp's bar numbers are links into this app,
+opened in a tab of their own. Landing on a link that names a Start seeks there,
+sheet and all, rather than filling the boxes and leaving the video at the
+beginning.

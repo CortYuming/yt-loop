@@ -24,6 +24,12 @@ const HISTORY_PER_VIDEO = 5;
 // length, which also covers notes saved before the cap existed.
 const NOTE_MAX = 30;
 
+
+// A video's title, riding along to chord-vamp so its header can name what it is
+// showing. Longer than a note because it is not typed by hand, and short enough
+// that a title never crowds out the sheet in a link that carries both.
+const VAMP_TITLE_MAX = 100;
+
 let player = null;
 let currentVideoId = null;
 let currentVideoTitle = '';
@@ -282,6 +288,7 @@ const chordModeBtns   = {
 const chordShowToggle = document.getElementById('chordShowToggle');
 const barJumpInput    = document.getElementById('barJumpInput');
 const barJumpBtn      = document.getElementById('barJumpBtn');
+const chordVampBtn    = document.getElementById('chordVampBtn');
 const exportBtn       = document.getElementById('exportBtn');
 const importBtn       = document.getElementById('importBtn');
 const importFile      = document.getElementById('importFile');
@@ -436,6 +443,12 @@ window.onYouTubeIframeAPIReady = () => {
       if (!adoptNoteFromHistory() && n) noteInput.value = n.slice(0, NOTE_MAX);
       adoptSheetFromLink(params.get('k'));
       refreshUI();
+      // A link naming a Start is a link to that moment, not only a range to set
+      // the boxes to. Filling them and leaving the video on frame 0 reads as a
+      // jump that did not happen — which is exactly what a bar number in
+      // chord-vamp looks like when it lands here. Seeks paused: nothing starts
+      // playing on its own, and ▶ still warms up the way it always did.
+      if (linkStart !== undefined && !isNaN(linkStart)) seekToTime(linkStart);
     });
   } else {
     renderHistory();
@@ -1062,6 +1075,43 @@ function buildShareUrl(vid, loop) {
   return `${location.origin}${location.pathname}?${params.toString()}`;
 }
 
+// The sheet as a link into chord-vamp, built at the moment the button is
+// pressed. The two apps sit side by side under the same host, so the path is
+// relative: the same link works on a dev server that serves both.
+//
+// What travels is what chord-vamp can read — the bars as chord names, where
+// each one starts and ends, the key, and the video's title for its header. The
+// sheet itself stays here. Nothing is written into storage for chord-vamp to
+// find later, which is why there is nothing to keep in step: a sheet that has
+// changed gets across by pressing the button again.
+//
+// Null where there is nothing to send — no video, or a sheet with no chords in
+// it yet.
+function buildVampUrl(vid) {
+  if (!vid) return null;
+  const chart = Chords.vampChart(getSheet(vid));
+  if (!chart.text) return null;
+
+  const params = new URLSearchParams();
+  params.set('v', vid);
+  params.set('k', chart.text);
+  // One entry per bar, in step with the bars in `k`. `start-end` where both are
+  // known, the start alone where the end is not — the last bar of a sheet with
+  // nothing to measure it by — and empty for a bar nobody has timed yet. A bar
+  // deliberately left short of the next one keeps its own end rather than being
+  // stretched to where the next bar begins.
+  const times = chart.spans.map(s => {
+    if (s.start === null) return '';
+    return s.end === null ? s.start.toFixed(2) : `${s.start.toFixed(2)}-${s.end.toFixed(2)}`;
+  });
+  if (times.some(Boolean)) params.set('t', times.join(','));
+  if (chart.key) params.set('key', chart.key);
+  const title = resolveVideoTitle(vid);
+  if (title) params.set('title', title.slice(0, VAMP_TITLE_MAX));
+
+  return new URL(`../chord-vamp/?${params.toString()}`, location.href).href;
+}
+
 // Which bars a range covers, counted the way the sheet numbers them. A loop is
 // shared as a passage — "bars 5-8", which is how anyone talking about a
 // transcription says it — and seconds are no way to find that passage again in a
@@ -1277,6 +1327,7 @@ function drawChordStrip(fromCache) {
   // The key decides whether solfège is on offer at all, so the pill is brought
   // up to date wherever the sheet is.
   updateChordModeBtns();
+  updateVampBtn(bars);
   const visible = getChordsVisible();
   if (!visible) { chordEditor.hidden = true; closeNotePanel(); }
   syncChordEditMode();
@@ -3239,6 +3290,28 @@ function jumpToSheet() {
 chordLabel.addEventListener('click', jumpToSheet);
 
 chordEditBtn.addEventListener('click', () => toggleChordEditor(true));
+
+// A sheet with no chord in it has nothing to play, so the way out is closed
+// until there is one. Disabled rather than hidden: the button is part of what
+// the sheet can do, and a control that comes and goes is harder to find again
+// than one that is simply greyed.
+function updateVampBtn(bars) {
+  const has = (bars || []).some(bar => (bar.chords || []).some(c => String(c.name || '').trim()));
+  chordVampBtn.disabled = !has;
+  chordVampBtn.title = has
+    ? 'Open this sheet in chord-vamp'
+    : 'Write a chord first — chord-vamp plays the chords';
+}
+
+chordVampBtn.addEventListener('click', () => {
+  const url = buildVampUrl(currentVideoId);
+  if (!url) return;
+  // A name on the tab, so pressing this again lands in the tab the last press
+  // opened rather than stacking windows up. Opened with an opener rather than
+  // `noopener`, which is what lets chord-vamp send this player to a bar
+  // instead of loading a second copy of the video in a tab of its own.
+  window.open(url, 'chord-vamp');
+});
 
 // No save button, like everything else here: the box is the stored sheet.
 chordInput.addEventListener('input', () => {

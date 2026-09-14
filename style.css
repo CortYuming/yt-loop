@@ -542,6 +542,15 @@ button.pin {
   font-family: "SF Mono", Menlo, Consolas, monospace;
   font-size: 13px;
 }
+
+/* The way out to chord-vamp. Last in the row, after the jump box, since it is
+   the only control here that leaves the page. Drawn as the Edit button is: the
+   two are the sheet's own buttons, whatever they then do. */
+.chord-vamp-btn {
+  margin-left: 10px;
+  padding: 3px 10px;
+  font-size: 11px;
+}
 /* A number the sheet has no bar for. Said on the box, since the box is where the
    number was typed. */
 .chord-jump input.bad { border-color: var(--red); color: var(--red); }
