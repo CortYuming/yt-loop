@@ -24,10 +24,6 @@ const HISTORY_PER_VIDEO = 5;
 // length, which also covers notes saved before the cap existed.
 const NOTE_MAX = 30;
 
-// What this window is called, so a link from chord-vamp lands in the tab already
-// showing the video rather than opening another one beside it. chord-vamp opens
-// its links with this as the target; the two have to agree on the spelling.
-window.name = 'yt-loop';
 
 // A video's title, riding along to chord-vamp so its header can name what it is
 // showing. Longer than a note because it is not typed by hand, and short enough

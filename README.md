@@ -231,7 +231,7 @@ The button is disabled until the sheet has a chord in it. The tab it opens is
 named, so a second press lands in the tab the first one opened rather than
 stacking windows up.
 
-Coming back the other way, chord-vamp's bar numbers are links into this app, and
-this window names itself `yt-loop` so one of them lands in the tab already
-showing the video. Landing on a link that names a Start seeks there, sheet and
-all, rather than filling the boxes and leaving the video at the beginning.
+Coming back the other way, chord-vamp's bar numbers are links into this app,
+opened in a tab of their own. Landing on a link that names a Start seeks there,
+sheet and all, rather than filling the boxes and leaving the video at the
+beginning.
