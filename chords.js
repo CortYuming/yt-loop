@@ -3176,6 +3176,14 @@ const Chords = (() => {
   // sheet's bar 9 — and a bar dropped for holding no chords would shift every
   // number after it.
   //
+  // A bar with a phrase in it and no chord written over it is still under the
+  // chord in force: the harmony did not stop because nobody wrote the name a
+  // second time, and a solo is transcribed bar after bar with the name written
+  // once. So the ruling chord is carried in, and chord-vamp plays under the
+  // phrase rather than resting through it. A bar holding nothing at all is a
+  // different thing — nothing is sounding there — and crosses as the empty bar
+  // it is.
+  //
   // A bass move (`/Bb`) names no chord of its own, so it is written out
   // against the chord still in force: `F13/Bb`. Read as it stands it is not a
   // chord at all, and chord-vamp would drop the bar's only name.
@@ -3186,7 +3194,9 @@ const Chords = (() => {
     let ruling = '';
     const cells = bars.map(bar => {
       const names = [];
+      let notes = 0;
       for (const chord of (bar.chords || [])) {
+        notes += (chord.notes || []).length;
         const name = String(chord.name || '').trim();
         if (!name) continue;
         if (isBassOnly(name)) {
@@ -3196,7 +3206,8 @@ const Chords = (() => {
         ruling = name;
         names.push(name);
       }
-      return names.join(' ');
+      if (names.length) return names.join(' ');
+      return notes && ruling ? ruling : '';
     });
     return {
       text: cells.length ? `|${cells.join('|')}|` : '',
