@@ -1633,6 +1633,18 @@ const TIMES = [
     want: '|E7#9|E7#9/Bb|' },
   // The bar numbers are how the two apps name the same passage, so a bar with
   // nothing in it still takes its place in the row.
+  // A solo is written bar after bar with the chord named once; the bars under it
+  // are still that chord, and chord-vamp has to play something there.
+  { name: 'chord-vamp: 音符だけの小節は効いているコードが続く',
+    got: () => Chords.vampChart('@0 C7 1/8:8 1/10|@2 1/12:8 1/8').text,
+    want: '|C7|C7|' },
+  { name: 'chord-vamp: 続くのは最後に効いているコード',
+    got: () => Chords.vampChart('@0 C7 1/8:8 F7 1/10:8|@2 1/12:8').text,
+    want: '|C7 F7|F7|' },
+  // Nothing written and nothing played: silence, and it stays silence.
+  { name: 'chord-vamp: 音符も名前もない小節は鳴らさない',
+    got: () => Chords.vampChart('@0 C7 1/8:8|@2|@4 F7').text,
+    want: '|C7||F7|' },
   { name: 'chord-vamp: コードのない小節も空のまま残る',
     got: () => Chords.vampChart('@0 C7|@2|@4 F7').text,
     want: '|C7||F7|' },

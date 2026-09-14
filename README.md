@@ -227,6 +227,12 @@ otherwise lose. A bar holding no chords crosses as an empty bar rather than
 being dropped: bar numbers are how the two apps talk about the same passage, and
 one missing bar shifts every number after it.
 
+A bar with a phrase in it and no chord written over it crosses as the chord
+still in force. A solo is transcribed bar after bar with the name written once,
+and the harmony did not stop because nobody wrote it again — chord-vamp would
+otherwise rest through the best part of the tune. A bar holding nothing at all
+is a different thing, and stays empty.
+
 The button is disabled until the sheet has a chord in it. The tab it opens is
 named, so a second press lands in the tab the first one opened rather than
 stacking windows up.
