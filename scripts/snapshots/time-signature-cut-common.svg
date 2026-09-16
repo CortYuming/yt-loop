@@ -1,0 +1,116 @@
+<!-- bar 1: T22 Cm7 1/8:8 1/10 1/12 1/8 1/10 1/12 1/8 1/10 -->
+<!-- 4.0000 beats -->
+<svg width="789.9" height="238.35" viewBox="0 0 789.9 238.35" aria-hidden="true">
+  <line x1="0" y1="147.5" x2="789.9" y2="147.5" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="136" x2="789.9" y2="136" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="124.5" x2="789.9" y2="124.5" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="113" x2="789.9" y2="113" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="101.5" x2="789.9" y2="101.5" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <text x="14.950000000000001" y="113" fill="#cfcac2" font-size="25.875" text-anchor="middle" dominant-baseline="central" font-family="Georgia, serif">2</text>
+  <text x="14.950000000000001" y="136" fill="#cfcac2" font-size="25.875" text-anchor="middle" dominant-baseline="central" font-family="Georgia, serif">2</text>
+  <line x1="34.483000000000004" y1="90" x2="59.31700000000001" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <line x1="34.483000000000004" y1="78.5" x2="59.31700000000001" y2="78.5" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="46.900000000000006" cy="78.5" rx="6.417" ry="4.553999999999999" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="40.483000000000004" y1="78.5" x2="40.483000000000004" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="125.75375" y1="90" x2="150.58775" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <line x1="125.75375" y1="78.5" x2="150.58775" y2="78.5" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="138.17075" cy="72.75" rx="6.417" ry="4.553999999999999" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="131.75375" y1="72.75" x2="131.75375" y2="111.85" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="217.02450000000002" y1="90" x2="241.85850000000002" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <line x1="217.02450000000002" y1="78.5" x2="241.85850000000002" y2="78.5" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <line x1="217.02450000000002" y1="67" x2="241.85850000000002" y2="67" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="229.44150000000002" cy="67" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="223.02450000000002" y1="67" x2="223.02450000000002" y2="106.1" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="308.29525000000007" y1="90" x2="333.12925" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <line x1="308.29525000000007" y1="78.5" x2="333.12925" y2="78.5" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="320.71225000000004" cy="78.5" rx="6.417" ry="4.553999999999999" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="314.29525000000007" y1="78.5" x2="314.29525000000007" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="40.483000000000004" y1="117.6" x2="40.483000000000004" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="131.75375" y1="111.85" x2="131.75375" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="223.02450000000002" y1="106.1" x2="223.02450000000002" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="314.29525000000007" y1="117.6" x2="314.29525000000007" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="40.483000000000004" y1="117.6" x2="314.29525000000007" y2="117.6" stroke="#dcdcdc" stroke-width="3.91"></line>
+  <line x1="399.5660000000001" y1="90" x2="424.40000000000003" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <line x1="399.5660000000001" y1="78.5" x2="424.40000000000003" y2="78.5" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="411.98300000000006" cy="72.75" rx="6.417" ry="4.553999999999999" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="405.5660000000001" y1="72.75" x2="405.5660000000001" y2="111.85" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="490.8367500000001" y1="90" x2="515.67075" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <line x1="490.8367500000001" y1="78.5" x2="515.67075" y2="78.5" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <line x1="490.8367500000001" y1="67" x2="515.67075" y2="67" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="503.2537500000001" cy="67" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="496.8367500000001" y1="67" x2="496.8367500000001" y2="106.1" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="582.1075" y1="90" x2="606.9415" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <line x1="582.1075" y1="78.5" x2="606.9415" y2="78.5" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="594.5245" cy="78.5" rx="6.417" ry="4.553999999999999" fill="#e57672" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="588.1075" y1="78.5" x2="588.1075" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="673.37825" y1="90" x2="698.21225" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <line x1="673.37825" y1="78.5" x2="698.21225" y2="78.5" stroke="#8a8a8a" stroke-width="1.4"></line>
+  <ellipse cx="685.79525" cy="72.75" rx="6.417" ry="4.553999999999999" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
+  <line x1="679.37825" y1="72.75" x2="679.37825" y2="111.85" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="405.5660000000001" y1="111.85" x2="405.5660000000001" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="496.8367500000001" y1="106.1" x2="496.8367500000001" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="588.1075" y1="117.6" x2="588.1075" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="679.37825" y1="111.85" x2="679.37825" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="405.5660000000001" y1="117.6" x2="679.37825" y2="117.6" stroke="#dcdcdc" stroke-width="3.91"></line>
+  <rect class="staff-slot" x="29.900000000000002" y="0" width="760" height="238.35" fill="transparent" data-slot="0"></rect>
+  <rect class="staff-caret" x="33.900000000000006" y="0" width="26" height="238.35" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
+  <rect class="staff-hit" x="33.900000000000006" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
+  <rect class="staff-hit" x="125.17075" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="1"></rect>
+  <rect class="staff-hit" x="216.44150000000002" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="2"></rect>
+  <rect class="staff-hit" x="307.71225000000004" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="3"></rect>
+  <rect class="staff-hit" x="398.98300000000006" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="4"></rect>
+  <rect class="staff-hit" x="490.2537500000001" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="5"></rect>
+  <rect class="staff-hit" x="581.5245" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="6"></rect>
+  <rect class="staff-hit" x="672.79525" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="7"></rect>
+  <text x="40.483000000000004" y="46.646" class="staff-name" data-chord="0" data-note="" data-name="Cm7" fill="#ddd" font-size="16" text-anchor="start" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-weight="600">Cm7</text>
+</svg>
+<svg width="789.9" height="96.375" viewBox="0 0 789.9 96.375" aria-hidden="true">
+  <line x1="0" y1="9.200000000000001" x2="789.9" y2="9.200000000000001" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="20.700000000000003" x2="789.9" y2="20.700000000000003" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="32.2" x2="789.9" y2="32.2" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="43.7" x2="789.9" y2="43.7" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="55.2" x2="789.9" y2="55.2" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <line x1="0" y1="66.7" x2="789.9" y2="66.7" stroke="#4d4d4d" stroke-width="1.7"></line>
+  <rect x="38.108250000000005" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="46.900000000000006" y="9.200000000000001" fill="#e57672" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="129.379" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="138.17075" y="9.200000000000001" fill="#e6a45c" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">10</text>
+  <rect x="220.64975" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="229.44150000000002" y="9.200000000000001" fill="#9cc267" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">12</text>
+  <rect x="311.92050000000006" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="320.71225000000004" y="9.200000000000001" fill="#e57672" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="403.1912500000001" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="411.98300000000006" y="9.200000000000001" fill="#e6a45c" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">10</text>
+  <rect x="494.4620000000001" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="503.2537500000001" y="9.200000000000001" fill="#9cc267" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">12</text>
+  <rect x="585.73275" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="594.5245" y="9.200000000000001" fill="#e57672" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">8</text>
+  <rect x="677.0035" y="3.7950000000000017" width="17.5835" height="10.809999999999999" fill="#000"></rect>
+  <text x="685.79525" y="9.200000000000001" fill="#e6a45c" font-size="12.65" text-anchor="middle" dominant-baseline="central" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">10</text>
+  <circle class="staff-label-dot" cx="46.900000000000006" cy="85.85" r="8.8" fill="#e57672"></circle>
+  <text x="46.900000000000006" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">R</text>
+  <circle class="staff-label-dot" cx="138.17075" cy="85.85" r="8.8" fill="#e6a45c"></circle>
+  <text x="138.17075" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">9</text>
+  <circle class="staff-label-dot" cx="229.44150000000002" cy="85.85" r="8.8" fill="#9cc267"></circle>
+  <text x="229.44150000000002" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <circle class="staff-label-dot" cx="320.71225000000004" cy="85.85" r="8.8" fill="#e57672"></circle>
+  <text x="320.71225000000004" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">R</text>
+  <circle class="staff-label-dot" cx="411.98300000000006" cy="85.85" r="8.8" fill="#e6a45c"></circle>
+  <text x="411.98300000000006" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">9</text>
+  <circle class="staff-label-dot" cx="503.2537500000001" cy="85.85" r="8.8" fill="#9cc267"></circle>
+  <text x="503.2537500000001" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">3</text>
+  <circle class="staff-label-dot" cx="594.5245" cy="85.85" r="8.8" fill="#e57672"></circle>
+  <text x="594.5245" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">R</text>
+  <circle class="staff-label-dot" cx="685.79525" cy="85.85" r="8.8" fill="#e6a45c"></circle>
+  <text x="685.79525" y="90.46499999999999" fill="#ffffff" font-size="13" text-anchor="middle" font-weight="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif">9</text>
+  <rect class="staff-slot" x="29.900000000000002" y="0" width="760" height="96.375" fill="transparent" data-slot="0"></rect>
+  <rect class="staff-caret" x="33.900000000000006" y="0" width="26" height="96.375" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
+  <rect class="staff-hit" x="33.900000000000006" y="0" width="26" height="96.375" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>
+  <rect class="staff-hit" x="125.17075" y="0" width="26" height="96.375" rx="4" fill="transparent" data-chord="0" data-note="1"></rect>
+  <rect class="staff-hit" x="216.44150000000002" y="0" width="26" height="96.375" rx="4" fill="transparent" data-chord="0" data-note="2"></rect>
+  <rect class="staff-hit" x="307.71225000000004" y="0" width="26" height="96.375" rx="4" fill="transparent" data-chord="0" data-note="3"></rect>
+  <rect class="staff-hit" x="398.98300000000006" y="0" width="26" height="96.375" rx="4" fill="transparent" data-chord="0" data-note="4"></rect>
+  <rect class="staff-hit" x="490.2537500000001" y="0" width="26" height="96.375" rx="4" fill="transparent" data-chord="0" data-note="5"></rect>
+  <rect class="staff-hit" x="581.5245" y="0" width="26" height="96.375" rx="4" fill="transparent" data-chord="0" data-note="6"></rect>
+  <rect class="staff-hit" x="672.79525" y="0" width="26" height="96.375" rx="4" fill="transparent" data-chord="0" data-note="7"></rect>
+</svg>

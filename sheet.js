@@ -90,15 +90,19 @@ const Sheet = (() => {
   // played as written; short is a phrase still being written. Null where there
   // is nothing to say.
   function barBeatText(bar) {
-    const beats = barBeats(bar);
-    if (beats === null) return null;
+    // Two names a letter apart that mean opposite things, so both are read into
+    // a name that says which: the local barBeats counts the notes written, and
+    // Chords.barBeats is the length the meter gives the bar to write them in.
+    const written = barBeats(bar);
+    if (written === null) return null;
     const meter = Chords.barMeter(bar);
-    if (Math.abs(beats - Chords.barBeats(bar)) < 1e-9) return null;
+    const room = Chords.barBeats(bar);
+    if (Math.abs(written - room) < 1e-9) return null;
     // Counted in the beat the meter is written in, not in quarters: a bar of
     // 3/8 holding four eighths is "4/3", which is the count a reader can act
     // on. Saying "2/1.5" would be reporting quarters at a bar that is not
     // written in them.
-    const counted = beats / (4 / meter.den);
+    const counted = written / (4 / meter.den);
     // Thirds of a beat do not come out even, so the count is
     // written to as many places as it needs and no more: 4.5 rather
     // than 4.50, 4.33 for a stray triplet.
@@ -225,6 +229,21 @@ const Sheet = (() => {
       prev.end = start;
     }
     commitChordEdit('bar-time');
+  }
+
+  // The meter a bar is written in, set from its head rather than typed into the
+  // sheet. A signature is written once and read on, so choosing the meter the
+  // bar is already in clears the mark instead of restating it — which is what a
+  // stave does, and what keeps `T44 T44 T44` from collecting down a sheet.
+  function setBarMeter(index, meter) {
+    const bars = cache().bars;
+    const bar = bars[index];
+    if (!bar) return;
+    // What the bar would be in if it said nothing: the meter running into it.
+    const before = Chords.barMeter(index > 0 ? bars[index - 1] : null);
+    const same = meter && before.num === meter.num && before.den === meter.den;
+    bar.meter = !meter || same ? null : { num: meter.num, den: meter.den };
+    commitChordEdit('bar-meter');
   }
 
   // ============================================================
@@ -1281,7 +1300,7 @@ const Sheet = (() => {
     init,
     // bars
     roundTo, barBeats, barBeatText, barOpensOnTie,
-    commitChordEdit, addBar, insertBar, barTimeBounds, setBarStart,
+    commitChordEdit, addBar, insertBar, barTimeBounds, setBarStart, setBarMeter,
     // ♪ — where the caret is, and what the board is set to. The page reads
     // these while it draws; every way of changing one is a call above.
     get at() { return notePanelAt; },

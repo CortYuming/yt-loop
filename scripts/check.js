@@ -196,6 +196,8 @@ function open(sheet) {
     insertBar: (at, start) => Sheet.insertBar(at, start),
     // The bar's own time, moved from its head, and how far it may go.
     setBarStart: (at, t) => Sheet.setBarStart(at, t),
+    // The meter written on the bar from its head — the picker's one call.
+    setMeter: (at, num, den) => Sheet.setBarMeter(at, num === null ? null : { num, den }),
     bounds: at => Sheet.barTimeBounds(at),
     rest: () => Sheet.addNoteRest(),
     tie: () => Sheet.addNoteTie(),
@@ -282,7 +284,7 @@ function draw(sheet, mode) {
     // way — a bar cannot see the bars around it.
     const held = Chords.rulingBefore(bars, i);
     const staff = Chords.staffBar(items, width, reach, key, mode, SLOT, [], false,
-      held, bar.meter);
+      held, bar.meter, Chords.barBeamUnit(bar));
     const tab = Chords.tabBar(items, width, key, mode, SLOT, [], reach.stack, held);
     return [`<!-- bar ${i + 1}: ${textOf(bars, i)} -->`,
       `<!-- ${beatsOf(bar).toFixed(4)} beats -->`,
@@ -304,8 +306,15 @@ const DRAWN = {
   // frets still sit under the notes they belong to.
   'time-signature-two-four': '@0 T24 Cm7 1/8:8 1/10 1/12 1/8',
   // Three eighths: the bar Hot Licks Video Intro actually has, drawn as the
-  // three eighths it is rather than as a 4/4 bar half written.
+  // three eighths it is rather than as a 4/4 bar half written. All three run
+  // under one beam — the bar is one dotted-quarter beat, and beaming two of
+  // them and flagging the third was the quarter showing through.
   'time-signature-three-eight': '@0 T38 Cm7 1/8:8 1/10 1/12',
+  // Six eighths in two beams of three, which is what makes a compound meter
+  // read as one: in pairs it is 3/4 with the signature changed.
+  'time-signature-six-eight': '@0 T68 Cm7 1/8:8 1/10 1/12 1/8 1/10 1/12',
+  // Cut time. The beat is the half note, so eighths run four to a beam.
+  'time-signature-cut-common': '@0 T22 Cm7 1/8:8 1/10 1/12 1/8 1/10 1/12 1/8 1/10',
   // The bar the beams-run-on bug was found in: three eighth triplets under three
   // chords, the whole of it counted in one bar.
   'triplets-under-chord-changes':
@@ -1053,6 +1062,39 @@ const EDITED = [
     sheetText: '@0.00 Cm7 1/5:8\n@2.00\n@4.00 F7 1/9:8',
   },
   {
+    // The meter written from the bar's head reads back as the token it is, at
+    // the head of that bar — the picker and the sheet text are one thing.
+    name: '拍子を書く: 頭から選んだ拍子が譜面に入る',
+    sheet: '@0 Cm7 1/5:4 1/7 1/9 1/10|@2 Cm7 1/5:4 1/7 1/9 1/10',
+    run: ({ api }) => { api.setMeter(1, 3, 4); },
+    sheetText: '@0.00 Cm7 1/5:4 1/7 1/9 1/10\n@2.00 T34 Cm7 1/5:4 1/7 1/9 1/10',
+  },
+  {
+    // A signature is written once and read on, so choosing the meter the bar is
+    // already in takes the mark off rather than restating it.
+    name: '拍子を書く: 効いている拍子を選ぶと印が消える',
+    sheet: '@0 T34 Cm7 1/5:4 1/7 1/9|@3 T34 Cm7 1/5:4 1/7 1/9',
+    run: ({ api }) => { api.setMeter(1, 3, 4); },
+    sheetText: '@0.00 T34 Cm7 1/5:4 1/7 1/9\n@3.00 Cm7 1/5:4 1/7 1/9',
+  },
+  {
+    // The first bar has nothing running into it, so common time is what it is
+    // in until it says otherwise — and writing 4/4 on it says nothing new.
+    name: '拍子を書く: 1小節目に 4/4 を選んでも何も書かれない',
+    sheet: '@0 Cm7 1/5:4 1/7 1/9 1/10',
+    run: ({ api }) => { api.setMeter(0, 4, 4); },
+    sheetText: '@0.00 Cm7 1/5:4 1/7 1/9 1/10',
+  },
+  {
+    // Taking the meter off a bar puts it back in the one running into it, and
+    // the bars reading on after it follow.
+    name: '拍子を書く: 印を外すと前の拍子に戻る',
+    sheet: '@0 T34 Cm7 1/5:4 1/7 1/9|@3 T24 Cm7 1/5:4 1/7|@4 Cm7 1/5:4 1/7',
+    run: ({ api }) => { api.setMeter(1, null); },
+    sheetText: '@0.00 T34 Cm7 1/5:4 1/7 1/9\n@3.00 Cm7 1/5:4 1/7'
+      + '\n@4.00 Cm7 1/5:4 1/7',
+  },
+  {
     // A bar put between two others is in the meter in force where it lands, not
     // in common time. The strip is redrawn from the cache before the text is
     // read back, so the walk that says which meter a bar is in has to be redone
@@ -1728,6 +1770,47 @@ const TIMES = [
   // not a meter, so it stays what any other token at the head of a bar is.
   { name: '拍数: 読めない音価はコード名になる',
     got: () => open('@0 T35 Cm7 1/5:4 1/7 1/9 1/10').api.beatLabel(), want: null },
+  // A bar of no beats is not a bar. `T04` read as a meter drew that bar, and
+  // every bar reading on after it, at no width at all.
+  { name: '拍子: T04 は拍子ではない',
+    got: () => Chords.parseSheet('@0 T04 Cm7 1/5:4|@2 F7 1/5:4')
+      .map(b => Chords.barBeats(b)).join(' '),
+    want: '4 4' },
+  // How far a beam runs before the beat cuts it — see Chords.beamUnit. The
+  // number is in quarters, whatever the meter is written over.
+  // The two numbers a meter is typed as, read under the same rules the token is.
+  { name: '拍子の入力: 3 と 4 で 3/4',
+    got: () => JSON.stringify(Chords.meterFrom(3, 4)), want: '{"num":3,"den":4}' },
+  { name: '拍子の入力: 0 拍の小節は拍子ではない',
+    got: () => Chords.meterFrom(0, 4), want: null },
+  { name: '拍子の入力: 読めない音価は拍子ではない',
+    got: () => Chords.meterFrom(3, 5), want: null },
+  { name: '拍子の入力: 空欄は拍子ではない',
+    got: () => Chords.meterFrom(NaN, 4), want: null },
+  { name: '連桁: 4/4 は4分音符ごと',
+    got: () => Chords.barBeamUnit(Chords.parseSheet('@0 Cm7 1/5:8')[0]), want: 1 },
+  { name: '連桁: 3/4 も4分音符ごと',
+    got: () => Chords.barBeamUnit(Chords.parseSheet('@0 T34 Cm7 1/5:8')[0]), want: 1 },
+  { name: '連桁: 2/2 は2分音符ごと',
+    got: () => Chords.barBeamUnit(Chords.parseSheet('@0 T22 Cm7 1/5:8')[0]), want: 2 },
+  { name: '連桁: 6/8 は付点4分ごと',
+    got: () => Chords.barBeamUnit(Chords.parseSheet('@0 T68 Cm7 1/5:8')[0]), want: 1.5 },
+  { name: '連桁: 3/8 は小節まるごと1つ',
+    got: () => Chords.barBeamUnit(Chords.parseSheet('@0 T38 Cm7 1/5:8')[0]), want: 1.5 },
+  { name: '連桁: 12/8 も付点4分ごと',
+    got: () => Chords.barBeamUnit(Chords.parseSheet('@0 T128 Cm7 1/5:8')[0]), want: 1.5 },
+  { name: '連桁: 5/8 は4分音符ごとのまま',
+    got: () => Chords.barBeamUnit(Chords.parseSheet('@0 T58 Cm7 1/5:8')[0]), want: 1 },
+  { name: '連桁: 6/16 は付点8分ごと',
+    got: () => Chords.barBeamUnit(Chords.parseSheet('@0 T616 Cm7 1/5:16')[0]), want: 0.75 },
+  // Written once, read on: the bar after a `T68` beams in threes although it
+  // carries no signature of its own.
+  { name: '連桁: 拍子は次の小節の連桁にも効く',
+    got: () => Chords.barBeamUnit(Chords.parseSheet('@0 T68 Cm7 1/5:8|@1.5 Cm7 1/5:8')[1]),
+    want: 1.5 },
+  { name: '拍子: T04 は小節の頭でもコード名',
+    got: () => Chords.parseSheet('@0 T04 1/5:4')[0].chords.map(c => c.name).join(),
+    want: 'T04' },
   { name: '拍数: 音符のない小節には出さない',
     got: () => open('@0 Cm7 F7 G7 C7').api.beatLabel(), want: null },
   { name: '拍数: 装飾音符は数に入らない',

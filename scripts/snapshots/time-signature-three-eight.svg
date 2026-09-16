@@ -16,16 +16,15 @@
   <line x1="119.53833333333333" y1="78.5" x2="144.37233333333333" y2="78.5" stroke="#8a8a8a" stroke-width="1.4"></line>
   <ellipse cx="131.95533333333333" cy="72.75" rx="6.417" ry="4.553999999999999" fill="#e6a45c" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="125.53833333333333" y1="72.75" x2="125.53833333333333" y2="111.85" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="40.483000000000004" y1="117.6" x2="40.483000000000004" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="125.53833333333333" y1="111.85" x2="125.53833333333333" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="40.483000000000004" y1="117.6" x2="125.53833333333333" y2="117.6" stroke="#dcdcdc" stroke-width="3.91"></line>
   <line x1="204.59366666666668" y1="90" x2="229.42766666666668" y2="90" stroke="#8a8a8a" stroke-width="1.4"></line>
   <line x1="204.59366666666668" y1="78.5" x2="229.42766666666668" y2="78.5" stroke="#8a8a8a" stroke-width="1.4"></line>
   <line x1="204.59366666666668" y1="67" x2="229.42766666666668" y2="67" stroke="#8a8a8a" stroke-width="1.4"></line>
   <ellipse cx="217.01066666666668" cy="67" rx="6.417" ry="4.553999999999999" fill="#9cc267" stroke="none" stroke-width="1.8"></ellipse>
   <line x1="210.59366666666668" y1="67" x2="210.59366666666668" y2="106.1" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <line x1="210.59366666666668" y1="106.1" x2="210.59366666666668" y2="106.1" stroke="#dcdcdc" stroke-width="1.4"></line>
-  <path d="M210.59366666666668 106.1 q 10.35 -5.75 8.049999999999999 -17.25" fill="none" stroke="#dcdcdc" stroke-width="2.9325"></path>
+  <line x1="40.483000000000004" y1="117.6" x2="40.483000000000004" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="125.53833333333333" y1="111.85" x2="125.53833333333333" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="210.59366666666668" y1="106.1" x2="210.59366666666668" y2="117.6" stroke="#dcdcdc" stroke-width="1.4"></line>
+  <line x1="40.483000000000004" y1="117.6" x2="210.59366666666668" y2="117.6" stroke="#dcdcdc" stroke-width="3.91"></line>
   <rect class="staff-slot" x="29.900000000000002" y="0" width="285" height="238.35" fill="transparent" data-slot="0"></rect>
   <rect class="staff-caret" x="33.900000000000006" y="0" width="26" height="238.35" rx="4" fill="none" pointer-events="none" data-caret="0"></rect>
   <rect class="staff-hit" x="33.900000000000006" y="0" width="26" height="238.35" rx="4" fill="transparent" data-chord="0" data-note="0"></rect>

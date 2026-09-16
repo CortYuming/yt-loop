@@ -404,7 +404,17 @@ const Chords = (() => {
   // never ambiguous: the note values are 2, 4, 8 and 16, and no two of them
   // split one token two ways — `T128` is 12/8 because 28 is not a note, and
   // `T216` is 2/16 because 6 is not one either.
-  const METER_TOKEN = /^T(\d{1,2})(2|4|8|16)$/;
+  // The count starts at one, since a bar of no beats is not a bar: a leading
+  // zero makes the token no meter at all, and it is read as a chord by that
+  // name the way anything else at the head of a bar is. Left in, `T04` was a
+  // bar nought beats long — and a signature rules on, so every bar after it was
+  // nought beats long too and the rest of the sheet drew at no width.
+  //
+  // The note values are kept in a list rather than spelled into the pattern,
+  // since the picker in a bar's head reads a typed meter under the same rules
+  // and two lists of them would drift apart.
+  const NOTE_VALUES = [2, 4, 8, 16];
+  const METER_TOKEN = new RegExp(`^T([1-9]\\d?)(${NOTE_VALUES.join('|')})$`);
   // The meter a sheet is in until it says otherwise, and the shape every meter
   // here is held in: how many beats, and what note a beat is.
   const COMMON_TIME = { num: 4, den: 4 };
@@ -413,6 +423,14 @@ const Chords = (() => {
   const meterBeats = m => (m.num * 4) / m.den;
   // How a meter is written back into a sheet.
   const meterText = m => `T${m.num}${m.den}`;
+  // A meter from two numbers, or null where they do not name one — the same
+  // rules the token is read under. What the bar's head hands its picker.
+  function meterFrom(num, den) {
+    if (!Number.isInteger(num) || !Number.isInteger(den)) return null;
+    if (num < 1 || num > 99) return null;
+    if (!NOTE_VALUES.includes(den)) return null;
+    return { num, den };
+  }
 
   function parseMarkers(m) {
     if (!m) return null;
@@ -1214,6 +1232,33 @@ const Chords = (() => {
   // takes are all counted in quarters whatever the meter is written over.
   function barBeats(bar) {
     return meterBeats(barMeter(bar));
+  }
+
+  // How far a beam runs before the beat cuts it, in quarters. A stave beams to
+  // the beat it is counted in rather than to the quarter: cut time carries four
+  // eighths to the half note, and 6/8 carries three to the dotted quarter.
+  // Compound meters — the ones counted in threes — are the whole of why the
+  // denominator is read at all, so they are the one case that leaves the
+  // quarter behind.
+  // The odd eighth meters are left where they were. 5/8 is 3+2 in one tune and
+  // 2+3 in the next, 7/8 is 2+2+3 or 3+2+2, and which one is the music rather
+  // than the signature: nothing in a sheet says it, so guessing would be worse
+  // than the quarter, which is at least what the writer saw while writing.
+  function beamUnit(meter) {
+    const m = meter || COMMON_TIME;
+    // The note a beat is, in quarters: a half in 2/2, an eighth in 6/8.
+    const unit = 4 / m.den;
+    // Counted in threes, and only where a beat is shorter than a quarter —
+    // 3/4 divides by three without being a compound meter.
+    if (m.num % 3 === 0 && unit < 1) return unit * 3;
+    // Never finer than the quarter: a beam that stopped every eighth in 5/8
+    // would be no beam at all.
+    return Math.max(unit, 1);
+  }
+
+  // The same, for a bar that knows its own meter.
+  function barBeamUnit(bar) {
+    return beamUnit(barMeter(bar));
   }
 
   // Fill in the bar ends nobody wrote down: a bar runs up to the next one, and
@@ -2173,8 +2218,13 @@ const Chords = (() => {
   // the meter it was already in — a signature is written once, at the bar it
   // starts on, and is not restated. The room it takes is already in `width` and
   // in where `items` were placed: see meterWidth, which both sides measure by.
+  // `beamQuarters` is how far a beam runs before the beat cuts it, in quarters —
+  // see beamUnit. It is handed in rather than read off `meter`, since a bar
+  // reading on in 3/8 carries no signature of its own and still beams in
+  // threes. A bar drawn on its own knows nothing of either, so it beams to the
+  // quarter, the way barBeats falls back to four.
   function staffBar(items, width, range, key, mode, beatWidth, carryIn, carryOut,
-    heldName, meter) {
+    heldName, meter, beamQuarters = 1) {
     if (!range || width <= 0) {
       const empty = document.createElementNS(NS, 'svg');
       empty.setAttribute('width', '0');
@@ -2492,7 +2542,8 @@ const Chords = (() => {
         // whatever it is inside — the beat, or the triplet's own division of it.
         // Three triplets are one gesture, so the beats no longer cut through the
         // middle of one.
-        const cellOf = q => q.trip || String(Math.floor(q.beatAt + 1e-6));
+        const cellOf = q => q.trip
+          || String(Math.floor(q.beatAt / beamQuarters + 1e-6));
         const sameBeat = last && cellOf(prev) === cellOf(p);
         // A beam asked for by hand carries across the beat it would have stopped
         // at, and across a change of value: an eighth and two sixteenths under
@@ -3350,6 +3401,7 @@ const Chords = (() => {
     readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
     romanNumeral,
     staffRange, staffBar, staffHead, staffHeadWidth, meterWidth, barBeats, barMeter,
+    barBeamUnit, meterFrom, NOTE_VALUES,
     resolveMeters,
     // single notes
     noteBeats, eventDur, isDottedDur,

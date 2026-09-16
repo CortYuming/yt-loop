@@ -1233,6 +1233,7 @@ let chordAnchors = [];  // {time, x} along the track, ascending by time
 // rest of the strip's state because the strip can be drawn before this file has
 // finished evaluating.
 let openTimePins = null;
+let openMeterPicker = null;
 
 // Re-reading and re-parsing the sheet on every render would be waste, so the
 // parse is kept and only redone when the text can have changed.
@@ -1345,6 +1346,7 @@ function drawChordStrip(fromCache) {
   chordStrip.style.transform = '';
   chordAnchors = [];
   openTimePins = null;   // the head holding them has just been thrown away
+  openMeterPicker = null;
 
   if (bars.length === 0) {
     const empty = document.createElement('p');
@@ -1545,6 +1547,9 @@ function buildBarHead(i, bar, span) {
   if (span.start !== null) head.appendChild(barTimePins(i, span));
   const count = barBeatLabel(bar);
   if (count) head.appendChild(count);
+  // Last, past the count: the number, the moment, what is wrong with it, and
+  // then the meter it is all being read against.
+  head.appendChild(barMeterPicker(i, bar));
   return head;
 }
 
@@ -1610,7 +1615,7 @@ function buildBarStaff(barEl, items, bars, i, width, staffReach, key, slot, show
     && Chords.carriedStops(bars, i + 1).length > 0;
   const staff = Chords.staffBar(
     items, width, staffReach, key, effectiveChordMode(), slot, carryIn, carryOut,
-    heldName, meter);
+    heldName, meter, Chords.barBeamUnit(bars[i]));
   staff.setAttribute('class', 'chord-staff');
   barEl.appendChild(staff);
   if (showTab) {
@@ -1804,6 +1809,125 @@ function closeChordTimePins() {
   openTimePins = null;
 }
 
+// The meters a sheet reaches for, in the order a player would look for them:
+// the common ones, then the compound ones. Everything else is typed in below.
+const COMMON_METERS = [[4, 4], [3, 4], [2, 4], [2, 2], [3, 8], [6, 8], [12, 8]];
+
+// The time signature this bar is in, and the way to write a different one. A
+// meter is the bar's own fact about itself, the way its number is, so it lives
+// in the head rather than in the sheet text — which was the only way in until
+// now, and is no way in at all for someone who is reading the music.
+// It wears the head's own grey until you go near it, like the time beside it:
+// a sheet in one meter throughout would otherwise have a row of buttons down
+// the side of it saying 4/4 forty times.
+function barMeterPicker(index, bar) {
+  const now = Chords.barMeter(bar);
+  const wrap = document.createElement('span');
+  wrap.className = 'chord-bar-meter';
+
+  const panel = document.createElement('span');
+  panel.className = 'chord-meter-panel';
+  // Filled the first time it is opened, not on every redraw. The strip is
+  // rebuilt on every edit — a note tapped out is a redraw — and a panel of ten
+  // controls per bar, built and thrown away unseen on each of them, is the same
+  // waste as reparsing the sheet was. The face is one button and stays eager,
+  // since that is what is on screen.
+  let built = false;
+  const fill = () => {
+    if (built) return;
+    built = true;
+    buildMeterPanel(panel, index, now);
+  };
+
+  const face = toolButton('chord-meter-face', `${now.num}/${now.den}`,
+    `This bar is in ${now.num}/${now.den} — press to write a different one`,
+    () => {
+      const wasOpen = wrap.classList.contains('open');
+      closeChordMeterPicker();
+      if (wasOpen) return;
+      fill();
+      wrap.classList.add('open');
+      openMeterPicker = wrap;
+    }, true);
+  face.setAttribute('aria-label', `time signature: ${now.num}/${now.den}`);
+
+  wrap.append(face, panel);
+  return wrap;
+}
+
+// What is inside the panel: the meters worth a button, and two boxes for the
+// ones that are not.
+function buildMeterPanel(panel, index, now) {
+  const choose = meter => {
+    closeChordMeterPicker();
+    Sheet.setBarMeter(index, meter);
+  };
+
+  const row = document.createElement('span');
+  row.className = 'chord-meter-row';
+  for (const [num, den] of COMMON_METERS) {
+    const b = toolButton('chord-meter-opt', `${num}/${den}`,
+      `Write this bar in ${num}/${den}`, () => choose({ num, den }), true);
+    // The meter the bar is already in, marked rather than disabled: pressing it
+    // is how a restated signature comes back off a bar.
+    if (num === now.num && den === now.den) b.classList.add('on');
+    row.appendChild(b);
+  }
+
+  // The ones no row should carry. 7/8 and 12/16 are meters a sheet may want
+  // once; a button each for them is a row nobody reads to the end of.
+  const other = document.createElement('span');
+  other.className = 'chord-meter-other';
+  const num = meterBox(now.num, 'beats in the bar');
+  const den = meterBox(now.den, 'the note a beat is');
+  const err = document.createElement('span');
+  err.className = 'chord-meter-err';
+  err.hidden = true;
+  const write = () => {
+    const meter = Chords.meterFrom(Number(num.value), Number(den.value));
+    if (!meter) {
+      const values = Chords.NOTE_VALUES;
+      err.textContent = `A beat is a ${values.slice(0, -1).join(', ')} `
+        + `or ${values[values.length - 1]}, and a bar holds at least one`;
+      err.hidden = false;
+      return;
+    }
+    choose(meter);
+  };
+  for (const box of [num, den]) {
+    box.addEventListener('input', () => { err.hidden = true; });
+    box.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      write();
+    });
+  }
+  const slash = document.createElement('span');
+  slash.className = 'chord-meter-slash';
+  slash.textContent = '/';
+  other.append(num, slash, den,
+    toolButton('chord-meter-set', 'Write', 'Write this bar in that meter', write, true));
+
+  panel.append(row, other, err);
+}
+
+// One of the two numbers a meter is typed as. Narrow: it holds two digits at
+// the most, and a box wider than what it can take reads as asking for more.
+function meterBox(value, label) {
+  const box = document.createElement('input');
+  box.className = 'chord-meter-box';
+  box.type = 'text';
+  box.inputMode = 'numeric';
+  box.value = String(value);
+  box.setAttribute('aria-label', label);
+  return box;
+}
+
+function closeChordMeterPicker() {
+  if (openMeterPicker) openMeterPicker.classList.remove('open');
+  openMeterPicker = null;
+}
+
 // The box the time is typed in, with the current playback position on a button
 // beside it: playing up to the bar line and taking the moment off the clock is
 // how the time was found in the first place.
@@ -1889,12 +2013,14 @@ function barTimeEditor(index, time) {
 // Anywhere else is a way out: the buttons are a question, and going back to the
 // music is a legitimate answer to it.
 document.addEventListener('click', e => {
-  if (!openTimePins) return;
-  if (e.target.closest && e.target.closest('.chord-bar-time')) return;
-  closeChordTimePins();
+  const inside = sel => e.target.closest && e.target.closest(sel);
+  if (openTimePins && !inside('.chord-bar-time')) closeChordTimePins();
+  if (openMeterPicker && !inside('.chord-bar-meter')) closeChordMeterPicker();
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeChordTimePins();
+  if (e.key !== 'Escape') return;
+  closeChordTimePins();
+  closeChordMeterPicker();
 });
 
 function currentPlaybackTime() {
