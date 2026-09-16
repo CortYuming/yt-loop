@@ -1210,8 +1210,11 @@ shareMdBtn.addEventListener('click', () => {
 // each bar be as wide as its contents, which made the sheet speed up and slow
 // down bar by bar and was unfollowable.)
 //
-// The slot narrows on a window too small for four of them, so one whole bar
-// always fits across, and the sheet never wraps to a second line.
+// The slot narrows on a window too small for four of them, so a bar of the
+// common time the sheet is mostly in always fits across and the sheet never
+// wraps to a second line. Bars in longer meters — 5/4 and up — run past that,
+// which is the one place the row scrolls to reach a bar rather than to reach
+// the next one.
 const SLOTS_PER_BAR = 4;
 // A slot holds one diagram, drawn as an SVG scaled to fit it, so this single
 // number sets how large the whole sheet draws.
@@ -1423,10 +1426,15 @@ function drawChordStrip(fromCache) {
     // Not the even split alone: a stretch holding a phrase takes the room it
     // needs from the stretches that have room to spare. See Chords.barWeights.
     const weights = Chords.barWeights(bar, slot);
-    // Every bar is the same four slots wide. One holding more chords than that
-    // stacks them four to a line within its own width instead of growing wider,
-    // which would run it past the others and take the even pace with it.
-    const width = SLOTS_PER_BAR * slot;
+    // One slot to the beat, so a bar of 2/4 is half the width of the 4/4 around
+    // it and the row still runs at one pace. A bar holding more chords than it
+    // has beats stacks them within its own width instead of growing wider,
+    // which would run it past the others and take that pace with it.
+    // A bar that changes meter is wider by the signature it carries: the glyph
+    // takes its own room at the head of the bar rather than squeezing the music
+    // after it, which is how printed music makes space for one.
+    const meterW = Chords.meterWidth(bar);
+    const width = Chords.barBeats(bar) * slot + meterW;
     const outer = width + BAR_BORDER;
 
     // A stretch of music the sheet says nothing about is drawn as the blank it
@@ -1455,8 +1463,8 @@ function drawChordStrip(fromCache) {
     // The same bar again, as the notes it sounds — see staffItems for where each
     // chord lands across it.
     if (staffReach) {
-      buildBarStaff(barEl, staffItems(bar, i, width, slot, weights),
-        bars, i, width, staffReach, key, slot, showTab);
+      buildBarStaff(barEl, staffItems(bar, i, width, slot, weights, meterW),
+        bars, i, width, staffReach, key, slot, showTab, bar.meter);
     }
 
     // The cells are how a sheet is read: a chord's name with its shape drawn
@@ -1543,14 +1551,20 @@ function buildBarHead(i, bar, span) {
 // A bar's chords as the staff wants them: where each one sits across the bar,
 // and what the board open on it has marked. Each chord sits at the beat it
 // starts on — the left edge of its cell — rather than under the middle of its
-// diagram, since what the staff is showing is when as much as what. Past four
-// chords the cells wrap and there are no beat edges to follow, so those are
-// spread evenly across the bar instead.
-function staffItems(bar, i, width, slot, weights) {
-  const wide = bar.chords.length > SLOTS_PER_BAR;
-  let cellX = 0;
+// diagram, since what the staff is showing is when as much as what. Past one
+// chord a beat the cells wrap and there are no beat edges to follow, so those
+// are spread evenly across the bar instead.
+// `meterW` is the room the bar's time signature takes at its head, which every
+// stretch in the bar starts after — including the evenly spread ones, so a
+// crowded bar that changes meter does not write its first chord over the
+// signature.
+function staffItems(bar, i, width, slot, weights, meterW = 0) {
+  const wide = bar.chords.length > Chords.barBeats(bar);
+  let cellX = meterW;
   return bar.chords.map((chord, j) => {
-    const at = wide ? (j * width) / bar.chords.length : cellX;
+    const at = wide
+      ? meterW + (j * (width - meterW)) / bar.chords.length
+      : cellX;
     cellX += weights[j] * slot;
     // Which of this stretch's notes is being edited, so the strip can mark it.
     const here = Sheet.at && Sheet.at.bar === i && Sheet.at.chord === j;
@@ -1574,12 +1588,16 @@ function staffItems(bar, i, width, slot, weights) {
   });
 }
 
-// The five lines and the tab row under them, hung on the bar. A bar is four
-// slots wide, so one slot is one beat — which is what the notes inside a
-// chord's stretch are placed by. What the bar carries in from the one before it
-// is worked out here, because a staff is drawn one bar at a time and the music
-// is not written that way.
-function buildBarStaff(barEl, items, bars, i, width, staffReach, key, slot, showTab) {
+// The five lines and the tab row under them, hung on the bar. A bar is one slot
+// per beat, so one slot is one beat — which is what the notes inside a chord's
+// stretch are placed by. What the bar carries in from the one before it is
+// worked out here, because a staff is drawn one bar at a time and the music is
+// not written that way.
+// `meter` reaches the staff and not the tab: a time signature is written on the
+// stave, and a tab under it that repeated the numbers would be saying the same
+// thing twice in the one place the two rows are meant to differ.
+function buildBarStaff(barEl, items, bars, i, width, staffReach, key, slot, showTab,
+  meter) {
   // A bar can open on a tie — a note held over the bar line — and then what it
   // is holding was struck in the bar before it.
   const carryIn = Chords.carriedStops(bars, i);
@@ -1592,7 +1610,7 @@ function buildBarStaff(barEl, items, bars, i, width, staffReach, key, slot, show
     && Chords.carriedStops(bars, i + 1).length > 0;
   const staff = Chords.staffBar(
     items, width, staffReach, key, effectiveChordMode(), slot, carryIn, carryOut,
-    heldName);
+    heldName, meter);
   staff.setAttribute('class', 'chord-staff');
   barEl.appendChild(staff);
   if (showTab) {
@@ -1603,18 +1621,22 @@ function buildBarStaff(barEl, items, bars, i, width, staffReach, key, slot, show
   }
 }
 
-// That count as the head wears it: the head's own grey, or red for a bar over
-// four.
+// That count as the head wears it: the head's own grey, or red for a bar
+// holding more than its meter can play. Both numbers come from barBeatText —
+// the bar is counted against its own time signature, not against four.
 function barBeatLabel(bar) {
   const count = barBeatText(bar);
   if (!count) return null;
-  const { shown, over } = count;
+  const { shown, of, over } = count;
   const el = document.createElement('span');
   el.className = `chord-bar-beats${over ? ' over' : ''}`;
-  el.textContent = `${shown}/${Chords.BEATS_PER_BAR}`;
+  el.textContent = `${shown}/${of}`;
   el.title = over
-    ? `${shown} beats written in a bar of ${Chords.BEATS_PER_BAR} — more than it can hold`
-    : `${shown} beats written of ${Chords.BEATS_PER_BAR}`;
+    ? `${shown} beats written in a bar of ${of} — more than it can hold`
+    : `${shown} beats written of ${of}`;
+  // The count reads against the signature on the stave, so the two say the same
+  // thing in the same terms.
+  el.setAttribute('aria-label', `bar of ${of}, ${shown} written`);
   return el;
 }
 
@@ -2261,7 +2283,7 @@ function barShapes(bars, barIndex) {
 function renderBarLane(bars, barIndex) {
   const shapes = barShapes(bars, barIndex);
   if (!shapes.length) return null;
-  const weights = Chords.slotWeights(shapes.length);
+  const weights = Chords.slotWeights(shapes.length, Chords.barBeats(bars[barIndex]));
   const cells = document.createElement('div');
   cells.className = 'chord-bar-cells';
   let shown = null;
@@ -2410,11 +2432,16 @@ function commitFocusedNameBox() {
 function writeSheetFromCache(source) {
   const kept = c => c.name || (c.notes && c.notes.length);
   const bars = chordCache.bars
-    .map(bar => ({ start: bar.start, end: bar.end, chords: bar.chords.filter(kept) }))
+    .map(bar => ({
+      start: bar.start, end: bar.end, meter: bar.meter,
+      chords: bar.chords.filter(kept),
+    }))
     // A bar put between two others is empty until it is written into, and it has
     // to survive being read back or it is gone the moment the caret leaves it.
-    // What it holds then is its time, which is the whole of what was said.
-    .filter(bar => bar.chords.length || bar.start !== null);
+    // What it holds then is its time and its meter, which is the whole of what
+    // was said — a bar dropped here takes its time signature with it, and every
+    // bar after it changes length.
+    .filter(bar => bar.chords.length || bar.start !== null || bar.meter);
   const key = chordCache.key;
   const text = Chords.toCompact(bars, '\n', key ? key.label : '');
   editSheet(text, source || 'cell');

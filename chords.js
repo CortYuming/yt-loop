@@ -393,6 +393,27 @@ const Chords = (() => {
   const TOKEN = /\[[^\]]*\]\([^)]*\)|\S+/g;
   const MD_LINK = /^\[([^\]]*)\]\(([^)]*)\)$/;
 
+  // The time signature, written at the head of the bar it starts on and read
+  // from there until another one is written — the way a stave carries it.
+  // `T34` is 3/4, `T38` is 3/8, `T22` is cut time and `T128` is 12/8: the
+  // count, then the note it is counted in. Both parts are needed — a bar of
+  // three eighths is not a bar of three quarters played fast, and writing it as
+  // one and a half beats of 4/4 is not writing it down at all.
+  // The two run together with nothing between them, so the count is read as the
+  // digits left over once a note value has been taken off the end. That is
+  // never ambiguous: the note values are 2, 4, 8 and 16, and no two of them
+  // split one token two ways — `T128` is 12/8 because 28 is not a note, and
+  // `T216` is 2/16 because 6 is not one either.
+  const METER_TOKEN = /^T(\d{1,2})(2|4|8|16)$/;
+  // The meter a sheet is in until it says otherwise, and the shape every meter
+  // here is held in: how many beats, and what note a beat is.
+  const COMMON_TIME = { num: 4, den: 4 };
+  // A meter's length in quarters, which is what everything downstream measures
+  // in — note values, the pace the staff draws at, the slots a bar takes.
+  const meterBeats = m => (m.num * 4) / m.den;
+  // How a meter is written back into a sheet.
+  const meterText = m => `T${m.num}${m.den}`;
+
   function parseMarkers(m) {
     if (!m) return null;
     const parts = String(m).split('.');
@@ -991,7 +1012,7 @@ const Chords = (() => {
   }
 
   function parseBar(barText) {
-    const bar = { start: null, end: null, chords: [] };
+    const bar = { start: null, end: null, meter: null, chords: [] };
     const tokens = joinTupletBraces(barText.match(TOKEN) || []);
     // Durations carry across a chord change within a bar: a run of eighths
     // written over two chords is one run to whoever wrote it.
@@ -1008,6 +1029,15 @@ const Chords = (() => {
       if (token[0] === '@') {
         const t = parseBarTime(token);
         if (t) { bar.start = t.start; bar.end = t.end; }
+        continue;
+      }
+      // The time signature, which is a property of the bar rather than of
+      // anything in it. Only at the head, before any music: that is where a
+      // stave carries it, and a `T24` found after the first chord is more
+      // likely a chord named T24 than a meter written in the wrong place.
+      const meter = METER_TOKEN.exec(token);
+      if (meter && bar.meter === null && !bar.chords.length) {
+        bar.meter = { num: Number(meter[1]), den: Number(meter[2]) };
         continue;
       }
       // Nesting is not read: a second `{` inside an open bracket leaves the one
@@ -1052,7 +1082,11 @@ const Chords = (() => {
     groups = foldWrittenTriplets(bar, groups);
     // A bar of its own time and nothing else: one put between two others and not
     // written into yet. It keeps an empty stretch so there is somewhere to write.
-    if (!bar.chords.length && bar.start !== null) bar.chords.push({ name: '', markers: null });
+    // A bar holding only a time signature is the same kind of thing — the meter
+    // changes there, and the music for it is still to come.
+    if (!bar.chords.length && (bar.start !== null || bar.meter !== null)) {
+      bar.chords.push({ name: '', markers: null });
+    }
     return bar.chords.length ? bar : null;
   }
 
@@ -1143,7 +1177,43 @@ const Chords = (() => {
       bars.push(...found);
     }
     flush();
+    // A time signature rules from the bar it is written on to the end of the
+    // sheet or the next one written, so every bar is told how long it is here
+    // rather than each drawing asking what came before it. A bar parsed on its
+    // own — parseBar is called directly in a few places — has no run to look
+    // back over, which is why barBeats falls back to four.
+    resolveMeters(bars);
     return bars;
+  }
+
+  // Which meter each bar is in. A signature rules from the bar it is written on
+  // to the next one written, so this is a walk over the whole run rather than
+  // anything a bar can answer on its own.
+  // Run again after any edit that adds, removes or moves a bar — the same way
+  // resolveSpans is, and for the same reason: a bar put into a passage in 3/4
+  // arrives knowing nothing, and drawn from the cache before the next parse it
+  // would be a bar of 4/4 sitting in the middle of the threes.
+  function resolveMeters(bars) {
+    let meter = COMMON_TIME;
+    for (const bar of bars) {
+      if (bar.meter) meter = bar.meter;
+      bar.meterInForce = meter;
+    }
+    return bars;
+  }
+
+  // The meter this bar is in, whether it is the bar that declared it or one
+  // reading on in it. Common time unless a signature has said otherwise — see
+  // parseSheet, which is what writes it on.
+  function barMeter(bar) {
+    return (bar && bar.meterInForce) || COMMON_TIME;
+  }
+
+  // How long this bar runs, in quarters. This is the number the rest of the
+  // file works in: note values, the pace the staff draws at and the slots a bar
+  // takes are all counted in quarters whatever the meter is written over.
+  function barBeats(bar) {
+    return meterBeats(barMeter(bar));
   }
 
   // Fill in the bar ends nobody wrote down: a bar runs up to the next one, and
@@ -1167,21 +1237,25 @@ const Chords = (() => {
     return spans;
   }
 
-  // How a bar's four beats fall to its chords — chord-vamp's split, so the two
-  // apps read a written bar the same way.
-  function beatWeights(n) {
-    if (n <= 1) return [4];
-    if (n === 2) return [2, 2];
-    if (n === 3) return [2, 1, 1];
-    return Array(n).fill(4 / n);
+  // How a bar's beats fall to its chords. Evenly, except for the one case a
+  // reader hears differently: three chords in a bar of four are a half and two
+  // quarters, not three thirds. That reading belongs to 4/4 — three chords in a
+  // bar of three are a beat each — so it is asked for by name rather than left
+  // to fall out of the arithmetic.
+  function beatWeights(n, beats = BEATS_PER_BAR) {
+    if (n <= 1) return [beats];
+    if (n === 2) return [beats / 2, beats / 2];
+    if (n === 3 && beats === BEATS_PER_BAR) return [2, 1, 1];
+    return Array(n).fill(beats / n);
   }
 
-  // The same split as widths, in slots of one diagram. A bar is four slots wide
-  // whatever it holds, so every bar on screen is the same size and the sheet
-  // moves at one speed. Past four chords there is nothing left to divide — a
-  // diagram can't be narrower than itself — so those bars run wide.
-  function slotWeights(n) {
-    if (n <= 4) return beatWeights(n);
+  // The same split as widths, in slots of one diagram. A bar is one slot per
+  // beat whatever it holds, so the sheet moves at one speed and a bar of 2/4 is
+  // half the width of the 4/4 around it. Past one chord a beat there is nothing
+  // left to divide — a diagram can't be narrower than itself — so those bars
+  // run wide.
+  function slotWeights(n, beats = BEATS_PER_BAR) {
+    if (n <= beats) return beatWeights(n, beats);
     return Array(n).fill(1);
   }
 
@@ -1202,7 +1276,7 @@ const Chords = (() => {
   // only a share of a slot once there is a slot to measure it against.
   function barWeights(bar, slot) {
     const chords = (bar && bar.chords) || [];
-    const base = slotWeights(chords.length);
+    const base = slotWeights(chords.length, barBeats(bar));
     if (!chords.length || !slot) return base;
     // What each stretch is asking for, in slots. Nothing written asks for
     // nothing — its even share is already the right answer for a lone grip.
@@ -1237,7 +1311,7 @@ const Chords = (() => {
   function chordTimes(bar, span) {
     if (!span || span.start === null) return bar.chords.map(() => null);
     if (span.end === null) return bar.chords.map((_, i) => (i === 0 ? span.start : null));
-    const weights = beatWeights(bar.chords.length);
+    const weights = beatWeights(bar.chords.length, barBeats(bar));
     const total = weights.reduce((a, b) => a + b, 0);
     const length = span.end - span.start;
     const times = [];
@@ -1263,6 +1337,9 @@ const Chords = (() => {
       const head = bar.start === null
         ? ''
         : `@${bar.start.toFixed(2)}${bar.end === null ? '' : `-${bar.end.toFixed(2)}`} `;
+      // After the time, before the music: the bar's own two facts about itself,
+      // in the order parseBar reads them back.
+      const meter = bar.meter ? `${meterText(bar.meter)} ` : '';
       // One bracket state for the whole bar, so a tuplet under a chord change is
       // written as one bracket rather than one per stretch.
       const open = { id: null };
@@ -1287,7 +1364,7 @@ const Chords = (() => {
       // A bracket that runs to the end of the bar is closed here: a bar is
       // parsed on its own, so one left open would come back holding nothing.
       if (open.id) parts.push('}');
-      return (head + parts.join(' ')).trim();
+      return (head + meter + parts.join(' ')).trim();
     }).join(sep);
     // First, so the sheet reads as what it is before it reads as where it goes.
     return key ? (body ? `key: ${key}${sep}${body}` : `key: ${key}`) : body;
@@ -1538,10 +1615,11 @@ const Chords = (() => {
   // The middle line, which is what decides a stem's direction: a note above it
   // hangs its stem down, one below it sends it up.
   const MID_LINE = 34;
-  // Beats to a bar. Notes are placed from this rather than from the cells above
-  // them — a cell is as wide as its chord's share of the bar, while the notes
-  // inside it move at the beat.
-  const BEATS_PER_BAR = 4;
+  // Beats to a bar where nothing says otherwise — common time, measured the way
+  // every other meter is. Notes are placed from this rather than from the cells
+  // above them: a cell is as wide as its chord's share of the bar, while the
+  // notes inside it move at the beat.
+  const BEATS_PER_BAR = meterBeats(COMMON_TIME);
 
   // One staff space, which every other size here is a multiple of — the staff
   // is 4 of them tall, a notehead a little over 1 of them wide, and a step
@@ -1862,10 +1940,37 @@ const Chords = (() => {
   const CLEF_W = SP * 3;
   const SIG_STEP = SP * 0.95;
   const HEAD_LEFT = SP * 0.4;
+  // The time signature: two digits stacked, each filling the two spaces above
+  // or below the middle line, which is the height printed music sets them at.
+  // Set in a serif — the numerals of a stave are, and the sans the rest of the
+  // sheet is lettered in reads as a label rather than as part of the music.
+  const METER_SIZE = SP * 2.25;
+  // The room it takes at the head of its bar, which is the wider of its two
+  // digits' worth plus air either side — 12/8 needs twice the glyph 3/4 does.
+  // The music moves over rather than being squeezed: a signature that stole
+  // width from the bar would change how the bar it appears in is spaced against
+  // every other bar in the row.
+  const METER_DIGIT_W = SP * 1.3;
+  const METER_PAD = SP * 0.65;
+  const meterGlyphW = m =>
+    Math.max(String(m.num).length, String(m.den).length) * METER_DIGIT_W
+    + METER_PAD * 2;
+  // The two places the digits sit, in staff steps: centred on the second line
+  // from the top and the second from the bottom.
+  const METER_TOP = MID_LINE + 2, METER_BOTTOM = MID_LINE - 2;
   // Centring a ♭ or ♯ glyph on its place leaves it reading high — the ink of
   // both sits above the middle of the box they are drawn in — so the signature
   // is dropped by a fraction of its own size to land on the line it names.
   const SIG_DROP = 0.02;
+
+  // The width a bar gives up at its left for a time signature, which is none
+  // at all for the bars that do not change meter. The staff draws the glyph
+  // and the tab does not, but both are handed the same width and the same item
+  // positions — a tab whose numbers sat a signature's width left of the notes
+  // over them would be a second, disagreeing reading of the bar.
+  function meterWidth(bar) {
+    return bar && bar.meter ? meterGlyphW(bar.meter) : 0;
+  }
 
   function staffHeadWidth(key) {
     return HEAD_LEFT + CLEF_W + signature(key).steps.length * SIG_STEP + SP * 0.8;
@@ -2064,8 +2169,12 @@ const Chords = (() => {
   // `heldName` is the chord in force as the bar opens, the way `carryIn` is the
   // strings still ringing — see rulingBefore. Both are worked out from the bars
   // rather than from this one, since a bar drawn on its own cannot see them.
+  // `meter` is the count this bar changes to, or null where it carries on in
+  // the meter it was already in — a signature is written once, at the bar it
+  // starts on, and is not restated. The room it takes is already in `width` and
+  // in where `items` were placed: see meterWidth, which both sides measure by.
   function staffBar(items, width, range, key, mode, beatWidth, carryIn, carryOut,
-    heldName) {
+    heldName, meter) {
     if (!range || width <= 0) {
       const empty = document.createElementNS(NS, 'svg');
       empty.setAttribute('width', '0');
@@ -2073,6 +2182,17 @@ const Chords = (() => {
       return empty;
     }
     const { svg, add, y } = staffCanvas(width, range);
+    if (meter) {
+      const digits = [[METER_TOP, meter.num], [METER_BOTTOM, meter.den]];
+      for (const [step, value] of digits) {
+        add('text', {
+          x: meterGlyphW(meter) / 2, y: y(step), fill: '#cfcac2',
+          'font-size': METER_SIZE,
+          'text-anchor': 'middle', 'dominant-baseline': 'central',
+          'font-family': 'Georgia, serif',
+        }, String(value));
+      }
+    }
     const paced = beatWidth || width / BEATS_PER_BAR;
     const beat = paced * beatFit(items, width, paced);
 
@@ -3206,8 +3326,12 @@ const Chords = (() => {
         ruling = name;
         names.push(name);
       }
-      if (names.length) return names.join(' ');
-      return notes && ruling ? ruling : '';
+      // chord-vamp reads `T34` at the head of a bar exactly as parseBar does, so
+      // a meter change crosses over as itself rather than as a bar that plays
+      // for the wrong length over there.
+      const meter = bar.meter ? `${meterText(bar.meter)} ` : '';
+      if (names.length) return meter + names.join(' ');
+      return meter + (notes && ruling ? ruling : '');
     });
     return {
       text: cells.length ? `|${cells.join('|')}|` : '',
@@ -3225,7 +3349,8 @@ const Chords = (() => {
     vampChart,
     readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
     romanNumeral,
-    staffRange, staffBar, staffHead, staffHeadWidth,
+    staffRange, staffBar, staffHead, staffHeadWidth, meterWidth, barBeats, barMeter,
+    resolveMeters,
     // single notes
     noteBeats, eventDur, isDottedDur,
     tabBar, tabHeight, hasNotes, board, noteGlyph, restGlyph, chordGlyph, beatWeights,
