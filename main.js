@@ -1210,8 +1210,11 @@ shareMdBtn.addEventListener('click', () => {
 // each bar be as wide as its contents, which made the sheet speed up and slow
 // down bar by bar and was unfollowable.)
 //
-// The slot narrows on a window too small for four of them, so one whole bar
-// always fits across, and the sheet never wraps to a second line.
+// The slot narrows on a window too small for four of them, so a bar of the
+// common time the sheet is mostly in always fits across and the sheet never
+// wraps to a second line. Bars in longer meters — 5/4 and up — run past that,
+// which is the one place the row scrolls to reach a bar rather than to reach
+// the next one.
 const SLOTS_PER_BAR = 4;
 // A slot holds one diagram, drawn as an SVG scaled to fit it, so this single
 // number sets how large the whole sheet draws.
@@ -1230,6 +1233,7 @@ let chordAnchors = [];  // {time, x} along the track, ascending by time
 // rest of the strip's state because the strip can be drawn before this file has
 // finished evaluating.
 let openTimePins = null;
+let openMeterPicker = null;
 
 // Re-reading and re-parsing the sheet on every render would be waste, so the
 // parse is kept and only redone when the text can have changed.
@@ -1342,6 +1346,7 @@ function drawChordStrip(fromCache) {
   chordStrip.style.transform = '';
   chordAnchors = [];
   openTimePins = null;   // the head holding them has just been thrown away
+  openMeterPicker = null;
 
   if (bars.length === 0) {
     const empty = document.createElement('p');
@@ -1423,10 +1428,15 @@ function drawChordStrip(fromCache) {
     // Not the even split alone: a stretch holding a phrase takes the room it
     // needs from the stretches that have room to spare. See Chords.barWeights.
     const weights = Chords.barWeights(bar, slot);
-    // Every bar is the same four slots wide. One holding more chords than that
-    // stacks them four to a line within its own width instead of growing wider,
-    // which would run it past the others and take the even pace with it.
-    const width = SLOTS_PER_BAR * slot;
+    // One slot to the beat, so a bar of 2/4 is half the width of the 4/4 around
+    // it and the row still runs at one pace. A bar holding more chords than it
+    // has beats stacks them within its own width instead of growing wider,
+    // which would run it past the others and take that pace with it.
+    // A bar that changes meter is wider by the signature it carries: the glyph
+    // takes its own room at the head of the bar rather than squeezing the music
+    // after it, which is how printed music makes space for one.
+    const meterW = Chords.meterWidth(bar);
+    const width = Chords.barBeats(bar) * slot + meterW;
     const outer = width + BAR_BORDER;
 
     // A stretch of music the sheet says nothing about is drawn as the blank it
@@ -1455,8 +1465,8 @@ function drawChordStrip(fromCache) {
     // The same bar again, as the notes it sounds — see staffItems for where each
     // chord lands across it.
     if (staffReach) {
-      buildBarStaff(barEl, staffItems(bar, i, width, slot, weights),
-        bars, i, width, staffReach, key, slot, showTab);
+      buildBarStaff(barEl, staffItems(bar, i, width, slot, weights, meterW),
+        bars, i, width, staffReach, key, slot, showTab, bar.meter);
     }
 
     // The cells are how a sheet is read: a chord's name with its shape drawn
@@ -1537,20 +1547,29 @@ function buildBarHead(i, bar, span) {
   if (span.start !== null) head.appendChild(barTimePins(i, span));
   const count = barBeatLabel(bar);
   if (count) head.appendChild(count);
+  // Last, past the count: the number, the moment, what is wrong with it, and
+  // then the meter it is all being read against.
+  head.appendChild(barMeterPicker(i, bar));
   return head;
 }
 
 // A bar's chords as the staff wants them: where each one sits across the bar,
 // and what the board open on it has marked. Each chord sits at the beat it
 // starts on — the left edge of its cell — rather than under the middle of its
-// diagram, since what the staff is showing is when as much as what. Past four
-// chords the cells wrap and there are no beat edges to follow, so those are
-// spread evenly across the bar instead.
-function staffItems(bar, i, width, slot, weights) {
-  const wide = bar.chords.length > SLOTS_PER_BAR;
-  let cellX = 0;
+// diagram, since what the staff is showing is when as much as what. Past one
+// chord a beat the cells wrap and there are no beat edges to follow, so those
+// are spread evenly across the bar instead.
+// `meterW` is the room the bar's time signature takes at its head, which every
+// stretch in the bar starts after — including the evenly spread ones, so a
+// crowded bar that changes meter does not write its first chord over the
+// signature.
+function staffItems(bar, i, width, slot, weights, meterW = 0) {
+  const wide = bar.chords.length > Chords.barBeats(bar);
+  let cellX = meterW;
   return bar.chords.map((chord, j) => {
-    const at = wide ? (j * width) / bar.chords.length : cellX;
+    const at = wide
+      ? meterW + (j * (width - meterW)) / bar.chords.length
+      : cellX;
     cellX += weights[j] * slot;
     // Which of this stretch's notes is being edited, so the strip can mark it.
     const here = Sheet.at && Sheet.at.bar === i && Sheet.at.chord === j;
@@ -1574,12 +1593,16 @@ function staffItems(bar, i, width, slot, weights) {
   });
 }
 
-// The five lines and the tab row under them, hung on the bar. A bar is four
-// slots wide, so one slot is one beat — which is what the notes inside a
-// chord's stretch are placed by. What the bar carries in from the one before it
-// is worked out here, because a staff is drawn one bar at a time and the music
-// is not written that way.
-function buildBarStaff(barEl, items, bars, i, width, staffReach, key, slot, showTab) {
+// The five lines and the tab row under them, hung on the bar. A bar is one slot
+// per beat, so one slot is one beat — which is what the notes inside a chord's
+// stretch are placed by. What the bar carries in from the one before it is
+// worked out here, because a staff is drawn one bar at a time and the music is
+// not written that way.
+// `meter` reaches the staff and not the tab: a time signature is written on the
+// stave, and a tab under it that repeated the numbers would be saying the same
+// thing twice in the one place the two rows are meant to differ.
+function buildBarStaff(barEl, items, bars, i, width, staffReach, key, slot, showTab,
+  meter) {
   // A bar can open on a tie — a note held over the bar line — and then what it
   // is holding was struck in the bar before it.
   const carryIn = Chords.carriedStops(bars, i);
@@ -1592,7 +1615,7 @@ function buildBarStaff(barEl, items, bars, i, width, staffReach, key, slot, show
     && Chords.carriedStops(bars, i + 1).length > 0;
   const staff = Chords.staffBar(
     items, width, staffReach, key, effectiveChordMode(), slot, carryIn, carryOut,
-    heldName);
+    heldName, meter, Chords.barBeamUnit(bars[i]));
   staff.setAttribute('class', 'chord-staff');
   barEl.appendChild(staff);
   if (showTab) {
@@ -1603,18 +1626,22 @@ function buildBarStaff(barEl, items, bars, i, width, staffReach, key, slot, show
   }
 }
 
-// That count as the head wears it: the head's own grey, or red for a bar over
-// four.
+// That count as the head wears it: the head's own grey, or red for a bar
+// holding more than its meter can play. Both numbers come from barBeatText —
+// the bar is counted against its own time signature, not against four.
 function barBeatLabel(bar) {
   const count = barBeatText(bar);
   if (!count) return null;
-  const { shown, over } = count;
+  const { shown, of, over } = count;
   const el = document.createElement('span');
   el.className = `chord-bar-beats${over ? ' over' : ''}`;
-  el.textContent = `${shown}/${Chords.BEATS_PER_BAR}`;
+  el.textContent = `${shown}/${of}`;
   el.title = over
-    ? `${shown} beats written in a bar of ${Chords.BEATS_PER_BAR} — more than it can hold`
-    : `${shown} beats written of ${Chords.BEATS_PER_BAR}`;
+    ? `${shown} beats written in a bar of ${of} — more than it can hold`
+    : `${shown} beats written of ${of}`;
+  // The count reads against the signature on the stave, so the two say the same
+  // thing in the same terms.
+  el.setAttribute('aria-label', `bar of ${of}, ${shown} written`);
   return el;
 }
 
@@ -1782,6 +1809,125 @@ function closeChordTimePins() {
   openTimePins = null;
 }
 
+// The meters a sheet reaches for, in the order a player would look for them:
+// the common ones, then the compound ones. Everything else is typed in below.
+const COMMON_METERS = [[4, 4], [3, 4], [2, 4], [2, 2], [3, 8], [6, 8], [12, 8]];
+
+// The time signature this bar is in, and the way to write a different one. A
+// meter is the bar's own fact about itself, the way its number is, so it lives
+// in the head rather than in the sheet text — which was the only way in until
+// now, and is no way in at all for someone who is reading the music.
+// It wears the head's own grey until you go near it, like the time beside it:
+// a sheet in one meter throughout would otherwise have a row of buttons down
+// the side of it saying 4/4 forty times.
+function barMeterPicker(index, bar) {
+  const now = Chords.barMeter(bar);
+  const wrap = document.createElement('span');
+  wrap.className = 'chord-bar-meter';
+
+  const panel = document.createElement('span');
+  panel.className = 'chord-meter-panel';
+  // Filled the first time it is opened, not on every redraw. The strip is
+  // rebuilt on every edit — a note tapped out is a redraw — and a panel of ten
+  // controls per bar, built and thrown away unseen on each of them, is the same
+  // waste as reparsing the sheet was. The face is one button and stays eager,
+  // since that is what is on screen.
+  let built = false;
+  const fill = () => {
+    if (built) return;
+    built = true;
+    buildMeterPanel(panel, index, now);
+  };
+
+  const face = toolButton('chord-meter-face', `${now.num}/${now.den}`,
+    `This bar is in ${now.num}/${now.den} — press to write a different one`,
+    () => {
+      const wasOpen = wrap.classList.contains('open');
+      closeChordMeterPicker();
+      if (wasOpen) return;
+      fill();
+      wrap.classList.add('open');
+      openMeterPicker = wrap;
+    }, true);
+  face.setAttribute('aria-label', `time signature: ${now.num}/${now.den}`);
+
+  wrap.append(face, panel);
+  return wrap;
+}
+
+// What is inside the panel: the meters worth a button, and two boxes for the
+// ones that are not.
+function buildMeterPanel(panel, index, now) {
+  const choose = meter => {
+    closeChordMeterPicker();
+    Sheet.setBarMeter(index, meter);
+  };
+
+  const row = document.createElement('span');
+  row.className = 'chord-meter-row';
+  for (const [num, den] of COMMON_METERS) {
+    const b = toolButton('chord-meter-opt', `${num}/${den}`,
+      `Write this bar in ${num}/${den}`, () => choose({ num, den }), true);
+    // The meter the bar is already in, marked rather than disabled: pressing it
+    // is how a restated signature comes back off a bar.
+    if (num === now.num && den === now.den) b.classList.add('on');
+    row.appendChild(b);
+  }
+
+  // The ones no row should carry. 7/8 and 12/16 are meters a sheet may want
+  // once; a button each for them is a row nobody reads to the end of.
+  const other = document.createElement('span');
+  other.className = 'chord-meter-other';
+  const num = meterBox(now.num, 'beats in the bar');
+  const den = meterBox(now.den, 'the note a beat is');
+  const err = document.createElement('span');
+  err.className = 'chord-meter-err';
+  err.hidden = true;
+  const write = () => {
+    const meter = Chords.meterFrom(Number(num.value), Number(den.value));
+    if (!meter) {
+      const values = Chords.NOTE_VALUES;
+      err.textContent = `A beat is a ${values.slice(0, -1).join(', ')} `
+        + `or ${values[values.length - 1]}, and a bar holds at least one`;
+      err.hidden = false;
+      return;
+    }
+    choose(meter);
+  };
+  for (const box of [num, den]) {
+    box.addEventListener('input', () => { err.hidden = true; });
+    box.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      write();
+    });
+  }
+  const slash = document.createElement('span');
+  slash.className = 'chord-meter-slash';
+  slash.textContent = '/';
+  other.append(num, slash, den,
+    toolButton('chord-meter-set', 'Write', 'Write this bar in that meter', write, true));
+
+  panel.append(row, other, err);
+}
+
+// One of the two numbers a meter is typed as. Narrow: it holds two digits at
+// the most, and a box wider than what it can take reads as asking for more.
+function meterBox(value, label) {
+  const box = document.createElement('input');
+  box.className = 'chord-meter-box';
+  box.type = 'text';
+  box.inputMode = 'numeric';
+  box.value = String(value);
+  box.setAttribute('aria-label', label);
+  return box;
+}
+
+function closeChordMeterPicker() {
+  if (openMeterPicker) openMeterPicker.classList.remove('open');
+  openMeterPicker = null;
+}
+
 // The box the time is typed in, with the current playback position on a button
 // beside it: playing up to the bar line and taking the moment off the clock is
 // how the time was found in the first place.
@@ -1867,12 +2013,14 @@ function barTimeEditor(index, time) {
 // Anywhere else is a way out: the buttons are a question, and going back to the
 // music is a legitimate answer to it.
 document.addEventListener('click', e => {
-  if (!openTimePins) return;
-  if (e.target.closest && e.target.closest('.chord-bar-time')) return;
-  closeChordTimePins();
+  const inside = sel => e.target.closest && e.target.closest(sel);
+  if (openTimePins && !inside('.chord-bar-time')) closeChordTimePins();
+  if (openMeterPicker && !inside('.chord-bar-meter')) closeChordMeterPicker();
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeChordTimePins();
+  if (e.key !== 'Escape') return;
+  closeChordTimePins();
+  closeChordMeterPicker();
 });
 
 function currentPlaybackTime() {
@@ -2261,7 +2409,7 @@ function barShapes(bars, barIndex) {
 function renderBarLane(bars, barIndex) {
   const shapes = barShapes(bars, barIndex);
   if (!shapes.length) return null;
-  const weights = Chords.slotWeights(shapes.length);
+  const weights = Chords.slotWeights(shapes.length, Chords.barBeats(bars[barIndex]));
   const cells = document.createElement('div');
   cells.className = 'chord-bar-cells';
   let shown = null;
@@ -2410,11 +2558,16 @@ function commitFocusedNameBox() {
 function writeSheetFromCache(source) {
   const kept = c => c.name || (c.notes && c.notes.length);
   const bars = chordCache.bars
-    .map(bar => ({ start: bar.start, end: bar.end, chords: bar.chords.filter(kept) }))
+    .map(bar => ({
+      start: bar.start, end: bar.end, meter: bar.meter,
+      chords: bar.chords.filter(kept),
+    }))
     // A bar put between two others is empty until it is written into, and it has
     // to survive being read back or it is gone the moment the caret leaves it.
-    // What it holds then is its time, which is the whole of what was said.
-    .filter(bar => bar.chords.length || bar.start !== null);
+    // What it holds then is its time and its meter, which is the whole of what
+    // was said — a bar dropped here takes its time signature with it, and every
+    // bar after it changes length.
+    .filter(bar => bar.chords.length || bar.start !== null || bar.meter);
   const key = chordCache.key;
   const text = Chords.toCompact(bars, '\n', key ? key.label : '');
   editSheet(text, source || 'cell');

@@ -77,21 +77,40 @@ const Sheet = (() => {
     return any ? beats : null;
   }
 
-  // What the bar's head has to say about its count, and only where it is not
-  // four. A bar that adds up is the ordinary case and saying so on every bar
-  // of a sheet is noise; a bar that does not is the one thing about it nothing
-  // on screen used to say. Undoing a triplet leaves a bar half a beat long,
-  // and beatFit then squeezes the phrase into the room the bar has — so the
-  // sheet reads as usual and the count is the only place the truth shows.
-  // `over` is a bar that cannot be played as written; short of four is a
-  // phrase still being written. Null where there is nothing to say.
+  // What the bar's head has to say about its count, and only where it does not
+  // match the meter the bar is in. A bar that adds up is the ordinary case and
+  // saying so on every bar of a sheet is noise; a bar that does not is the one
+  // thing about it nothing on screen used to say. Undoing a triplet leaves a
+  // bar half a beat long, and beatFit then squeezes the phrase into the room
+  // the bar has — so the sheet reads as usual and the count is the only place
+  // the truth shows.
+  // The meter is what it is measured against, not a flat four: a bar written
+  // `T24` and holding two beats is complete, and saying "2/4" over it would be
+  // reporting the time signature as a fault. `over` is a bar that cannot be
+  // played as written; short is a phrase still being written. Null where there
+  // is nothing to say.
   function barBeatText(bar) {
-    const beats = barBeats(bar);
-    if (beats === null || Math.abs(beats - Chords.BEATS_PER_BAR) < 1e-9) return null;
+    // Two names a letter apart that mean opposite things, so both are read into
+    // a name that says which: the local barBeats counts the notes written, and
+    // Chords.barBeats is the length the meter gives the bar to write them in.
+    const written = barBeats(bar);
+    if (written === null) return null;
+    const meter = Chords.barMeter(bar);
+    const room = Chords.barBeats(bar);
+    if (Math.abs(written - room) < 1e-9) return null;
+    // Counted in the beat the meter is written in, not in quarters: a bar of
+    // 3/8 holding four eighths is "4/3", which is the count a reader can act
+    // on. Saying "2/1.5" would be reporting quarters at a bar that is not
+    // written in them.
+    const counted = written / (4 / meter.den);
     // Thirds of a beat do not come out even, so the count is
     // written to as many places as it needs and no more: 4.5 rather
     // than 4.50, 4.33 for a stray triplet.
-    return { shown: String(Number(beats.toFixed(2))), over: beats > Chords.BEATS_PER_BAR };
+    return {
+      shown: String(Number(counted.toFixed(2))),
+      of: meter.num,
+      over: counted > meter.num,
+    };
   }
 
   // Whether a bar's first event is a tie — a note held over the bar
@@ -112,6 +131,10 @@ const Sheet = (() => {
   function commitChordEdit(source) {
     const held = cache();
     held.spans = Chords.resolveSpans(held.bars);
+    // A bar added or removed changes which meter the bars after it are in, the
+    // same way it changes where they start. Both are worked out over the whole
+    // run, so both are redone here rather than guessed at per bar.
+    Chords.resolveMeters(held.bars);
     page.writeSheet(source);
     page.renderStrip(true);
   }
@@ -208,6 +231,21 @@ const Sheet = (() => {
     commitChordEdit('bar-time');
   }
 
+  // The meter a bar is written in, set from its head rather than typed into the
+  // sheet. A signature is written once and read on, so choosing the meter the
+  // bar is already in clears the mark instead of restating it — which is what a
+  // stave does, and what keeps `T44 T44 T44` from collecting down a sheet.
+  function setBarMeter(index, meter) {
+    const bars = cache().bars;
+    const bar = bars[index];
+    if (!bar) return;
+    // What the bar would be in if it said nothing: the meter running into it.
+    const before = Chords.barMeter(index > 0 ? bars[index - 1] : null);
+    const same = meter && before.num === meter.num && before.den === meter.den;
+    bar.meter = !meter || same ? null : { num: meter.num, den: meter.den };
+    commitChordEdit('bar-meter');
+  }
+
   // ============================================================
   // Single notes (♪)
   // ============================================================
@@ -301,12 +339,12 @@ const Sheet = (() => {
   function noteStretchBeats() {
     const bar = notePanelAt && cache().bars[notePanelAt.bar];
     if (!bar) return Chords.BEATS_PER_BAR;
-    // The bar's own four beats, split the way a written bar is read
+    // The bar's own beats, split the way a written bar is read
     // — not the room the strip happens to draw this stretch at. The
     // width bends to fit a phrase in (see Chords.barWeights); the
     // beat it falls on does not, and a panel reporting 1.196 beats
     // of room was measuring the drawing rather than the music.
-    const weights = Chords.beatWeights(bar.chords.length);
+    const weights = Chords.beatWeights(bar.chords.length, Chords.barBeats(bar));
     return weights[notePanelAt.chord] || weights[weights.length - 1];
   }
 
@@ -1262,7 +1300,7 @@ const Sheet = (() => {
     init,
     // bars
     roundTo, barBeats, barBeatText, barOpensOnTie,
-    commitChordEdit, addBar, insertBar, barTimeBounds, setBarStart,
+    commitChordEdit, addBar, insertBar, barTimeBounds, setBarStart, setBarMeter,
     // ♪ — where the caret is, and what the board is set to. The page reads
     // these while it draws; every way of changing one is a call above.
     get at() { return notePanelAt; },
