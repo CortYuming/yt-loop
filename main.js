@@ -115,22 +115,46 @@ function flashRefused(box) {
   box.classList.add('refused');
 }
 
-// The first bar line after `time`: the end of the bar it falls in, or the head of
-// the next bar where it falls between two timed runs. resolveSpans makes a bar's
-// end the next bar's start wherever both are known, so those are one boundary
-// read from either side and looking at both costs nothing.
-function nextBarEdge(time) {
+// Every bar line the sheet knows a time for, in order and without repeats. A
+// bar's head and the previous bar's end are one boundary read from either side —
+// resolveSpans fills the second in from the first wherever both are known — so
+// the same time arrives twice and is counted once. Bars with no time on them
+// simply are not here: the way through a half-timed sheet runs bar line to bar
+// line, over the untimed stretches between them.
+function barEdges() {
   const spans = chordCache.vid === currentVideoId
     ? chordCache.spans
     : refreshChordCache().spans;
-  let best = null;
+  const times = [];
   for (const span of spans) {
     for (const at of [span.start, span.end]) {
       if (at === null || at === undefined || isNaN(at)) continue;
-      if (at > time + RANGE_EPS && (best === null || at < best)) best = at;
+      if (!times.some(t => Math.abs(t - at) <= RANGE_EPS)) times.push(at);
     }
   }
-  return best;
+  return times.sort((a, b) => a - b);
+}
+
+// The first bar line after `time`: the end of the bar it falls in, or the head of
+// the next bar where it falls between two timed runs.
+function nextBarEdge(time) {
+  for (const at of barEdges()) if (at > time + RANGE_EPS) return at;
+  return null;
+}
+
+// The bar line before `time`, with a moment's grace: a press made just after a
+// bar head lands on that head rather than the one before it, the way a player's
+// "previous track" button restarts the track it is in. So one press is this bar
+// again — the press practising a bar is made of — and the next walks back.
+const BAR_BACK_GRACE = 0.3;
+
+function prevBarEdge(time) {
+  const from = time - BAR_BACK_GRACE;
+  const edges = barEdges();
+  for (let i = edges.length - 1; i >= 0; i--) {
+    if (edges[i] < from - RANGE_EPS) return edges[i];
+  }
+  return null;
 }
 
 // The End a Start that has outrun it needs. The bar the new Start falls in ends
@@ -4159,14 +4183,33 @@ document.addEventListener('keydown', e => {
     // to write are the two halves of the same move.
     e.preventDefault();
     jumpToSheet();
-  } else if (e.key === 'ArrowLeft') {
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     e.preventDefault();
+    const back = e.key === 'ArrowLeft';
+    // Through settledTime, the way every other reader of the clock goes: a seek
+    // takes a moment to land and the player reports the old time until it does,
+    // so two presses in quick succession would both be measured from where the
+    // first one started and the second would go nowhere.
+    const now = settledTime(currentPlaybackTime());
+    // The arrows belong to the sheet. Playing along with a transcription is
+    // moving about it a bar at a time, and the bar is the unit the reader counts
+    // in — a hundredth of a second is not a distance anyone reading music means
+    // to travel. The editor is no exception: writing bar times is listening to
+    // the same bar over and over, and the way back to its head is this key.
+    if (!e.shiftKey && barEdges().length) {
+      const at = back ? prevBarEdge(now) : nextBarEdge(now);
+      // No bar line that way: past the last one there is nowhere to go, and
+      // before the first one the way back is the top of the video, the intro
+      // ahead of the transcription being one stretch rather than a bar.
+      if (at !== null) seekToTime(at);
+      else if (back) seekToTime(0);
+      return;
+    }
+    // No bar lines to walk, or Shift held for the second: the old seek, off the
+    // same settled clock so a held key does not measure every step from the
+    // place the first one left.
     const step = e.shiftKey ? 1 : 0.05;
-    player.seekTo(Math.max(0, player.getCurrentTime() - step), true);
-  } else if (e.key === 'ArrowRight') {
-    e.preventDefault();
-    const step = e.shiftKey ? 1 : 0.05;
-    player.seekTo(player.getCurrentTime() + step, true);
+    player.seekTo(Math.max(0, now + (back ? -step : step)), true);
   }
 });
 

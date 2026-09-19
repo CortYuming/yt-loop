@@ -1464,9 +1464,11 @@ const BASS = [
 // boxes, because which box moved is the whole of the rule.
 const rangeModule = (() => {
   const src = ['formatTime', 'formRange', 'refusesRange', 'rangeIsEmpty',
-    'linkEndFor', 'nextBarEdge', 'endForStart', 'takesRange'].map(liftOne).join('\n');
+    'linkEndFor', 'barEdges', 'nextBarEdge', 'prevBarEdge', 'endForStart',
+    'takesRange'].map(liftOne).join('\n');
   const make = new Function('shim', 'Chords', `
     const RANGE_EPS = 0.005;
+    const BAR_BACK_GRACE = 0.3;
     const startInput = shim.startInput;
     const endInput = shim.endInput;
     const player = shim.player;
@@ -1479,8 +1481,8 @@ const rangeModule = (() => {
       shim.flashed.push(...els.filter(Boolean).map(el => el.id));
     }
     ${src}
-    return { formatTime, refusesRange, rangeIsEmpty, linkEndFor,
-      nextBarEdge, endForStart, takesRange };`);
+    return { formatTime, refusesRange, rangeIsEmpty, linkEndFor, barEdges,
+      nextBarEdge, prevBarEdge, endForStart, takesRange };`);
   return shim => make(shim, Chords);
 })();
 
@@ -1513,6 +1515,12 @@ function endFor(at, opts) {
   return api.endForStart(at);
 }
 
+// Where an arrow press out of the editor lands, `dir` being ← or →.
+function barStep(at, dir, opts) {
+  const { api } = rangeCase(opts || { sheet: FOUR_BARS });
+  return dir < 0 ? api.prevBarEdge(at) : api.nextBarEdge(at);
+}
+
 // Put `start` into Start against a range that already ends at `end`, and report
 // what the pair became. `taken` is what the door answered.
 function outrun(opts) {
@@ -1541,6 +1549,37 @@ const RANGE = [
     got: () => endFor(40, { sheet: FOUR_BARS, duration: 30 }), want: null },
   { name: '追従: 動画も譜面もなければ諦める',
     got: () => endFor(20, { sheet: '' }), want: null },
+
+  // ---------- the arrows, out of the editor ----------
+  // → is the next bar line; ← is the head of the bar being played, until the
+  // playhead is within the grace of it and the press walks back a bar instead.
+  { name: '小節送り: → は次の小節の頭',
+    got: () => barStep(12.5, 1), want: 14 },
+  { name: '小節送り: ← は今の小節の頭',
+    got: () => barStep(12.5, -1), want: 12 },
+  // Just past the head: the grace makes this the bar before, so a second ← in a
+  // row walks rather than sticking on the head the first one landed on.
+  { name: '小節送り: 頭の直後の ← は前の小節へ',
+    got: () => barStep(12.2, -1), want: 10 },
+  { name: '小節送り: 小節の頭ぴったりの ← も前の小節へ',
+    got: () => barStep(12, -1), want: 10 },
+  // Nowhere left to go, each way. The handler turns the first of these into the
+  // top of the video and lets the second stand still.
+  { name: '小節送り: 最初の小節より前には戻る先がない',
+    got: () => barStep(9, -1), want: null },
+  { name: '小節送り: 最後の小節線を過ぎたら進む先がない',
+    got: () => barStep(20, 1), want: null },
+  // A bar with no time of its own is a stretch between two bar lines rather than
+  // a stop of its own: the sheet above knows 10, 12, 14 and 18, and the untimed
+  // bar is what lies between the last two. So the walk crosses it in one press.
+  { name: '小節送り: 時刻のない小節は一っ飛びに越える',
+    got: () => barStep(14.5, 1, { sheet: '@10 C7|@12 F7|Am7|@18 G7' }), want: 18 },
+  // No times at all: no bar lines, and the handler keeps the 0.05s seek.
+  { name: '小節送り: 時刻のない譜面には小節線がない',
+    got: () => rangeCase({ sheet: 'C7|F7' }).api.barEdges(), want: [] },
+  // A bar's end and the next bar's head are one boundary, counted once.
+  { name: '小節送り: 小節線は重複なく並ぶ',
+    got: () => rangeCase({ sheet: FOUR_BARS }).api.barEdges(), want: [10, 12, 14, 16, 18] },
 
   // The door itself.
   { name: '門: End を追い越した Start は End を連れていく',
