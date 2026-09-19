@@ -32,7 +32,7 @@ https://cortyuming.github.io/yt-loop/
 | `Space` | Play / pause |
 | `A` | Jump to loop start. Also while ♪ is open, where `S` is stack |
 | `E` | Open / close the sheet editor (the strip's 🎼 Edit) |
-| `←` / `→` | Seek 0.05 seconds (move the caret when Start/End is focused) |
+| `←` / `→` | Move a bar back / forward through the sheet, editor open or not. `←` goes to the head of the bar being played, or to the bar before it when the playhead is within 0.3s of that head, so one press is this bar again and the next walks back. Only bar lines the sheet has a time for are stops, so an untimed bar is crossed in one press; a sheet with no times at all leaves these seeking 0.05 seconds as they used to (they move the caret when Start/End is focused) |
 | `Shift + ←` / `→` | Seek 1 second (nudge the value by 0.05s when Start/End is focused) |
 | While ♪ is open | The panel takes the keyboard: `← →` walk the note selection, `1`–`5` set the duration, `0` gives it no length, `.` dots it, `,` brackets it and the two notes after it as a triplet — press again to let the last note out, again to take the bracket off, so two notes under one 3 is two presses, `R` rest, `T` tie, `G` grace note, `X` mutes the strings you tap, `S` stack, `I` opens room after it, `A` jumps to the loop start — the one player key the panel hands back, since writing a phrase is playing it from the top over and over — `Backspace` delete, `Esc` back to writing at the end and then closed. Seeking with `← →` comes back as soon as it is closed |
 
