@@ -449,6 +449,12 @@ window.onYouTubeIframeAPIReady = () => {
       // chord-vamp looks like when it lands here. Seeks paused: nothing starts
       // playing on its own, and ▶ still warms up the way it always did.
       if (linkStart !== undefined && !isNaN(linkStart)) seekToTime(linkStart);
+      // Where the link asks to land. A bar number in chord-vamp sends someone
+      // here to hear that bar against the sheet, and the URL box, the video and
+      // the loop fields all sit between the top of the page and the sheet --
+      // the same distance F is pressed to close. Any other value, or none, and
+      // the page opens where it always has.
+      if (params.get('view') === 'sheet') jumpToSheet();
     });
   } else {
     renderHistory();

@@ -172,6 +172,17 @@ Anything worth keeping belongs in a bookmark — 🔗 URL for a range, 🔗 URL 
 
 Example: `?v=dQw4w9WgXcQ&s=12.50&e=24.80&r=0.75`
 
+A link may also say where to land:
+
+```
+?v=<videoId>&s=<startSec>&view=sheet
+```
+
+`view=sheet` opens the page at the sheet, which is where `F` goes. chord-vamp's
+bar numbers are written with it: someone taking one is coming back to that bar,
+and the URL box, the video and the loop fields lie between the top of the page
+and the sheet. Any other value, or none, and the page opens where it always has.
+
 The **📝 MD** button wraps this link in Markdown:
 
 ```
