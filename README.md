@@ -227,7 +227,7 @@ so a sheet edited since gets across by pressing the button again.
 
 | Piece | Meaning |
 |-------|---------|
-| `k` | The bars as chord-vamp writes them: `\|Bb7 Eb9\|D7+9\|`. Fingerings, single notes, rests and ties are left behind — it plays chords |
+| `k` | The bars as chord-vamp writes them: `\|Bb7 . . . F7+5+9 . . .\|D7+9\|`. Fingerings, single notes, rests and ties are left behind — it plays chords |
 | `t` | One entry per bar, in step with `k`: `0.00-2.10,2.10-4.20`. The start alone where the end cannot be worked out, and empty for a bar nobody has timed. A bar deliberately left short of the next one keeps its own end |
 | `key` | The key as the sheet spells it — `Bb`, `F#m`. chord-vamp offers the same list of keys, so the name it is picked by here is the name it is picked by there, and a minor key stays minor: a semitone alone could not say C from Am. Absent where the sheet names none |
 | `title` | What the video is called, so chord-vamp's header can say what it is showing |
@@ -236,13 +236,37 @@ A bass move (`/Bb`) names no chord of its own, so it is written out against the
 chord still in force — `E7#9/Bb` — which is the harmony chord-vamp would
 otherwise lose. A bar holding no chords crosses as an empty bar rather than
 being dropped: bar numbers are how the two apps talk about the same passage, and
-one missing bar shifts every number after it.
+one missing bar shifts every number after it. The end of the sheet is the
+exception — there is no number left to shift, and the empty bar a transcription
+ends on is the place the next one will be written, which is this app's business
+and not chord-vamp's.
 
 A bar with a phrase in it and no chord written over it crosses as the chord
 still in force. A solo is transcribed bar after bar with the name written once,
 and the harmony did not stop because nobody wrote it again — chord-vamp would
 otherwise rest through the best part of the tune. A bar holding nothing at all
 is a different thing, and stays empty.
+
+A name written on a note is a chord change at that note — the same reading the
+tab, the degrees and the ♪ panel are drawn by — and it crosses with the rest. A
+bar opening on `Bb7` with `(F7+5+9)` written on its fifth note is two chords
+over there, not one. Walking the chord names alone would take the first and
+leave every chord written over a phrase behind.
+
+Where each chord falls travels as well as what it is. chord-vamp reads a bar in
+eighth-note slots, two to the beat, and splits it evenly between the tokens it
+is handed, so a bar of eight slots is handed eight of them —
+`|Bb7 . . . F7+5+9 . . .|`, `.` being a slot carrying the one before it on.
+Five tokens would be spread 1.6 slots apart and land somewhere else. A chord
+written on the third beat is played on the third beat.
+
+Those slots are as fine as chord-vamp reads, so a chord written inside a triplet
+is placed on the slot nearest to it.
+
+A bar of chord names with no phrase under them says nothing about where in the
+bar they fall — a name written on its own takes no time — so those bars cross as
+they always did, named in order, and chord-vamp splits the bar evenly between
+them. That is how a lead sheet has always been read.
 
 The button is disabled until the sheet has a chord in it. The tab it opens is
 named, so a second press lands in the tab the first one opened rather than

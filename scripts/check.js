@@ -1879,9 +1879,42 @@ const TIMES = [
   { name: 'chord-vamp: 音符だけの小節は効いているコードが続く',
     got: () => Chords.vampChart('@0 C7 1/8:8 1/10|@2 1/12:8 1/8').text,
     want: '|C7|C7|' },
+  // Where a chord falls is carried over as well as what it is: chord-vamp
+  // splits a bar evenly between the tokens it is handed, so a bar of eight
+  // eighth-note slots is handed eight of them and `.` is a slot carrying on.
+  // Written here is an eighth of C7 and an eighth of F7, and the rest of the
+  // bar is still F7.
   { name: 'chord-vamp: 続くのは最後に効いているコード',
     got: () => Chords.vampChart('@0 C7 1/8:8 F7 1/10:8|@2 1/12:8').text,
-    want: '|C7 F7|F7|' },
+    want: '|C7 F7 . . . . . .|F7|' },
+  // A name written on a note is a chord change at that note — the same reading
+  // the tab, the degrees and the note panel are drawn by (see rulingWalk). A
+  // bar holding two chords crosses over as two, on the beats they were written
+  // on. Walking the stretch heads alone took one name from such a bar and
+  // dropped every chord written over a phrase.
+  { name: 'chord-vamp: 音符に書いたコードも拍の位置ごと渡る',
+    got: () => Chords.vampChart('@0 Bb7 2/6:8 2/8 1/6 1/8 1/9+2/9(F7+5+9):4 1/9+2/9').text,
+    want: '|Bb7 . . . F7+5+9 . . .|' },
+  { name: 'chord-vamp: 拍の裏に書いたコードもその位置に置く',
+    got: () => Chords.vampChart('@0 Fm9 1/6+2/8:4 1/6+2/8:8 2/9+3/7(Bb7) 6/7 3/7 3/5 4/4').text,
+    want: '|Fm9 . . Bb7 . . . .|' },
+  { name: 'chord-vamp: 音符に書いたコードも次の小節に効く',
+    got: () => Chords.vampChart('@0 C7 1/8:4 1/8 1/8 1/8(F7)|@2 1/8:4 1/8 1/8 1/8').text,
+    want: '|C7 . . . . . F7 .|F7|' },
+  { name: 'chord-vamp: 音符に書いたベース移動も効いているコードに付く',
+    got: () => Chords.vampChart('@0 E7#9 6/0:4 6/2 6/3 6/5(/Bb)').text,
+    want: '|E7#9 . . . . . E7#9/Bb .|' },
+  // chord-vamp reads a bar in eighth-note slots and nothing finer, so a chord
+  // written inside a triplet is placed on the slot nearest to it.
+  { name: 'chord-vamp: 3連符の途中のコードは近い8分に寄る',
+    got: () => Chords.vampChart('@0 C7 3/2{ 1/8:8 1/9(F7) 1/10 } 1/8:4 1/8 1/8').text,
+    want: '|C7 F7 . . . . . .|' },
+  // A bar of names and no phrase says nothing about where in it they fall — a
+  // stretch written as a name alone takes no time — so those bars cross as they
+  // always did and chord-vamp splits the bar evenly between them.
+  { name: 'chord-vamp: コードだけの小節は今までどおり均等に割る',
+    got: () => Chords.vampChart('@0 C7 F7 G7').text,
+    want: '|C7 F7 G7|' },
   // Nothing written and nothing played: silence, and it stays silence.
   { name: 'chord-vamp: 音符も名前もない小節は鳴らさない',
     got: () => Chords.vampChart('@0 C7 1/8:8|@2|@4 F7').text,
@@ -1889,6 +1922,15 @@ const TIMES = [
   { name: 'chord-vamp: コードのない小節も空のまま残る',
     got: () => Chords.vampChart('@0 C7|@2|@4 F7').text,
     want: '|C7||F7|' },
+  // An empty bar holds the numbering of the bars after it. At the end of a
+  // sheet there are none to hold: the empty bar a transcription ends on is the
+  // place the next one will be written, which is this app's business.
+  { name: 'chord-vamp: 末尾の空の小節は渡さない',
+    got: () => Chords.vampChart('@0 C7|@2|@4').text,
+    want: '|C7|' },
+  { name: 'chord-vamp: 末尾の空の小節は区間も渡さない',
+    got: () => Chords.vampChart('@0.00-2.00 C7|@2.00-4.00').spans,
+    want: [{ start: 0, end: 2 }] },
   { name: 'chord-vamp: 貼り付けたリンクはコード名になる',
     got: () => Chords.vampChart('@0 [Bb9](https://cortyuming.github.io/guitar-chord-viewer/?c=Bb9&m=1.1.1.0..) F13').text,
     want: '|Bb9 F13|' },

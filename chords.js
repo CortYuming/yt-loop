@@ -3358,35 +3358,108 @@ const Chords = (() => {
   // A bass move (`/Bb`) names no chord of its own, so it is written out
   // against the chord still in force: `F13/Bb`. Read as it stands it is not a
   // chord at all, and chord-vamp would drop the bar's only name.
+
+  // One bar as chord-vamp reads it, in the tokens it is written with: a chord
+  // name, or `.` for the slot before it carrying on.
+  //
+  // A bar's chords are not its stretches. A stretch opens with a name and runs
+  // until the next one, and a name written on a note inside it is a chord
+  // change at that note — which is what rulingWalk reads, and what the tab, the
+  // degrees and the note panel are all drawn by. Walking the stretch heads
+  // alone, as this did, took one name from a bar holding two and dropped every
+  // chord written over a phrase.
+  //
+  // Where each one falls matters as much as what it is: a chord written on the
+  // third beat is played on the third beat. chord-vamp lays a bar's tokens out
+  // evenly over its eighth-note slots, so a bar of eight slots is handed eight
+  // tokens — five would be spread 1.6 slots apart and land somewhere else.
+  //
+  // Only a bar whose every stretch has a phrase under it knows those beats: a
+  // stretch written as a name and nothing else takes no time, so a bar of plain
+  // chords would pile all of them onto the first slot. Those cross as they
+  // always did — named in order, split evenly over there — which is how a lead
+  // sheet has always been read anyway.
+  function vampBar(bars, index) {
+    const bar = bars[index] || {};
+    const chords = bar.chords || [];
+    const slots = Math.max(1, Math.round(barBeats(bar) * 2));
+    const timed = chords.length > 0 && chords.every(c => (c.notes || []).length > 0);
+    const walk = rulingWalk(rulingBefore(bars, index));
+    const at = new Array(slots).fill(null);
+    const order = [];
+    let sounding = false;
+    let beat = 0;
+
+    const put = (when, written) => {
+      if (!written) return;
+      const held = walk(written);
+      const name = isBassOnly(written) ? (held ? held + written : written) : written;
+      if (!timed) { order.push(name); return; }
+      // Two names on one slot — a fingering written beside a phrase — take the
+      // slot after it rather than overwriting what is already there. A name
+      // pushed off the end of the bar stays on the last slot: it was written in
+      // this bar and it is not to be lost.
+      let slot = Math.min(Math.max(Math.round(when * 2), 0), slots - 1);
+      while (slot < slots - 1 && at[slot] !== null) slot++;
+      at[slot] = name;
+    };
+
+    for (const chord of chords) {
+      put(beat, String(chord.name || '').trim());
+      const { items, length } = noteBeats(chord.notes);
+      for (const p of items) {
+        sounding = true;
+        put(beat + p.beat, String((p.ev && p.ev.name) || '').trim());
+      }
+      beat += length;
+    }
+    if (!timed) return order;
+
+    const held = rulingBefore(bars, index);
+    if (at[0] === null && sounding && held) at[0] = held;
+    if (at[0] === null) {
+      // Nothing to carry on from — a sheet that opens on a phrase. The first
+      // name written moves up to the head rather than the bar opening on a `.`
+      // that repeats nothing.
+      const first = at.findIndex(name => name !== null);
+      if (first < 0) return [];
+      at[0] = at[first];
+    }
+
+    const out = [];
+    let ruling = null;
+    for (const name of at) {
+      if (name !== null && name !== ruling) { out.push(name); ruling = name; }
+      else out.push('.');
+    }
+    // One chord over the whole bar is written once. chord-vamp lays a lone
+    // token over every slot of its bar, so the short form and the long one are
+    // the same bar — and the short one is what a sheet is read as.
+    return out.slice(1).every(token => token === '.') ? [out[0]] : out;
+  }
+
   function vampChart(text) {
     const bars = parseSheet(text);
     const spans = resolveSpans(bars);
     const key = parseKey(text);
-    let ruling = '';
-    const cells = bars.map(bar => {
-      const names = [];
-      let notes = 0;
-      for (const chord of (bar.chords || [])) {
-        notes += (chord.notes || []).length;
-        const name = String(chord.name || '').trim();
-        if (!name) continue;
-        if (isBassOnly(name)) {
-          names.push(ruling ? ruling + name : name);
-          continue;
-        }
-        ruling = name;
-        names.push(name);
-      }
+    const cells = bars.map((bar, index) => {
       // chord-vamp reads `T34` at the head of a bar exactly as parseBar does, so
       // a meter change crosses over as itself rather than as a bar that plays
       // for the wrong length over there.
       const meter = bar.meter ? `${meterText(bar.meter)} ` : '';
-      if (names.length) return meter + names.join(' ');
-      return meter + (notes && ruling ? ruling : '');
+      return meter + vampBar(bars, index).join(' ');
     });
+    // A bar with nothing in it still takes its place in the row: the bar numbers
+    // are how the two apps name the same passage, and one bar dropped from the
+    // middle shifts every number after it. At the end there is no number left to
+    // shift. An empty bar there is the place the next one will be written —
+    // which is this app's business, not chord-vamp's — so it stays behind.
+    let last = cells.length;
+    while (last > 0 && !cells[last - 1].trim()) last--;
+    const written = cells.slice(0, last);
     return {
-      text: cells.length ? `|${cells.join('|')}|` : '',
-      spans: spans.map(s => ({ start: s.start, end: s.end })),
+      text: written.length ? `|${written.join('|')}|` : '',
+      spans: spans.slice(0, last).map(s => ({ start: s.start, end: s.end })),
       // The key as the sheet spells it -- `Bb`, `F#m`. chord-vamp offers the
       // same list of keys, so the name it is picked by here is the name it is
       // picked by there; a semitone alone could not say major from minor.
