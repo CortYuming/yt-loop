@@ -1362,7 +1362,7 @@ const READ = [
 // carries is checked to the character.
 const share = (() => {
   const src = ['formatTime', 'buildShareUrl', 'buildShareLabel', 'buildShareMarkdown',
-    'barRangeFor', 'buildVampUrl'].map(liftOne).join('\n');
+    'barRangeFor', 'barsCovered', 'barNumbers', 'buildVampUrl'].map(liftOne).join('\n');
   // The real bar numbering rather than a stub of it: which bars a range covers is
   // the part of the label that can be wrong, so it is run over a real sheet.
   return new Function('shim', 'Chords', `
@@ -1373,10 +1373,14 @@ const share = (() => {
     // Both read the browser's storage in the app; a case says them outright.
     function resolveVideoTitle() { return shim.title; }
     function getSheet() { return shim.sheet; }
+    // The Loop toggle and the two boxes, in the app. Null is the toggle off.
+    function loopRange() { return shim.loop; }
     ${src}
     return { formatTime, buildShareUrl, buildShareLabel, buildShareMarkdown, barRangeFor,
       buildVampUrl,
-      title(t) { shim.title = t; }, sheet(t) { shim.sheet = t; } };`)({
+      title(t) { shim.title = t; }, sheet(t) { shim.sheet = t; },
+      // Set for one case and put back after it, so every other case sends no loop.
+      withLoop(r, fn) { shim.loop = r; try { return fn(); } finally { shim.loop = null; } } };`)({
     // `href` as well as the two halves of it: the chord-vamp link is written
     // relative to the page, so it is resolved against where the page is.
     location: {
@@ -1386,6 +1390,7 @@ const share = (() => {
     },
     title: '',
     sheet: '',
+    loop: null,
   }, Chords);
 })();
 
@@ -1969,6 +1974,23 @@ const TIMES = [
   { name: 'chord-vamp のリンク: 時刻のない譜面は区間を持たない',
     got: () => { share.sheet('Cm7|F7'); share.title(''); return share.buildVampUrl('abc123'); },
     want: 'https://cortyuming.github.io/chord-vamp/?v=abc123&k=%7CCm7%7CF7%7C' },
+  // The passage looped here is the one looped there: the bars that sound inside
+  // the range, numbered as the sheet numbers them.
+  { name: 'chord-vamp のリンク: ループ中の小節も連れていく',
+    got: () => { share.sheet('@0 Cm7|@2 F7|@4 Bb|@6 Eb'); share.title('');
+      return share.withLoop({ start: 2, end: 6 }, () => share.buildVampUrl('abc123')); },
+    want: 'https://cortyuming.github.io/chord-vamp/?v=abc123&k=%7CCm7%7CF7%7CBb%7CEb%7C'
+      + '&t=0.00-2.00%2C2.00-4.00%2C4.00-6.00%2C6.00-8.00&loop=2-3' },
+  { name: 'chord-vamp のリンク: 1小節のループは番号ひとつ',
+    got: () => { share.sheet('@0 Cm7|@2 F7'); share.title('');
+      return share.withLoop({ start: 0, end: 2 }, () => share.buildVampUrl('abc123')); },
+    want: 'https://cortyuming.github.io/chord-vamp/?v=abc123&k=%7CCm7%7CF7%7C'
+      + '&t=0.00-2.00%2C2.00-4.00&loop=1' },
+  // Timed bars nowhere inside the range: there is no passage to name.
+  { name: 'chord-vamp のリンク: 小節の外のループは渡さない',
+    got: () => { share.sheet('@0 Cm7|@2 F7'); share.title('');
+      return share.withLoop({ start: 20, end: 24 }, () => share.buildVampUrl('abc123')); },
+    want: 'https://cortyuming.github.io/chord-vamp/?v=abc123&k=%7CCm7%7CF7%7C&t=0.00-2.00%2C2.00-4.00' },
   { name: 'chord-vamp のリンク: コードのない譜面は作らない',
     got: () => { share.sheet(''); share.title(''); return share.buildVampUrl('abc123'); },
     want: null },

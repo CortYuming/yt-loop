@@ -1187,7 +1187,8 @@ function barsCovered(spans, loop) {
 }
 
 // Those bars as the sheet numbers them: `5-8`, or `5` for one bar.
-function barNumbers({ from, to }) {
+function barNumbers(covered) {
+  const { from, to } = covered;
   return from === to ? `${from + 1}` : `${from + 1}-${to + 1}`;
 }
 
