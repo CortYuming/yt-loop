@@ -1110,7 +1110,8 @@ function buildShareUrl(vid, loop) {
 // relative: the same link works on a dev server that serves both.
 //
 // What travels is what chord-vamp can read — the bars as chord names, where
-// each one starts and ends, the key, and the video's title for its header. The
+// each one starts and ends, the key, the bars the loop covers when it is on,
+// and the video's title for its header. The
 // sheet itself stays here. Nothing is written into storage for chord-vamp to
 // find later, which is why there is nothing to keep in step: a sheet that has
 // changed gets across by pressing the button again.
@@ -1136,6 +1137,12 @@ function buildVampUrl(vid) {
   });
   if (times.some(Boolean)) params.set('t', times.join(','));
   if (chart.key) params.set('key', chart.key);
+  // The passage being gone over here is the one to go over there. Only a loop
+  // that is running: numbers left in the boxes with the toggle off are not
+  // being practised.
+  const loop = loopRange();
+  const covered = loop && barsCovered(chart.spans, loop);
+  if (covered) params.set('loop', barNumbers(covered));
   const title = resolveVideoTitle(vid);
   if (title) params.set('title', title.slice(0, VAMP_TITLE_MAX));
 
@@ -1154,9 +1161,15 @@ function buildVampUrl(vid) {
 function barRangeFor(vid, loop) {
   if (typeof loop.start !== 'number' || isNaN(loop.start)) return null;
   if (typeof loop.end !== 'number' || isNaN(loop.end)) return null;
-  const bars = Chords.parseSheet(getSheet(vid));
-  if (!bars.length) return null;
-  const spans = Chords.resolveSpans(bars);
+  const covered = barsCovered(Chords.resolveSpans(Chords.parseSheet(getSheet(vid))), loop);
+  if (!covered) return null;
+  return `${covered.from === covered.to ? 'bar' : 'bars'} ${barNumbers(covered)}`;
+}
+
+// The first and last bar, by index, that sound inside a range of seconds — the
+// part of the above that chord-vamp's link needs too, taking the bar times it
+// has already worked out. Null where none does.
+function barsCovered(spans, loop) {
   let from = null;
   let to = null;
   spans.forEach((span, i) => {
@@ -1170,8 +1183,12 @@ function barRangeFor(vid, loop) {
     if (from === null) from = i;
     to = i;
   });
-  if (from === null) return null;
-  return from === to ? `bar ${from + 1}` : `bars ${from + 1}-${to + 1}`;
+  return from === null ? null : { from, to };
+}
+
+// Those bars as the sheet numbers them: `5-8`, or `5` for one bar.
+function barNumbers({ from, to }) {
+  return from === to ? `${from + 1}` : `${from + 1}-${to + 1}`;
 }
 
 // Markdown link label: "<title> (start → end) bars 5-8 <note>", dropping

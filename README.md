@@ -216,13 +216,13 @@ works out to roughly 90 bars of four chords — a whole tune, with room to spare
 **chord-vamp ↗** at the end of the sheet toolbar opens the sheet in
 [chord-vamp](https://cortyuming.github.io/chord-vamp/), which plays a chord
 progression with a bass and a kit under it. The sheet stays here: what crosses
-over is the bars as chord names, where each one starts and ends, the key, and
-the video's title, all written into the link at the moment the button is
+over is the bars as chord names, where each one starts and ends, the key, the
+bars the loop covers, and the video's title, all written into the link at the moment the button is
 pressed. Nothing is stored for chord-vamp to find later and nothing is watched,
 so a sheet edited since gets across by pressing the button again.
 
 ```
-../chord-vamp/?v=<videoId>&k=<bars>&t=<times>&key=<key>&title=<video title>
+../chord-vamp/?v=<videoId>&k=<bars>&t=<times>&key=<key>&loop=<bars>&title=<video title>
 ```
 
 | Piece | Meaning |
@@ -230,6 +230,7 @@ so a sheet edited since gets across by pressing the button again.
 | `k` | The bars as chord-vamp writes them: `\|Bb7 . . . F7+5+9 . . .\|D7+9\|`. Fingerings, single notes, rests and ties are left behind — it plays chords |
 | `t` | One entry per bar, in step with `k`: `0.00-2.10,2.10-4.20`. The start alone where the end cannot be worked out, and empty for a bar nobody has timed. A bar deliberately left short of the next one keeps its own end |
 | `key` | The key as the sheet spells it — `Bb`, `F#m`. chord-vamp offers the same list of keys, so the name it is picked by here is the name it is picked by there, and a minor key stays minor: a semitone alone could not say C from Am. Absent where the sheet names none |
+| `loop` | The bars the loop covers, numbered as the sheet numbers them — `5-8`, or `5` for one bar — so chord-vamp loops the same passage. The bars that sound inside Start and End, the same ones the Markdown link's label names. Absent while the loop is off, or where no timed bar falls inside it |
 | `title` | What the video is called, so chord-vamp's header can say what it is showing |
 
 A bass move (`/Bb`) names no chord of its own, so it is written out against the
