@@ -1310,9 +1310,9 @@ Sheet.init({
 });
 // Called by name here the way they were when they lived in this file.
 const {
-  roundTo, barBeats, barBeatText, barOpensOnTie,
+  roundTo, barBeatText, barOpensOnTie,
   commitChordEdit, addBar, insertBar, barTimeBounds, setBarStart,
-  NO_DUR, restValue, noteStretch, noteStretchBeats, noteEntries, editingNote,
+  NO_DUR, restValue, noteStretch, noteStretchBeats, noteBarOver, noteEntries, editingNote,
   stopsFromOldChords, openNotePanel, endNoteWriting, insertAfterNote, pressStop,
   copyNote, addNoteRest, addNoteTie, heldStops, setNoteDur, toggleNoteDot,
   toggleNoteTriplet, noteCanTriplet, toggleNoteBeam, noteCanBeam,
@@ -1613,6 +1613,9 @@ function buildBarHead(i, bar, span) {
 // signature.
 function staffItems(bar, i, width, slot, weights, meterW = 0) {
   const wide = bar.chords.length > Chords.barBeats(bar);
+  // The beat each stretch starts on, for the beams and brackets the staff
+  // groups by the beat — see Chords.barLayout.
+  const { stretches } = Chords.barLayout(bar);
   let cellX = meterW;
   return bar.chords.map((chord, j) => {
     const at = wide
@@ -1635,8 +1638,8 @@ function staffItems(bar, i, width, slot, weights, meterW = 0) {
     // nothing at all on screen saying which stretch is being written into.
     const caret = here && !(chord.notes && chord.notes.length);
     return {
-      x: at, chord: j, name: chord.name, markers: chord.markers, notes: chord.notes,
-      sel, after, caret, gap,
+      x: at, beat: stretches[j].beat, chord: j, name: chord.name, markers: chord.markers,
+      notes: chord.notes, sel, after, caret, gap,
     };
   });
 }
@@ -3018,14 +3021,15 @@ function renderNotePanel() {
   Sheet.clampCaret(notes.length);
   const ev = editingNote();
   const beats = noteStretchBeats();
-  // A grace note takes no time from the bar, so it is not part of what is
-  // written into it. A note under a tuplet bracket takes the bracket's share of
-  // its written value — see eventDur — so the count here says what the bar hears.
-  const used = notes.reduce((a, n) => a + (n.grace ? 0 : Chords.eventDur(n)), 0);
+  // What the stretch's notes take from the bar, counted the one way the bar is
+  // counted everywhere — see Chords.noteBeats: a grace note takes nothing, a
+  // fingering written as a stop takes nothing, and a note under a tuplet
+  // bracket takes the bracket's share of its written value.
+  const used = Chords.noteBeats(notes).length;
 
   notePanel.hidden = false;
   notePanel.textContent = '';
-  notePanel.appendChild(notePanelHead(notes, ev, beats, used));
+  notePanel.appendChild(notePanelHead(notes, ev, beats, used, noteBarOver()));
 
   // Degrees are read against a chord. With no chord over these notes there is
   // nothing to read them against — every label would be counted from C, which
@@ -3124,7 +3128,7 @@ function noteHelpBox() {
 // strip — so there is no name box here. A box in the panel wrote a name nothing
 // on screen pointed at, and what it renamed was the whole stretch: naming one
 // stop renamed every chord in the bar.
-function notePanelHead(notes, ev, beats, used) {
+function notePanelHead(notes, ev, beats, used, over) {
   // Thirds of a beat do not add up to whole numbers in binary — three triplet
   // eighths come to 0.9999999999999999, and a bar split six ways gives a stretch
   // 0.6666666666666666 of a beat — so what is printed is rounded to where the ear
@@ -3149,8 +3153,10 @@ function notePanelHead(notes, ev, beats, used) {
   // What is written against what there is room for. Overrunning is allowed —
   // a phrase is often written before its bar's timing is right — but it is said
   // out loud, since the overrun is drawn past the bar and reads as a mistake in
-  // the sheet otherwise.
-  room.className = 'note-panel-room' + (used > beats + 1e-6 ? ' over' : '');
+  // the sheet otherwise. It is the bar that overruns, not the stretch: a
+  // stretch holds as long as its phrase, so the count here never exceeds the
+  // room beside it, and what is measured is whether the bar as a whole does.
+  room.className = 'note-panel-room' + (over ? ' over' : '');
   room.textContent = `${notes.length} note${notes.length === 1 ? '' : 's'}, `
     + `${beatsText(used)} beat${used === 1 ? '' : 's'} written`;
   head.append(what, mode, room);
