@@ -62,21 +62,6 @@ const Sheet = (() => {
     return Math.round(n * p) / p;
   }
 
-  // What a bar's phrase actually counts, over the whole of it rather
-  // than one stretch at a time — three eighth triplets under three
-  // chords are still one beat. Null where nothing is written: a bar
-  // of plain chords carries no rhythm to be right or wrong about.
-  function barBeats(bar) {
-    let beats = 0;
-    let any = false;
-    for (const chord of (bar && bar.chords) || []) {
-      if (!chord.notes || !chord.notes.length) continue;
-      any = true;
-      beats += Chords.noteBeats(chord.notes).length;
-    }
-    return any ? beats : null;
-  }
-
   // What the bar's head has to say about its count, and only where it does not
   // match the meter the bar is in. A bar that adds up is the ordinary case and
   // saying so on every bar of a sheet is noise; a bar that does not is the one
@@ -90,10 +75,9 @@ const Sheet = (() => {
   // played as written; short is a phrase still being written. Null where there
   // is nothing to say.
   function barBeatText(bar) {
-    // Two names a letter apart that mean opposite things, so both are read into
-    // a name that says which: the local barBeats counts the notes written, and
-    // Chords.barBeats is the length the meter gives the bar to write them in.
-    const written = barBeats(bar);
+    // Two readings of one bar: what is written into it, and the length the
+    // meter gives the bar to write it in.
+    const written = Chords.writtenBeats(bar);
     if (written === null) return null;
     const meter = Chords.barMeter(bar);
     const room = Chords.barBeats(bar);
@@ -334,18 +318,26 @@ const Sheet = (() => {
     return chord || null;
   }
 
-  // How many beats this chord holds — its share of the bar, the same split the
-  // cells above are laid out by. What the panel measures a phrase against.
+  // How many beats this stretch holds, by the one reading of the bar everything
+  // is drawn by — see Chords.barLayout. A stretch with a phrase in it holds as
+  // long as the phrase; one with only a name holds its share of what is left.
+  // Not the room the strip happens to draw it at: the width bends to fit the
+  // heads in (see Chords.barWeights), and a panel reporting 1.196 beats of room
+  // was measuring the drawing rather than the music.
   function noteStretchBeats() {
     const bar = notePanelAt && cache().bars[notePanelAt.bar];
     if (!bar) return Chords.BEATS_PER_BAR;
-    // The bar's own beats, split the way a written bar is read
-    // — not the room the strip happens to draw this stretch at. The
-    // width bends to fit a phrase in (see Chords.barWeights); the
-    // beat it falls on does not, and a panel reporting 1.196 beats
-    // of room was measuring the drawing rather than the music.
-    const weights = Chords.beatWeights(bar.chords.length, Chords.barBeats(bar));
-    return weights[notePanelAt.chord] || weights[weights.length - 1];
+    const { stretches } = Chords.barLayout(bar);
+    const s = stretches[notePanelAt.chord] || stretches[stretches.length - 1];
+    return s ? s.length : Chords.barBeats(bar);
+  }
+
+  // Whether the bar the panel is open on holds more than it has room for — the
+  // bar as a whole, since a phrase is measured against the bar and not against
+  // the share a stretch would have had without it.
+  function noteBarOver() {
+    const bar = notePanelAt && cache().bars[notePanelAt.bar];
+    return !!bar && Chords.barLayout(bar).over;
   }
 
   function noteEntries() {
@@ -1299,7 +1291,7 @@ const Sheet = (() => {
   return {
     init,
     // bars
-    roundTo, barBeats, barBeatText, barOpensOnTie,
+    roundTo, barBeatText, barOpensOnTie,
     commitChordEdit, addBar, insertBar, barTimeBounds, setBarStart, setBarMeter,
     // ♪ — where the caret is, and what the board is set to. The page reads
     // these while it draws; every way of changing one is a call above.
@@ -1315,7 +1307,7 @@ const Sheet = (() => {
     clearCaret, clampCaret,
     // The ♪ edits the page and the checker reach for. Everything
     // else in this section is one of these calling another.
-    noteStretch, noteStretchBeats, noteEntries, editingNote,
+    noteStretch, noteStretchBeats, noteBarOver, noteEntries, editingNote,
     stopsFromOldChords, openNotePanel, endNoteWriting, insertAfterNote,
     pressStop, copyNote, addNoteRest, addNoteTie, heldStops, setNoteDur,
     toggleNoteDot, toggleNoteTriplet, noteCanTriplet, toggleNoteBeam,

@@ -72,13 +72,16 @@ length of the one before it. **📍 Time** drops the current playback position i
 at the caret, which is the fiddly part to type while something is playing.
 
 Notes belong to the chord written in front of them, and where each one falls
-comes from the durations before it rather than from a position of its own. A bar
-is four beats, so a chord's stretch is its share of them — one of two chords in
-a bar holds two beats — and a phrase written longer than that overruns the bar,
-which the panel says out loud and the staff draws past the bar line. A phrase
-with no chord over it is written on its own; the sheet then says what is played
-and nothing about the harmony, which is a perfectly ordinary thing to write
-down.
+comes from the durations before it rather than from a position of its own. A
+chord's stretch runs as long as the phrase written under it; a chord written as
+a name alone holds its share of the bar — one of two chords in a bar holds two
+beats — as far as the phrases around it leave room, so a name after six eighths
+holds the beat that is left. That one reading of the bar is what the strip
+draws, what the ♪ panel reports as room, and where chord-vamp is handed each
+chord. A bar whose phrases add up to more than it holds overruns, which the
+panel says out loud and the staff draws past the bar line. A phrase with no
+chord over it is written on its own; the sheet then says what is played and
+nothing about the harmony, which is a perfectly ordinary thing to write down.
 
 Within a bar the four beats split the way chord-vamp splits them — 2 chords into
 2+2, 3 into 2+1+1 — so a bar written in either app reads the same.
@@ -267,7 +270,10 @@ is placed on the slot nearest to it.
 A bar of chord names with no phrase under them says nothing about where in the
 bar they fall — a name written on its own takes no time — so those bars cross as
 they always did, named in order, and chord-vamp splits the bar evenly between
-them. That is how a lead sheet has always been read.
+them. That is how a lead sheet has always been read. A bar holding both a phrase
+and a name alone crosses the way the strip draws it: the phrase takes its own
+length and the name holds its share of what is left. Where that lands the names
+exactly where the even split would have, the names alone are sent.
 
 The button is disabled until the sheet has a chord in it. The tab it opens is
 named, so a second press lands in the tab the first one opened rather than

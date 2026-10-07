@@ -1294,6 +1294,68 @@ const Chords = (() => {
     return Array(n).fill(beats / n);
   }
 
+  // What a bar's phrase counts, over the whole of it rather than one stretch at
+  // a time — three eighth triplets under three chords are still one beat. Null
+  // where nothing is written: a bar of plain chords carries no rhythm to be
+  // right or wrong about. A fingering written as a stop takes no time — see
+  // markFreeNotes — and nor does a grace note, so neither is counted here.
+  function writtenBeats(bar) {
+    let beats = 0;
+    let any = false;
+    for (const chord of (bar && bar.chords) || []) {
+      if (!chord.notes || !chord.notes.length) continue;
+      any = true;
+      beats += noteBeats(chord.notes).length;
+    }
+    return any ? beats : null;
+  }
+
+  // Where each stretch of a bar begins and how long it runs, in quarters. This
+  // is the one reading of a bar's time that everything else is drawn, counted,
+  // played and handed over by: the room the panel reports, the slot a stretch
+  // takes on the strip, the beat a beam is cut at, the moment a chord sounds,
+  // and the eighth chord-vamp is handed it on. Four places once read the bar
+  // four ways — the panel by an even split, the strip by pixels, the beams by
+  // the notes so far, chord-vamp by its own walk — and a bar that was whole by
+  // one reading was over by another.
+  //
+  // A stretch with a phrase under it runs as long as the phrase: a chord written
+  // on the third beat is played on the third beat. A stretch written as a name
+  // alone says nothing about its length, and is read the way a lead sheet is
+  // read — the share beatWeights gives it, three chords in four falling 2+1+1 —
+  // as far as the phrases leave it room: a name after six eighths holds the
+  // beat that is left, not two. A bar of nothing but names, which is most of a
+  // sheet, is that split exactly. A bar whose phrases ask for more than it
+  // holds is over: allowed, since a phrase is often written before its bar's
+  // timing is right, but said so, and the names in it have no room left. A bar
+  // whose phrases ask for less is short — a phrase still being written — and
+  // the names in it keep their share rather than swelling to fill it.
+  function barLayout(bar) {
+    const chords = (bar && bar.chords) || [];
+    const beats = barBeats(bar);
+    const written = chords.map(c => noteBeats(c.notes).length);
+    const shares = beatWeights(chords.length, beats);
+    const taken = written.reduce((a, b) => a + b, 0);
+    const names = written.filter(w => w <= 0).length;
+    const any = written.some(w => w > 0);
+    const left = Math.max(0, beats - taken) / names;
+    const lengths = written.map((w, j) => {
+      if (!any) return shares[j];
+      return w > 0 ? w : Math.min(shares[j], left);
+    });
+    let at = 0;
+    const stretches = lengths.map((length, j) => {
+      const s = { beat: at, length, written: written[j] };
+      at += length;
+      return s;
+    });
+    return {
+      beats, stretches, total: at,
+      written: any ? written.reduce((a, b) => a + b, 0) : null,
+      over: at > beats + 1e-9,
+    };
+  }
+
   // The same split as widths, in slots of one diagram. A bar is one slot per
   // beat whatever it holds, so the sheet moves at one speed and a bar of 2/4 is
   // half the width of the 4/4 around it. Past one chord a beat there is nothing
@@ -1304,14 +1366,16 @@ const Chords = (() => {
     return Array(n).fill(1);
   }
 
-  // How a bar's slots actually fall to its stretches. The even split above is
-  // the ground, and a bar of plain chords keeps it exactly — which is most bars,
-  // since most of a sheet is chords with no phrase written under them.
-  // A stretch that does have a phrase in it needs room for that phrase. Where
-  // its even share is not enough, the shortfall is taken from the stretches with
-  // room to spare: those are drawing a single grip in space meant for a run, and
-  // giving that space up costs them nothing. So the bar keeps its width and its
-  // place in the row, and only what is inside it moves.
+  // How a bar's slots actually fall to its stretches. The beats barLayout gives
+  // them are the ground — one slot to the beat, so a stretch stands where its
+  // music falls — and a bar of plain chords keeps the even split exactly, which
+  // is most bars, since most of a sheet is chords with no phrase written under
+  // them. A stretch that does have a phrase in it needs room for the heads of
+  // that phrase on top of its beats. Where its beats are not enough, the
+  // shortfall is taken from the stretches with room to spare: those are drawing
+  // a single grip in space meant for a run, and giving that space up costs them
+  // nothing. So the bar keeps its width and its place in the row, and only what
+  // is inside it moves.
   // Where the bar is asked for more than it holds — a phrase written before its
   // timing is right, which is ordinary — every stretch gives up the same
   // proportion instead of the tightest one squeezing the whole bar to its own
@@ -1321,7 +1385,12 @@ const Chords = (() => {
   // only a share of a slot once there is a slot to measure it against.
   function barWeights(bar, slot) {
     const chords = (bar && bar.chords) || [];
-    const base = slotWeights(chords.length, barBeats(bar));
+    // Past one chord a beat there is nothing left to divide — see slotWeights —
+    // so those bars keep a slot a stretch and run wide.
+    const beats = barBeats(bar);
+    const base = chords.length > beats
+      ? Array(chords.length).fill(1)
+      : barLayout(bar).stretches.map(s => s.length);
     if (!chords.length || !slot) return base;
     // What each stretch is asking for, in slots. Nothing written asks for
     // nothing — its even share is already the right answer for a lone grip.
@@ -1345,9 +1414,11 @@ const Chords = (() => {
     }
     // More written than the bar can hold however it is divided. Every stretch
     // then gives up the same proportion. A stretch with nothing written still
-    // has to be drawn, so it asks for its even share rather than for nothing.
-    const total = base.reduce((a, b) => a + b, 0);
-    const asked = need.map((x, i) => (x > 0 ? x : base[i]));
+    // has to be drawn, so it asks for its beats — or for one slot, where the
+    // phrases have left it none — rather than for nothing. The bar itself keeps
+    // its width: one slot to the beat, whatever was written into it.
+    const total = Math.max(beats, chords.length);
+    const asked = need.map((x, i) => (x > 0 ? x : (base[i] > 0 ? base[i] : 1)));
     const sum = asked.reduce((a, b) => a + b, 0);
     return asked.map(x => (x / sum) * total);
   }
@@ -1356,16 +1427,13 @@ const Chords = (() => {
   function chordTimes(bar, span) {
     if (!span || span.start === null) return bar.chords.map(() => null);
     if (span.end === null) return bar.chords.map((_, i) => (i === 0 ? span.start : null));
-    const weights = beatWeights(bar.chords.length, barBeats(bar));
-    const total = weights.reduce((a, b) => a + b, 0);
+    // The bar's seconds spread over its beats — or over everything written in
+    // it, where that is more, so an overrunning phrase still ends inside the bar
+    // rather than after the next one has begun.
+    const layout = barLayout(bar);
+    const total = Math.max(layout.beats, layout.total);
     const length = span.end - span.start;
-    const times = [];
-    let acc = 0;
-    for (const w of weights) {
-      times.push(span.start + (acc / total) * length);
-      acc += w;
-    }
-    return times;
+    return layout.stretches.map(s => span.start + (s.beat / total) * length);
   }
 
   function markersToText(markers) {
@@ -2418,12 +2486,12 @@ const Chords = (() => {
     // waits here when its final note asks to be joined; the next stretch carries
     // on drawing it.
     let pending = null;
-    // Where in the bar each stretch starts, counted in beats of the music rather
-    // than read back off the pixels. A bar holding more than it has room for is
-    // drawn narrower than it counts — see barWeights — and then x / beat is not
-    // the beat the stretch begins on. Beams and triplets are grouped by the beat,
-    // so they have to be told the beat the music is on.
-    let barBeat = 0;
+    // Where in the bar each stretch starts is counted in beats of the music
+    // rather than read back off the pixels: a bar holding more than it has room
+    // for is drawn narrower than it counts — see barWeights — and then x / beat
+    // is not the beat the stretch begins on. Beams and triplets are grouped by
+    // the beat, so each item carries the beat it starts on, read off barLayout
+    // by whoever laid the bar out.
     // What has been altered where, as the bar is read from left to right. An
     // accidental holds to the end of the bar — see barSign — so this is the one
     // thing on a staff that cannot be worked out a note at a time.
@@ -2491,9 +2559,8 @@ const Chords = (() => {
       // one beat of the bar. Left to the beats a group stays inside one stretch,
       // since a beam is read as one gesture and two chords are not. A beam asked
       // for by hand is that gesture said out loud, so it crosses the cell edge.
-      const { items: placed, length: spans } = noteBeats(item.notes);
-      const from = barBeat;
-      barBeat += spans;
+      const { items: placed } = noteBeats(item.notes);
+      const from = item.beat || 0;
       // Room held open after one note, for what is about to be written between it
       // and the next — see putNote. The notes after it move over to make it.
       const gapAt = item.gap === undefined ? null : item.gap;
@@ -3374,21 +3441,22 @@ const Chords = (() => {
   // evenly over its eighth-note slots, so a bar of eight slots is handed eight
   // tokens — five would be spread 1.6 slots apart and land somewhere else.
   //
-  // Only a bar whose every stretch has a phrase under it knows those beats: a
-  // stretch written as a name and nothing else takes no time, so a bar of plain
-  // chords would pile all of them onto the first slot. Those cross as they
-  // always did — named in order, split evenly over there — which is how a lead
-  // sheet has always been read anyway.
+  // Where a stretch falls is barLayout's reading, the same one the strip and
+  // the panel are drawn by: a phrase takes its own length, and names written
+  // alone share what the phrases leave. A bar with no phrase in it at all says
+  // nothing about where its names fall — a name alone takes no time — so those
+  // cross as they always did, named in order and split evenly over there, which
+  // is how a lead sheet has always been read anyway.
   function vampBar(bars, index) {
     const bar = bars[index] || {};
     const chords = bar.chords || [];
     const slots = Math.max(1, Math.round(barBeats(bar) * 2));
-    const timed = chords.length > 0 && chords.every(c => (c.notes || []).length > 0);
+    const layout = barLayout(bar);
+    const timed = layout.written !== null;
     const walk = rulingWalk(rulingBefore(bars, index));
     const at = new Array(slots).fill(null);
     const order = [];
     let sounding = false;
-    let beat = 0;
 
     const put = (when, written) => {
       if (!written) return;
@@ -3404,15 +3472,14 @@ const Chords = (() => {
       at[slot] = name;
     };
 
-    for (const chord of chords) {
+    chords.forEach((chord, j) => {
+      const { beat } = layout.stretches[j];
       put(beat, String(chord.name || '').trim());
-      const { items, length } = noteBeats(chord.notes);
-      for (const p of items) {
+      for (const p of noteBeats(chord.notes).items) {
         sounding = true;
         put(beat + p.beat, String((p.ev && p.ev.name) || '').trim());
       }
-      beat += length;
-    }
+    });
     if (!timed) return order;
 
     const held = rulingBefore(bars, index);
@@ -3435,7 +3502,35 @@ const Chords = (() => {
     // One chord over the whole bar is written once. chord-vamp lays a lone
     // token over every slot of its bar, so the short form and the long one are
     // the same bar — and the short one is what a sheet is read as.
-    return out.slice(1).every(token => token === '.') ? [out[0]] : out;
+    if (out.slice(1).every(token => token === '.')) return [out[0]];
+    // The same for a bar whose names fall where a lead sheet would put them —
+    // a phrase under the second of two chords still starts it on the third
+    // beat — so the names alone are the shorter way of writing the same bar,
+    // and the one a sheet is read as.
+    const plain = plainVampBar(chords, slots, held);
+    return plain && plain.tokens.every((token, i) => token === at[i]) ? plain.names : out;
+  }
+
+  // The bar's stretch names laid over the slots the way chord-vamp lays names
+  // alone — by beatWeights — with the harmony carried in at the head. Null where
+  // a stretch has no name, or a note carries one: a name on a note is a chord
+  // change the names alone would not say.
+  function plainVampBar(chords, slots, held) {
+    if (!chords.length) return null;
+    if (chords.some(c => (c.notes || []).some(ev => ev.name))) return null;
+    const names = chords.map(c => {
+      const written = String(c.name || '').trim();
+      return isBassOnly(written) ? (held ? held + written : written) : written;
+    });
+    if (names.some(name => !name)) return null;
+    const weights = beatWeights(chords.length, slots / 2);
+    const tokens = new Array(slots).fill(null);
+    let beat = 0;
+    names.forEach((name, j) => {
+      tokens[Math.min(Math.round(beat * 2), slots - 1)] = name;
+      beat += weights[j];
+    });
+    return { names, tokens };
   }
 
   function vampChart(text) {
@@ -3469,7 +3564,8 @@ const Chords = (() => {
 
   return {
     parseTime,
-    parseSheet, resolveSpans, chordTimes, slotWeights, barWeights, toCompact, viewerUrl, diagram, fretWindows,
+    parseSheet, resolveSpans, chordTimes, slotWeights, barWeights, barLayout, writtenBeats,
+    toCompact, viewerUrl, diagram, fretWindows,
     vampChart,
     readChord, readMarkers, markersToText, parseKey, parseKeyName, withKey, displayName,
     romanNumeral,

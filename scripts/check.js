@@ -186,7 +186,11 @@ function open(sheet) {
     gap: () => Sheet.insertAfterNote(),
     done: () => Sheet.endNoteWriting(),
     addBar: at => { state.now = at === undefined ? state.now : at; Sheet.addBar(); },
-    beats: at => Sheet.barBeats(state.chordCache.bars[at || 0]),
+    beats: at => Chords.writtenBeats(state.chordCache.bars[at || 0]),
+    // The room the panel reports for the stretch it is open on, and whether it
+    // says the bar is over.
+    room: () => Sheet.noteStretchBeats(),
+    over: () => Sheet.noteBarOver(),
     // What the bar's head shows, as the text and the state it is shown in.
     beatLabel: at => {
       const count = Sheet.barBeatText(state.chordCache.bars[at || 0]);
@@ -239,7 +243,7 @@ function sheetText(bars, key) {
 // One bar of that text, without the `@time` the case is not about.
 const textOf = (bars, at) => (sheetText(bars).split('\n')[at] || '')
   .replace(/^@[\d.]+(-[\d.]+)? /, '');
-const beatsOf = bar => Chords.noteBeats(notesOf(bar)).length;
+const beatsOf = bar => Chords.writtenBeats(bar) || 0;
 // Where a note is in the bar, as the pair the panel holds. Cases are written
 // against playing order — the row a reader counts along — rather than against
 // the stretch a note happens to have been typed into.
@@ -270,13 +274,14 @@ function draw(sheet, mode) {
     // the bar that changes meter — renderChordStrip sizes a bar the same way.
     const meterW = Chords.meterWidth(bar);
     const width = Chords.barBeats(bar) * SLOT + meterW;
+    const { stretches } = Chords.barLayout(bar);
     let x = meterW;
     const items = bar.chords.map((chord, j) => {
       const at = x;
       x += weights[j] * SLOT;
       return {
-        x: at, chord: j, name: chord.name, markers: chord.markers, notes: chord.notes,
-        sel: null, after: null, caret: false, gap: null,
+        x: at, beat: stretches[j].beat, chord: j, name: chord.name, markers: chord.markers,
+        notes: chord.notes, sel: null, after: null, caret: false, gap: null,
       };
     });
     // What the bar carried in: the harmony named before it, which a bass move on
@@ -327,6 +332,11 @@ const DRAWN = {
     '@0 Bb7 2/11+3/7+4/6_:4. 4/8:8 2/4+3/5 2/6+3/7:8t 3/6+4/7 3/6+4/7',
   // Six in a row are two triplets, not one bracket over the lot.
   'six-triplets-are-two': '@0 Cm7 1/8:4 1/8:8t 1/10 1/12 1/8 1/10 1/12',
+  // A name alone between two phrases: the two eighths under G7 start on the
+  // beat the layout gives them — F7 holds its beat — and are beamed as the pair
+  // they are. Counted from the notes before them alone they began on the second
+  // beat, one over the name, and were flagged apart.
+  'beam-after-a-name-alone': '@0 C7 1/8:8 1/10 F7 G7 1/8:8 1/10',
   // A run of triplets begun off the beat: the beam follows the triplet, and the
   // bracket and the beam say the same three notes.
   'triplets-across-the-beat': '@0 Cm7 1/8:8 1/8:8t 1/10 1/12 1/8 1/10 1/12',
@@ -1682,6 +1692,20 @@ const TIMES = [
   { name: 'コードの時刻: 3つなら 2+1+1 で割る',
     got: () => Chords.chordTimes(Chords.parseSheet('@0-4 C7 F7 G7')[0], { start: 0, end: 4 }),
     want: [0, 2, 3] },
+  // A phrase takes its own length: six eighths and a name is the name on the
+  // fourth beat.
+  { name: 'コードの時刻: フレーズのあとの名前はその続きから',
+    got: () => Chords.chordTimes(Chords.parseSheet('@0-4 C7 1/8:8 1/10 1/12 1/14 1/8 1/10 F7')[0],
+      { start: 0, end: 4 }),
+    want: [0, 3] },
+  { name: '小節の読み: フレーズの長さと名前の取り分',
+    got: () => Chords.barLayout(Chords.parseSheet('@0 C7 1/8:8 1/10 F7 G7 1/12:4 1/14')[0])
+      .stretches.map(s => [s.beat, s.length]),
+    want: [[0, 1], [1, 1], [2, 2]] },
+  { name: '小節の読み: 運指だけの小節は名前だけの小節と同じ',
+    got: () => Chords.barLayout(Chords.parseSheet('@0 C7 1/1+2/1:0 F7 1/3+2/3:0')[0])
+      .stretches.map(s => [s.beat, s.length]),
+    want: [[0, 2], [2, 2]] },
   { name: 'コードの時刻: 2つなら半分ずつ',
     got: () => Chords.chordTimes(Chords.parseSheet('@0-4 C7 F7')[0], { start: 0, end: 4 }),
     want: [0, 2] },
@@ -1865,6 +1889,43 @@ const TIMES = [
   // not a note — see markFreeNotes — so the lengths are written out here.
   { name: '拍数: 区間をまたいで数える',
     got: () => open('@0 Cm7 1/5:8t F7 1/7:8t G7 1/9:8t').api.beats(), want: 1 },
+  // ---------- the room the panel reports ----------
+  // One reading of the bar for the panel, the strip and chord-vamp alike — see
+  // Chords.barLayout. The bar below is whole: four stretches of a half, one and
+  // a half, a half and one and a half, which an even split read as two of them
+  // over.
+  { name: 'パネルの部屋: フレーズのある区間はその長さ',
+    got: () => {
+      const { api } = open('@0 C13 1/10+2/10+3/9+4/8:8- C13 1/11+2/10+3/9+4/8:8- 1/9+2/10+3/9+4/8 '
+        + '1/10+2/10+3/9+4/8 Db13 2/11+3/8+4/9+5/8:8 C9 2/8+3/7+4/8+5/7:4 r:8');
+      api.at(0, 1);
+      return [api.room(), api.over()];
+    },
+    want: [1.5, false] },
+  { name: 'パネルの部屋: 名前だけの区間は残りを持つ',
+    got: () => {
+      const { api } = open('@0 C7 1/8:8 1/10 1/12 1/14 1/8 1/10 F7');
+      api.at(0, 1);
+      return [api.room(), api.over()];
+    },
+    want: [1, false] },
+  { name: 'パネルの部屋: 名前だけの区間は均等割りより広がらない',
+    got: () => {
+      const { api } = open('@0 Bb7:1.1.1.0.. Eb9 1/8:8 1/10');
+      api.at(0, 0);
+      return api.room();
+    },
+    want: 2 },
+  { name: 'パネルの部屋: 小節が溢れたときだけ赤',
+    got: () => {
+      const { api } = open('@0 C7 1/8:8 1/10 1/12 1/14 1/8 1/10 1/12 1/14 1/8 1/10 F7');
+      api.at(0, 1);
+      return [api.room(), api.over()];
+    },
+    want: [0, true] },
+  { name: 'パネルの部屋: 名前だけの小節は 2+1+1',
+    got: () => { const { api } = open('@0 C7 F7 G7'); api.at(0, 0); return api.room(); },
+    want: 2 },
   // ---------- the sheet as chord-vamp reads it ----------
   // chord-vamp plays chords and nothing else, so what crosses over is the chord
   // names and where each bar falls. Every phrase below was written in the
@@ -1873,6 +1934,20 @@ const TIMES = [
   { name: 'chord-vamp: 単音もフレットも落ちてコード名だけ残る',
     got: () => Chords.vampChart('@0 Bb7:1.1.1.0.. Eb9 1/8:8 1/10|@2 D7+9').text,
     want: '|Bb7 Eb9|D7+9|' },
+  // Where a name falls is barLayout's reading, the same one the strip draws:
+  // six eighths and a name is the name on the fourth beat, and two short
+  // phrases are two chords a beat apart, not a bar split in half.
+  { name: 'chord-vamp: フレーズのあとの名前はその続きの拍に',
+    got: () => Chords.vampChart('@0 C7 1/8:8 1/10 1/12 1/14 1/8 1/10 F7').text,
+    want: '|C7 . . . . . F7 .|' },
+  { name: 'chord-vamp: 短いフレーズが2つなら2拍目に',
+    got: () => Chords.vampChart('@0 C7 1/8:8 1/10 F7 1/12:8 1/14').text,
+    want: '|C7 . F7 . . . . .|' },
+  // A fingering written as a stop takes no time, so a bar of them is a bar of
+  // names and crosses as one.
+  { name: 'chord-vamp: 運指だけの小節は名前だけの小節',
+    got: () => Chords.vampChart('@0 C7 1/1+2/1:0 F7 1/3+2/3:0').text,
+    want: '|C7 F7|' },
   // `/Bb` names no chord, so on its own chord-vamp would read the bar as empty.
   { name: 'chord-vamp: ベース移動は効いているコードに付けて渡す',
     got: () => Chords.vampChart('@0 E7#9 6/0:8|@2-4 /Bb 6/6:8').text,
